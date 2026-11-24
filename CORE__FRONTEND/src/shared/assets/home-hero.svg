@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Construction site with a tower crane">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe0ff"/><stop offset="1" stop-color="#f4f7ff"/></linearGradient></defs>
+<rect width="640" height="420" fill="url(#sky)"/>
+<circle cx="520" cy="80" r="34" fill="#ffd27a"/>
+<g fill="#9db3dd"><rect x="40" y="210" width="70" height="170"/><rect x="120" y="170" width="60" height="210"/><rect x="460" y="190" width="80" height="190"/><rect x="550" y="240" width="60" height="140"/></g>
+<g fill="#062258"><rect x="250" y="120" width="12" height="260"/><rect x="236" y="104" width="40" height="16"/></g>
+<g stroke="#062258" stroke-width="6" fill="none"><path d="M150 104h300"/><path d="M256 104l60-60 60 60"/><path d="M390 104v70"/></g>
+<rect x="372" y="174" width="36" height="24" fill="#f59e0b"/>
+<rect x="290" y="300" width="130" height="80" fill="#c27d70"/>
+<g fill="#fff" opacity=".85"><rect x="304" y="314" width="22" height="22"/><rect x="338" y="314" width="22" height="22"/><rect x="372" y="314" width="22" height="22"/><rect x="304" y="346" width="22" height="22"/><rect x="338" y="346" width="22" height="22"/></g>
+<rect y="380" width="640" height="40" fill="#062258"/><rect y="376" width="640" height="6" fill="#f59e0b"/>
+</svg>

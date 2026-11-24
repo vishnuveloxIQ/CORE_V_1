@@ -1,0 +1,29 @@
+@import "tailwindcss";
+@import "./base.css" layer(base);
+@import "./components.css" layer(components);
+@import "./shell.css" layer(components);
+@import "./variant-classic.css" layer(components);
+@import "./core.css" layer(components);
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tailwind utilities resolve through the active variant's CSS variables,
+   so every colour, radius and shadow can be changed in one place (see styles/variant-classic.css). */
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--card-solid);
+  --color-surface-2: var(--card-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--navy);
+  --color-accent: var(--rose-d);
+  --color-primary: var(--blue);
+  --color-ok: var(--green);
+  --color-warn: var(--amber);
+  --color-bad: var(--red);
+  --font-sans: var(--font);
+  --font-display: var(--font-d);
+  --breakpoint-xs: 380px;
+}
