@@ -1,0 +1,63 @@
+{
+  "name": "velox-core-backend",
+  "version": "1.7.0",
+  "description": "VeloxIQ Core backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "ci": "npm run typecheck && npm run lint && vitest run --maxWorkers=4 && npm run build",
+    "test:regression": "npm run test:regression:api && npm run test:regression:masters && npm run test:regression:identity",
+    "test:regression:api": "vitest run tests/regression/api-v1-lock.test.ts tests/hardening/openapi.test.ts",
+    "test:regression:masters": "vitest run tests/regression/masters-contract.test.ts tests/masters tests/projects tests/organisation tests/equipment-units tests/stock-levels tests/offer-letter tests/relationships tests/permissions tests/db/shared-uom.test.ts tests/testing-pass/conflicts-and-ownership.test.ts --maxWorkers=4",
+    "test:regression:identity": "vitest run tests/regression/identity-contract.test.ts tests/auth tests/access tests/audit-log tests/testing-pass/auth-edges.test.ts tests/testing-pass/tenant-isolation.test.ts tests/testing-pass/idempotency-http.test.ts tests/core/password.test.ts tests/core/rate-limit.test.ts tests/hardening/shared-rate-limit.test.ts tests/hardening/cors.test.ts --maxWorkers=4",
+    "dev": "node --env-file-if-exists=.env --watch --import tsx src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "db:migrate": "node --env-file-if-exists=.env --import tsx src/db/cli.ts migrate",
+    "db:provision": "node --env-file-if-exists=.env --import tsx src/db/cli.ts provision",
+    "db:backup": "node --env-file-if-exists=.env --import tsx src/db/backup-cli.ts backup",
+    "db:restore": "node --env-file-if-exists=.env --import tsx src/db/backup-cli.ts restore",
+    "db:types": "node --env-file-if-exists=.env --import tsx scripts/db-types.ts",
+    "api:snapshot": "node --env-file-if-exists=.env --import tsx scripts/api-snapshot.ts",
+    "db:drill": "node --env-file-if-exists=.env --import tsx src/db/restore-drill-cli.ts",
+    "load:baseline": "node --env-file-if-exists=.env --import tsx scripts/load-baseline.ts",
+    "approvals:remind": "node --env-file-if-exists=.env --import tsx src/modules/approvals/reminders-cli.ts",
+    "access:grant": "node --env-file-if-exists=.env --import tsx src/modules/access/cli.ts",
+    "dev:seed-user": "node --env-file-if-exists=.env --import tsx src/db/dev-user-cli.ts",
+    "demo:load": "node scripts/load-demo-data.mjs",
+    "seed:frontend": "node --env-file-if-exists=.env --import tsx scripts/load-frontend-seed.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write src tests eslint.config.js tsconfig.json tsconfig.build.json package.json",
+    "format:check": "prettier --check src tests eslint.config.js tsconfig.json tsconfig.build.json package.json"
+  },
+  "keywords": [],
+  "type": "module",
+  "private": "true",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "14.0.3",
+    "express": "5.2.1",
+    "hash-wasm": "4.12.0",
+    "jose": "6.2.15",
+    "light-my-request": "6.8.1",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/express": "5.0.6",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "eslint": "10.15.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.10.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.73.0",
+    "vitest": "5.1.1"
+  }
+}

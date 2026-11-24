@@ -1,0 +1,50 @@
+# Core backend CI (CORE-17-07). Runs on every push and pull request once this folder is in a Git repository.
+# The same steps run locally with `npm run ci` (needs DATABASE_URL in .env.test).
+name: backend-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      # Ephemeral PostgreSQL: each test file creates and drops its own database in it.
+      # PostgreSQL 18 is the target version (decision D3, confirmed 2026-11-21): development, migrations and CI all run on it.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: velox_ci
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: velox_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U velox_ci" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://velox_ci:ci-only-password@localhost:5432/velox_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: PostgreSQL client tools (backup and restore drill tests)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -q && sudo apt-get install -yq postgresql-client-18
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Tests (unit, integration, regression, API v1 lock, restore drill)
+        run: npx vitest run --maxWorkers=4 --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
+      - run: npm run build
+      - name: Keep test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: test-results/
