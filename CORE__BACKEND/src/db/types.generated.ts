@@ -753,12 +753,14 @@ export interface CoreOtPolicyRuleRow {
 
 /** tenant_<id>.core_plan_line */
 export interface CorePlanLineRow {
+  capacity: string | null;
   created_at: Date;
   created_by: string | null;
   equipment_type_id: string | null;
   from_date: Date | null;
   id: string;
   material_id: string | null;
+  model: string | null;
   position_id: string | null;
   project_id: string;
   quantity: string | null;

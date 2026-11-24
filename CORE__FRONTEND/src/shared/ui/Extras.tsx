@@ -5,13 +5,20 @@ import { cn } from '@/shared/lib/cn'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { FormGroup, Input, Textarea } from './Field'
 import { titleCase } from '@/shared/lib/format'
+import { hasUnsaved, useUnsaved } from '@/shared/lib/unsaved'
 
 /** Pill tabs (uses the kit's .seg-tabs). */
 export function Tabs<T extends string>({ value, onChange, items, label }: { value: T; onChange: (v: T) => void; items: readonly T[] | { value: T; label: string }[]; label: string }) {
   const list = (items as readonly (T | { value: T; label: string })[]).map((i) => (typeof i === 'string' ? { value: i, label: i } : i))
+  const confirmLeave = useUnsaved((s) => s.confirmLeave)
+  // switching tab asks first when a form on the page has unsaved changes
+  const pick = (v: T) => {
+    if (v === value || !hasUnsaved()) return onChange(v)
+    void confirmLeave().then((leave) => { if (leave) onChange(v) })
+  }
   return (
     <div className="seg-tabs" role="group" aria-label={label} style={{ flexWrap: 'wrap', maxWidth: '100%' }}>
-      {list.map((i) => <button key={i.value} type="button" aria-pressed={value === i.value} onClick={() => onChange(i.value)}>{i.label}</button>)}
+      {list.map((i) => <button key={i.value} type="button" aria-pressed={value === i.value} onClick={() => pick(i.value)}>{i.label}</button>)}
     </div>
   )
 }

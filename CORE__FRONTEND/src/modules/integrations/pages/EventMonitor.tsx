@@ -20,6 +20,35 @@ const TONE: Record<EventState, 'pending' | 'approved' | 'rejected' | 'review' | 
 const STATUS_OPTIONS: Array<[EventStatusApi, string]> = [
   ['pending', 'Queued or retrying'], ['published', 'Sent'], ['received', 'Received'], ['processed', 'Processed'], ['dead_lettered', 'Dead-letter'],
 ]
+
+const MODULES: Record<string, string> = { core: 'CORE', hrms: 'HRMS', pm: 'P&M', pms: 'PMS', stores: 'Stores' }
+const moduleName = (m: string | null) => (m ? MODULES[m] ?? m.toUpperCase() : 'Unknown module')
+/** "employeeCode" or "stock_receipt" as plain words: "Employee code", "Stock receipt". */
+const words = (key: string) => {
+  const t = key.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim().toLowerCase()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+/** "employee.updated" as "Employee updated". */
+const eventTitle = (e: IntegrationEvent) => {
+  const [what, did] = e.eventType.split('.')
+  return `${words(what ?? e.eventType)}${did ? ` ${words(did).toLowerCase()}` : ''}`
+}
+/** One sentence that says what the event is and what happened to it. */
+const eventSentence = (e: IntegrationEvent, state: EventState) => {
+  const title = eventTitle(e)
+  if (e.direction === 'inbound') {
+    const from = moduleName(e.sourceModule)
+    if (state === 'Processed') return e.lastError?.startsWith('Stale') ? `${from} sent "${title}". CORE already held a newer version of this record, so nothing was changed.` : `${from} sent "${title}". CORE applied it to its copy of the record.`
+    if (state === 'Dead-letter') return `${from} sent "${title}", but CORE could not apply it and stopped trying. You can replay it once the cause is fixed.`
+    return `${from} sent "${title}". CORE has received it and will apply it to its copy of the record.`
+  }
+  if (state === 'Sent') return `CORE sent "${title}" to the other modules and it was delivered.`
+  if (state === 'Dead-letter') return `CORE could not deliver "${title}" and stopped trying. You can replay it once the cause is fixed.`
+  if (state === 'Retrying') return `CORE tried to send "${title}", it did not go through, and it will try again.`
+  return `"${title}" is waiting to be sent to the other modules. Nothing has been sent yet.`
+}
+/** A short plain reading of the error text the server stored. */
+const errorMeaning = (err: string) => err.startsWith('Stale') ? 'Ignored as out of date: CORE already holds this or a newer version of the record.' : err
 /** The exact time, in UTC, for a tooltip next to the local time. */
 const utc = (iso: string) => new Date(iso).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
 
@@ -29,7 +58,7 @@ const utc = (iso: string) => new Date(iso).toISOString().replace('T', ' ').slice
  * values are not shown, only their field names. A dead-lettered event can be replayed; the screen reports success only
  * after the server confirms it.
  */
-export default function EventMonitor() {
+export default function EventMonitor({ embedded = false }: { embedded?: boolean } = {}) {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'event-monitor')
   const [direction, setDirection] = useState<EventDirection | ''>('')
@@ -90,9 +119,14 @@ export default function EventMonitor() {
 
   return (
     <div ref={ref}>
-      <PageHead crumb="Event monitor" title="Event monitor"
-        desc="Events Core sends to and receives from the other modules: what is queued, sent, failing and dead-lettered."
-        actions={<Button tone="primary" icon="refresh" onClick={refresh} disabled={state === 'loading'}>Refresh</Button>} />
+      {embedded
+        ? <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 16px' }}>
+            <p className="helper" style={{ margin: 0 }}>Messages CORE sends to and receives from the other modules (HRMS, P&M, PMS and Stores): waiting, sent, received and failed.</p>
+            <Button tone="primary" icon="refresh" onClick={refresh} disabled={state === 'loading'}>Refresh</Button>
+          </div>
+        : <PageHead crumb="Data exchange log" title="Data exchange log"
+            desc="Messages CORE sends to and receives from the other modules: what is waiting, sent, received and failed."
+            actions={<Button tone="primary" icon="refresh" onClick={refresh} disabled={state === 'loading'}>Refresh</Button>} />}
       <div className="grid stats">
         <StatTile label="Waiting to send" value={count('pending', 'outbound')} icon="clock" tone="gold" />
         <StatTile label="Sent" value={count('published')} icon="checkc" tone="green" />
@@ -166,22 +200,30 @@ export default function EventMonitor() {
           <Button disabled={state === 'loading' || offset + PAGE >= total} onClick={() => { setState('loading'); setOffset(offset + PAGE) }}>Next</Button>
         </span>
       </div>
-      <Modal open={!!detail} onOpenChange={(o) => !o && setDetail(null)} title="Event details" description={detail?.eventType} size="wide">
-        {detail && <>
-          <div className="detail-grid detail-grid-4">
-            <KV k="State"><StatusBadge tone={TONE[integrationApi.eventState(detail)]}>{integrationApi.eventState(detail)}</StatusBadge></KV>
-            <KV k="Event ID"><code>{detail.eventId}</code></KV>
-            <KV k="Record"><strong>{detail.aggregateType}</strong> <code>{detail.aggregateId}</code></KV>
-            <KV k="Sequence"><strong>#{detail.aggregateSeq ?? '—'}</strong></KV>
-            <KV k="Created"><strong title={utc(detail.createdAt)}>{fmtDateTime(detail.createdAt)}</strong></KV>
-            <KV k={detail.direction === 'outbound' ? 'Sent' : 'Processed'}><strong>{(detail.publishedAt ?? detail.processedAt) ? fmtDateTime((detail.publishedAt ?? detail.processedAt)!) : 'Not yet'}</strong></KV>
-            <KV k="Correlation ID"><code>{detail.correlationId ?? '—'}</code></KV>
-            <KV k="Attempts"><strong>{detail.attempts}</strong></KV>
-            <KV k="Last error" full><strong>{detail.lastError ?? 'None'}</strong></KV>
-            <KV k="Payload fields" full><span>{detail.payloadKeys.length ? detail.payloadKeys.join(', ') : 'None'}</span> <span className="helper">Values are not shown here.</span></KV>
-          </div>
-          <div className="form-actions"><Button onClick={() => setDetail(null)}>Close</Button></div>
-        </>}
+      <Modal open={!!detail} onOpenChange={(o) => !o && setDetail(null)} title="Event details" description={detail ? eventTitle(detail) : undefined} size="wide">
+        {detail && (() => {
+          const state = integrationApi.eventState(detail)
+          const done = detail.publishedAt ?? detail.processedAt
+          return <>
+            <p style={{ marginTop: 0 }}>{eventSentence(detail, state)}</p>
+            <div className="detail-grid detail-grid-4">
+              <KV k="State"><StatusBadge tone={TONE[state]}>{state}</StatusBadge></KV>
+              <KV k="Direction"><strong>{detail.direction === 'outbound' ? 'Sent by CORE' : 'Received by CORE'}</strong></KV>
+              <KV k={detail.direction === 'outbound' ? 'Sent to' : 'Received from'}><strong>{detail.direction === 'outbound' ? 'Other modules' : moduleName(detail.sourceModule)}</strong></KV>
+              <KV k="Record type"><strong>{words(detail.aggregateType)}</strong></KV>
+              <KV k="Happened at"><strong title={detail.occurredAt ? utc(detail.occurredAt) : undefined}>{detail.occurredAt ? fmtDateTime(detail.occurredAt) : '—'}</strong></KV>
+              <KV k={detail.direction === 'outbound' ? 'Sent at' : 'Processed at'}><strong>{done ? fmtDateTime(done) : 'Not yet'}</strong></KV>
+              <KV k="Attempts"><strong>{detail.attempts}</strong></KV>
+              <KV k="Version of the record"><strong>{detail.aggregateSeq != null ? `Change no. ${detail.aggregateSeq}` : '—'}</strong></KV>
+              {detail.nextAttemptAt && state !== 'Dead-letter' && detail.status === 'pending' && <KV k="Next attempt"><strong>{fmtDateTime(detail.nextAttemptAt)}</strong></KV>}
+              {detail.deadLetteredAt && <KV k="Gave up at"><strong>{fmtDateTime(detail.deadLetteredAt)}</strong></KV>}
+              {detail.replayStatus && <KV k="Replay"><strong>{detail.replayStatus === 'requested' ? 'Requested, waiting' : 'Replayed'}</strong></KV>}
+              <KV k="Problem" full><strong>{detail.lastError ? errorMeaning(detail.lastError) : 'None'}</strong></KV>
+              <KV k="Data carried" full><span>{detail.payloadKeys.length ? detail.payloadKeys.map(words).join(', ') : 'None'}</span> <span className="helper">The values are kept private and are not shown here.</span></KV>
+            </div>
+            <div className="form-actions"><Button onClick={() => setDetail(null)}>Close</Button></div>
+          </>
+        })()}
       </Modal>
       <Modal open={!!replaying} onOpenChange={(o) => !o && !busy && setReplaying(null)} title="Replay this event?">
         {replaying && <>

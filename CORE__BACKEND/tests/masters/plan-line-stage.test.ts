@@ -68,7 +68,7 @@ describe.skipIf(!TEST_DATABASE_URL)('plan line stage (migration 0030)', { timeou
     }
     token = await signIn(app, TENANT, loginId);
 
-    const uom = await db.pool.query<{ id: string }>(
+    const uom = await db.owner.query<{ id: string }>(
       `INSERT INTO shared.uom (uom_code, uom_name) VALUES ($1, 'Fictional bag') RETURNING id`,
       [uniq('UOM')],
     );

@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef, useState } from "react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useFieldArray, useWatch } from 'react-hook-form';
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";

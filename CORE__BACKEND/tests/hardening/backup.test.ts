@@ -88,13 +88,13 @@ describe.skipIf(!TEST_DATABASE_URL || !hasTools)(
          VALUES ('beta-user', 'Beta Check', 'active', 'x', 0)`,
       );
       const file = join(dir, 'acme.dump');
-      await backupTenant(db.url, 'acme', file);
+      await backupTenant(db.ownerUrl, 'acme', file);
 
       await db.pool.query(`DELETE FROM tenant_acme.core_user WHERE login_id = 'backup-user'`);
       const gone = await db.pool.query(`SELECT count(*)::int AS n FROM tenant_acme.core_user`);
       expect(gone.rows[0]?.n).toBe(0);
 
-      await restoreTenant(db.url, 'acme', file, { replace: true });
+      await restoreTenant(db.ownerUrl, 'acme', file, { replace: true });
 
       const back = await db.pool.query<{ login_id: string }>(
         `SELECT login_id FROM tenant_acme.core_user ORDER BY login_id`,

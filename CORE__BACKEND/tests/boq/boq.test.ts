@@ -56,7 +56,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Bill of Quantities', { timeout: SLOW_TEST_M
     await seedUser(db.pool, 'tenant_acme', plainLogin);
     plain = await signIn(app, 'acme', plainLogin);
 
-    const uom = await db.pool.query<{ id: string }>(
+    const uom = await db.owner.query<{ id: string }>(
       `INSERT INTO shared.uom (uom_code, uom_name) VALUES ('CUM', 'Cubic metre') RETURNING id`,
     );
     uomId = uom.rows[0]!.id;

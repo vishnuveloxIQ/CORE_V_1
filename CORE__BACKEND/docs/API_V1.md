@@ -1,9 +1,9 @@
 # API v1: locked contract
 
-Locked on 2026-11-21 at version 1.0.0, covering the scope that exists today. Current version: **1.7.0** (see the changelog below).
+Locked on 2026-11-21 at version 1.0.0, covering the scope that exists today. Current version: **1.10.0** (see the changelog below).
 
-- **Contract:** `docs/api/openapi-v1.json`, 278 operations. 10 are public; every other operation needs a bearer token.
-- **SHA-256 of the snapshot:** 1.0.0 `74db7f9a16115bba32b1b14efdd68bdad976a19e00751722ebf10d55f906129f`; 1.1.0 `b61b613b9b0c6663f0c34470d39d17f570863a58c3454d8352030fb4a501891c`; 1.2.0 `2cfce5b5ef8d34dfa1737d8764fd4b79ab722a20074e1e534e78b9b347d867e9`; 1.3.0 `2bd0dad04d96d1aec08821819a5c2026ef6c07b67f64291fb4b9388ef52963fb`; 1.4.0 `e0a7e20f6d079955f4a37a07e233ab8e3ca08a3b827a77f026154200e562ee8a`; 1.5.0 `f3291c2ba96661f9a3858d194039299afea24e2fc732b8dab17821774b6360b0`; 1.6.0 `61ab4dbe43647be6b35f987f3422c06b8eeb06be23c105194d89c42405e7e35d`; 1.7.0 `65f405e8dff07bcc84da01577a53ffc8340750d85b70b3653964574b36db1f15`
+- **Contract:** `docs/api/openapi-v1.json`, 279 operations. 10 are public; every other operation needs a bearer token.
+- **SHA-256 of the snapshot:** 1.0.0 `74db7f9a16115bba32b1b14efdd68bdad976a19e00751722ebf10d55f906129f`; 1.1.0 `b61b613b9b0c6663f0c34470d39d17f570863a58c3454d8352030fb4a501891c`; 1.2.0 `2cfce5b5ef8d34dfa1737d8764fd4b79ab722a20074e1e534e78b9b347d867e9`; 1.3.0 `2bd0dad04d96d1aec08821819a5c2026ef6c07b67f64291fb4b9388ef52963fb`; 1.4.0 `e0a7e20f6d079955f4a37a07e233ab8e3ca08a3b827a77f026154200e562ee8a`; 1.5.0 `f3291c2ba96661f9a3858d194039299afea24e2fc732b8dab17821774b6360b0`; 1.6.0 `61ab4dbe43647be6b35f987f3422c06b8eeb06be23c105194d89c42405e7e35d`; 1.7.0 `65f405e8dff07bcc84da01577a53ffc8340750d85b70b3653964574b36db1f15`; 1.8.0 `076d52104b09255f1f1ccb57590379883f53548ee9cf4b1e421ff4474d438d5f`; 1.9.0 `cda1a3a93f5c47f559fa67aa82f19672c30cc877dc1799f7c8402b4a01b7ca66`; 1.10.0 `b52b3772d0c425091bf56144fb5a03eb403295c8cdc48992f1031cdafd0419e2`
 - **Guard:** `tests/regression/api-v1-lock.test.ts`, run by `npm run test:regression:api` and `npm run test:regression`.
 
 The lock covers each operation's method and path, parameters, request body schema, idempotency header, security (public or bearer) and documented responses. Summaries and descriptions are wording only, so they can change freely.
@@ -12,7 +12,7 @@ The lock covers each operation's method and path, parameters, request body schem
 
 | Area | Operations |
 |---|---|
-| Identity: `auth`, `users`, `access`, `audit-log` | 32 |
+| Identity: `auth`, `users`, `access`, `audit-log` | 33 |
 | Projects and locations: `projects`, `locations`, `stores`, `wbs-nodes`, `chainage-markers`, `geo-zones`, `milestones`, `boq-items` | 37 |
 | Master data: `vendors`, `materials`, `equipment-types`, `equipment-units`, `equipment-assignments`, `major-material-allocations`, `plan-lines`, `stock-levels`, `uoms`, `maintenance-schedules` | 41 |
 | Organisation: company profile, holidays, shifts, number series, departments, positions; `offer-letter` | 28 |
@@ -21,7 +21,7 @@ The lock covers each operation's method and path, parameters, request body schem
 | Records: `files`, `grievances`, `tickets`, `notifications`, `document-templates`, `import-batches`, `import-rows`, `record-timeline`, `usage-counters` | 38 |
 | Platform: `health`, `openapi.json`, `offline-operations`, `search` | 5 |
 | Integration: `integration-events`, `ref-records` | 7 |
-| **Total** | **278** |
+| **Total** | **279** |
 
 The snapshot file is the authority. This table is a summary of it by area.
 
@@ -50,6 +50,27 @@ npm run api:snapshot
 This builds the app with the database pool from `.env`, so every module route registers, and writes `docs/api/openapi-v1.json` with sorted keys, so the file diffs cleanly. Then run `npm run test:regression:api`.
 
 ## Changelog
+
+### 1.10.0 (2026-11-24)
+
+Compared with 1.9.0: nothing removed or changed; one operation and one optional filter added, and one response field added.
+
+- **Added (access.manage):** `POST /audit-log/external`, for the other modules to send entries from their own audit trails (a sign-in in HRMS, a request raised in PMS). The body is `sourceModule` (`hrms`, `pm`, `pms` or `stores`), `action` (for example `signed_in`), `entityType` (for example `leave_request`), optional `recordRef`, `actorName`, optional `actorLogin`, `summary` (the sentence a reader sees), `occurredAt`, optional `correlationId` (the sending module's own, so one action can be followed across systems; CORE's request id is used when it is absent) and optional `details`. It answers 201 with `{ id, module }`. CORE stores the entry in the same append-only, hash-linked chain as its own entries, so the audit trail shows every module's activity in one place. The person named is not a CORE user, so the name and login are kept inside the entry.
+- **Added, optional:** `module` filter on `GET /audit-log` (`core`, `hrms`, `pm`, `pms`, `stores`). The `actor` filter also matches the name or login carried inside another module's entry.
+- **Sign-ins of other modules:** an entry sent with `entityType` `session` is also listed by `GET /audit-log/auth-events`. Its `action` `signed_in`, `signed_out` or `login_failed` is read as `login_success`, `logout` or `login_failure`. That route gains an optional `module` filter and a `module` field on each event.
+- **Added to the response:** `module` on each audit entry (`GET /audit-log`, `GET /audit-log/{id}`). Entries from other modules show their own action, entity, person and time, with the summary and details in `after`.
+
+### 1.9.0 (2026-11-24)
+
+Compared with 1.8.0: nothing removed or changed; the new fields are optional.
+
+- **Added, optional:** `capacity` (text up to 100 characters, a description such as `30-ton (300)` or `10-wheel`) and `model` (text up to 100 characters) on plan lines (`POST /plan-lines`, `PATCH /plan-lines/{id}`) and in their responses. They say what capacity and model an equipment line needs (migrations 0041 and 0042). There is no unit field.
+
+### 1.8.0 (2026-11-24)
+
+Compared with 1.7.0: nothing removed or added. One request limit removed.
+
+- **Changed, looser:** `points` on the geo-fence zone request (`POST /geo-zones`, `PATCH /geo-zones/{id}`) no longer has a maximum of 1000 points. A zone can have any number of points.
 
 ### 1.7.0 (2026-11-23)
 

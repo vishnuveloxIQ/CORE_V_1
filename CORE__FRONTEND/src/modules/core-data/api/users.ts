@@ -41,6 +41,10 @@ export async function listUsers(q: UserQuery = {}): Promise<UserPage> {
 /** GET /users/:id */
 export const getUser = (id: string) => api<UserRecord>('GET', `/users/${encodeURIComponent(id)}`)
 
+/** The screens name the modules as in MODULES; the API takes its own lower-case codes (access.schema USER_MODULES). */
+const MODULE_TO_API: Record<ModuleName, string> = { HRMS: 'hrms', PMS: 'pms', Stores: 'stores', 'P&M': 'pm' }
+const MODULE_FROM_API: Record<string, ModuleName> = { hrms: 'HRMS', pms: 'PMS', stores: 'Stores', pm: 'P&M' }
+
 const toBody = (d: UserDraft) => {
   const head = d.role === 'Module head'
   const project = d.scopeType === 'Project'
@@ -51,7 +55,7 @@ const toBody = (d: UserDraft) => {
     designation: d.designation.trim(),
     role: (head ? 'module_head' : 'approver') as UserRoleApi,
     // an approver heads no module; company scope has no project ids
-    modules: head ? d.modules : [],
+    modules: head ? d.modules.map((m) => MODULE_TO_API[m]) : [],
     scopeType: (project ? 'project' : 'company') as ScopeTypeApi,
     scopeIds: project ? d.scopeIds : [],
   }
@@ -69,7 +73,6 @@ export const updateUser = (id: string, rowVersion: number, d: UserDraft, idempot
 export const resetUserPassword = (id: string, idempotencyKey?: string) =>
   api<{ temporaryPassword: string }>('POST', `/users/${encodeURIComponent(id)}/password-reset`, { body: {}, idempotencyKey })
 
-const MODULE_NAMES: readonly ModuleName[] = ['HRMS', 'PMS', 'Stores', 'P&M']
 
 /**
  * Maps an API row to the UI user. Privileges, employee number and org position are not on the user record, so
@@ -83,7 +86,7 @@ export const userFrom = (r: UserRecord, known?: CoreUser): CoreUser => ({
   phone: r.phone ?? '',
   designation: r.designation ?? '',
   role: r.role === 'module_head' ? 'Module head' : 'Approver',
-  modules: (r.modules ?? []).filter((m): m is ModuleName => MODULE_NAMES.includes(m as ModuleName)),
+  modules: (r.modules ?? []).map((m) => MODULE_FROM_API[m]).filter((m): m is ModuleName => !!m),
   scopeType: r.scopeType === 'project' ? 'Project' : 'Company',
   scopeIds: r.scopeIds ?? [],
   privileges: known?.privileges ?? [],

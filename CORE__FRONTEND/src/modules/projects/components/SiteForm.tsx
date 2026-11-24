@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { PhoneField } from '@/shared/ui/PhoneField'
 import { DEFAULT_COUNTRY } from '@/shared/lib/countryCodes'
 import { Button } from '@/shared/ui/Button'

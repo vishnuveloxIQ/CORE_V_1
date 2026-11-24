@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { Button } from '@/shared/ui/Button'
 import { FormGroup, Input, Select } from '@/shared/ui/Field'
 import type { MaterialPlanLine, MaterialPlanStatus } from '@/modules/core-data'

@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
-import { useFieldArray, useForm, useWatch, type FieldError } from 'react-hook-form'
+import { useFieldArray, useWatch, type FieldError } from 'react-hook-form';
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/shared/ui/Button'

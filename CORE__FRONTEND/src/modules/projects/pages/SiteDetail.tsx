@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { BulkUpload, type RowCheck } from "@/shared/ui/data/BulkUpload";
@@ -31,7 +31,7 @@ type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab =>
   !!v && (TABS as readonly string[]).includes(v);
 
-/** One site. Details are the site's own; chainage belongs to a project, picked on the Chainage tab. */
+/** One site. Details are the site's own; the Chainage tab shows the chainage of the location's project. */
 export default function SiteDetail() {
   const ref = useRef<HTMLDivElement>(null);
   const { id = "" } = useParams();
@@ -42,8 +42,9 @@ export default function SiteDetail() {
   const projects = useCore((s) => s.projects);
   const tabParam = params.get("tab");
   const tab: Tab = isTab(tabParam) ? tabParam : "Details";
+  // the location's own project; a location with none falls back to the first project
   const project =
-    projects.find((p) => p.id === params.get("project")) ?? projects[0];
+    projects.find((p) => p.id === site?.projectId) ?? projects[0];
   const [editingState, setEditing] = useState<Tab | null>(
     params.get("edit") === "1" ? tab : null,
   );
@@ -179,25 +180,6 @@ export default function SiteDetail() {
           </Card>
         ) : (
           <>
-            {editing !== "Chainage" && projects.length > 1 && (
-              <div className="max-w-[360px]" style={{ marginBottom: 14 }}>
-                <FormGroup label="Project">
-                  {(fid) => (
-                    <Select
-                      id={fid}
-                      value={project.id}
-                      onChange={(ev) => go("Chainage", false, ev.target.value)}
-                    >
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </FormGroup>
-              </div>
-            )}
             {editing === "Chainage" ? (
               <ChainageEdit project={project} onDone={done} />
             ) : (

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { BulkUpload, type RowCheck } from "@/shared/ui/data/BulkUpload";
@@ -19,14 +19,13 @@ import { bulk, saveEach } from "@/shared/lib/bulk";
 import { a11y, ACTIVE_TONE, code, phone, req } from "@/shared/lib/core";
 import { notify } from "@/shared/lib/toast";
 import { Can, MANAGE, useCanManage } from '@/modules/auth';
-import { nextCode, projectOf, useCore } from "@/modules/core-data";
+import { nextCode, useCore } from "@/modules/core-data";
 import { Note } from "@/shared/ui/Extras";
 import { ApiError, errorText, fieldErrors, idempotencyKey } from "@/shared/lib/api";
 
 const schema = z.object({
   code: code("Store code"),
   name: req("Store name"),
-  chainageId: z.string().min(1, "Choose the chainage marker."),
   locationId: z.string().min(1, "Choose the location."),
   location: req("Address"),
   keeper: req("Store keeper"),
@@ -39,7 +38,7 @@ export default function Stores() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "stores");
   const navigate = useNavigate();
-  const { stores, projects, materials, stock, projectsSource, storesLoad, storesError, loadStores, createStoreRemote } = useCore();
+  const { stores, projects, sites, materials, stock, projectsSource, storesLoad, storesError, loadStores, createStoreRemote } = useCore();
   const [edit, setEdit] = useState<Store | "new" | null>(null);
   const canManage = useCanManage(MANAGE.projects);
   const [upload, setUpload] = useState(false);
@@ -55,13 +54,7 @@ export default function Stores() {
     let n = Number(nextCode("ST", stores).split("-")[1]);
     return records.map((r) => {
       const codeV = (r.code ?? "").toUpperCase();
-      const marker = projects
-        .flatMap((p) => p.chainage?.markers ?? [])
-        .find((m) => {
-          // sample markers are found by id (CH-1); markers from the server by their code (CH-12.5)
-          const wanted = (r.chainage_code ?? "").toUpperCase();
-          return m.id.toUpperCase() === wanted || (m.code ?? "").toUpperCase() === wanted;
-        });
+      const site = sites.find((x) => x.code.toUpperCase() === (r.location_code ?? "").toUpperCase());
       const status = bulk.pick(r.status || "Active", [
         "Active",
         "Inactive",
@@ -69,16 +62,15 @@ export default function Stores() {
       const value = {
         code: codeV,
         name: r.name ?? "",
-        chainageId: marker?.id ?? "",
-        locationId: projectOf(projects, marker?.id ?? "")?.locationIds?.[0] ?? "",
+        locationId: site?.id ?? "",
         location: r.location ?? "",
         keeper: r.keeper ?? "",
         phone: r.phone ?? "",
         status: status ?? "Active",
       };
       const errors = bulk.check(schema, value);
-      if (r.chainage_code && !marker)
-        errors.push(`Chainage code ${r.chainage_code} is not a known marker.`);
+      if (r.location_code && !site)
+        errors.push(`Location code ${r.location_code} does not exist.`);
       if (!status) errors.push("status must be Active or Inactive.");
       if (stores.some((x) => x.code === codeV))
         errors.push(`Store code ${codeV} already exists.`);
@@ -87,9 +79,10 @@ export default function Stores() {
       const label = `${codeV || "?"} · ${r.name || "no name"}`;
       return errors.length
         ? { label, errors }
-        : { label, value: { ...value, id: `ST-${n++}` } };
+        : { label, value: { ...value, chainageId: "", id: `ST-${n++}` } };
     });
   };
+  const projectOfStore = (s: Store) => projects.find((p) => p.id === sites.find((x) => x.id === s.locationId)?.projectId);
   const itemsIn = (id: string) =>
     materials.filter((m) => m.storeIds.includes(id)).length;
   return (
@@ -140,14 +133,14 @@ export default function Stores() {
         />
         <StatTile
           label="Projects served"
-          value={new Set(stores.map((s) => projectOf(projects, s.chainageId)?.id)).size}
+          value={new Set(stores.map((s) => projectOfStore(s)?.id).filter(Boolean)).size}
           icon="mapPin"
           tone="gold"
         />
       </div>
       <TablePanel
         title="All stores"
-        subtitle="Filter by status using the chips; pick more than one to combine. Search by code, name, keeper or address. Edit a store to change its keeper or chainage marker."
+        subtitle="Filter by status using the chips; pick more than one to combine. Search by code, name, keeper or address. Edit a store to change its keeper or location."
         rows={stores}
         rowKey={(s) => s.id}
         columns={[
@@ -172,11 +165,11 @@ export default function Stores() {
               <>
                 <strong>{s.name}</strong>
                 <span className="sub">
-                  {projectOf(projects, s.chainageId)?.name ?? s.chainageId}
+                  {projectOfStore(s)?.name ?? "No project"}
                 </span>
               </>
             ),
-            csv: (s) => `${s.name} (${projectOf(projects, s.chainageId)?.code ?? ""})`,
+            csv: (s) => `${s.name} (${projectOfStore(s)?.code ?? ""})`,
           },
           {
             header: "Materials",
@@ -246,11 +239,11 @@ export default function Stores() {
             example: "Camp A fuel store",
           },
           {
-            key: "chainage_code",
-            label: "Chainage marker code",
+            key: "location_code",
+            label: "Location code",
             required: true,
-            example: projects[0]?.chainage?.markers?.[0]?.code ?? projects[0]?.chainage?.markers?.[0]?.id ?? "",
-            hint: "A chainage marker code from a project, such as CH-12.5",
+            example: sites[0]?.code ?? "",
+            hint: `Locations: ${sites.map((x) => x.code).join(", ")}`,
           },
           {
             key: "location",
@@ -311,10 +304,9 @@ function StoreForm({ store, onDone }: { store?: Store; onDone: () => void }) {
     formState: { errors: e, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: store ? { code: store.code, name: store.name, chainageId: store.chainageId, locationId: store.locationId, location: store.location, keeper: store.keeper, phone: store.phone, status: store.status } : {
+    defaultValues: store ? { code: store.code, name: store.name, locationId: store.locationId, location: store.location, keeper: store.keeper, phone: store.phone, status: store.status } : {
       code: "",
       name: "",
-      chainageId: "",
       locationId: "",
       location: "",
       keeper: "",
@@ -326,17 +318,13 @@ function StoreForm({ store, onDone }: { store?: Store; onDone: () => void }) {
     setFormError("");
     if (stores.some((s) => s.code === v.code && s.id !== store?.id))
       return setError("code", { message: "Another store uses this code." });
-    // the server requires the marker and the location to be on the same project
-    const markerProject = projectOf(projects, v.chainageId)?.id;
-    const locationProject = sites.find((x) => x.id === v.locationId)?.projectId;
-    if (markerProject && locationProject && markerProject !== locationProject)
-      return setError("locationId", { message: "Choose a location on the same project as the chainage marker." });
+    const details = { ...v, chainageId: "" };
     const body = JSON.stringify(v);
     const key = pending?.body === body ? pending.key : idempotencyKey();
     setPending({ key, body });
     try {
-      if (store) await updateStoreRemote(store.id, v, key);
-      else await createStoreRemote(v, key);
+      if (store) await updateStoreRemote(store.id, details, key);
+      else await createStoreRemote(details, key);
       setPending(null);
       notify(store ? "Store saved" : "Store created");
       onDone();
@@ -344,13 +332,11 @@ function StoreForm({ store, onDone }: { store?: Store; onDone: () => void }) {
       if (!(err instanceof ApiError) || err.code !== "NETWORK_ERROR") setPending(null);
       if (err instanceof ApiError && err.code.endsWith("_DUPLICATE"))
         return setError("code", { message: "Another store uses this code." });
-      if (err instanceof ApiError && err.code.endsWith("_REFERENCE_MISMATCH"))
-        return setError("locationId", { message: "Choose a location on the same project as the chainage marker." });
       if (err instanceof ApiError && err.code === "VERSION_CONFLICT") {
         await loadStores();
         return setFormError("Someone else changed this store. The latest version is loaded; close this and edit it again.");
       }
-      const api2form: Record<string, keyof typeof v> = { locationText: "location", chainageMarkerId: "chainageId" };
+      const api2form: Record<string, keyof typeof v> = { locationText: "location" };
       const fields = Object.entries(fieldErrors(err)).filter(([k]) => k in api2form || k in v);
       fields.forEach(([k, m]) => setError(api2form[k] ?? (k as keyof typeof v), { message: m }));
       setFormError(fields.length ? "Check the highlighted fields." : errorText(err));
@@ -380,23 +366,7 @@ function StoreForm({ store, onDone }: { store?: Store; onDone: () => void }) {
             />
           )}
         </FormGroup>
-        <FormGroup label="Chainage marker" required error={e.chainageId?.message} helper="Markers are grouped by the project they belong to.">
-          {(id, d) => (
-            <Select {...a11y(id, d, e.chainageId?.message)} {...register("chainageId")}>
-              <option value="">Choose…</option>
-              {projects.map((p) => (
-                <optgroup key={p.id} label={p.name}>
-                  {(p.chainage?.markers ?? []).map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label} (km {m.km})
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </Select>
-          )}
-        </FormGroup>
-        <FormGroup label="Location" required error={e.locationId?.message} helper="Must be on the same project as the chainage marker.">
+        <FormGroup label="Location" required error={e.locationId?.message}>
           {(id, d) => (
             <Select {...a11y(id, d, e.locationId?.message)} {...register("locationId")}>
               <option value="">Choose…</option>

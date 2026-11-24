@@ -17,7 +17,8 @@ try {
   // No .env.test: the database tests are skipped below.
 }
 
-const baseUrl = process.env.DATABASE_URL;
+// Migrations are DDL, so these tests use the owner account, not the application login.
+const baseUrl = process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
 
 // Expected shape of the Core tenant schema (handoff sections 3, 4 and 9).
 // 58 after the handoff tables and core_file_content (0015); core_stock_level (0020) makes 59; core_equipment_unit (0022) makes 60;
@@ -58,6 +59,10 @@ describe.skipIf(!baseUrl)('migrations on an empty database', () => {
     const url = new URL(baseUrl!);
     url.pathname = `/${dbName}`;
     pool = createPool(url.toString(), 4);
+    // a connection still closing when the database is dropped reports 57P01; that is expected, not a failure
+    pool.on('error', (err) => {
+      if ((err as { code?: string }).code !== '57P01') throw err;
+    });
   });
 
   afterAll(async () => {

@@ -105,7 +105,7 @@ describe.skipIf(!TEST_DATABASE_URL)('regression: master-data contract', { timeou
     await seedUser(db.pool, 'tenant_acme', plainLogin);
     plain = await signIn(app, 'acme', plainLogin);
 
-    const uom = await db.pool.query<{ id: string }>(`INSERT INTO shared.uom (uom_code, uom_name) VALUES ('NOS', 'Numbers') RETURNING id`);
+    const uom = await db.owner.query<{ id: string }>(`INSERT INTO shared.uom (uom_code, uom_name) VALUES ('NOS', 'Numbers') RETURNING id`);
     const make = async (path: string, body: object) => {
       const res = await call(app, 'POST', path, manager, body);
       expect(res.statusCode, `${path}: ${res.body}`).toBe(201);

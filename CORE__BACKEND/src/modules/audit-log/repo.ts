@@ -10,7 +10,34 @@ export interface AuthEventRow {
   purpose: string | null;
   actor_name: string | null;
   actor_login: string | null;
+  /** core, or the module that sent the entry */
+  module_name: string;
 }
+
+/**
+ * CORE's own sign-in events and the sign-in entries the other modules sent (audit entries of the record type
+ * "session", see POST /audit-log/external), as one list of the same shape. A module's "signed_in", "signed_out" and
+ * "login_failed" are read as login_success, logout and login_failure; any other action is kept as it was sent and
+ * shown only when it is one of the listed event types.
+ */
+const AUTH_EVENT_SOURCE = `(
+  SELECT a.id, a.occurred_at, a.event_type, a.purpose, u.name AS actor_name, u.login_id::text AS actor_login,
+         'core'::text AS module_name
+  FROM core_auth_activity a
+  LEFT JOIN core_user u ON u.id = a.user_id
+  UNION ALL
+  SELECT x.id, (x.new_row->>'occurredAt')::timestamptz AS occurred_at,
+         CASE x.new_row->>'action'
+           WHEN 'signed_in' THEN 'login_success'
+           WHEN 'signed_out' THEN 'logout'
+           WHEN 'login_failed' THEN 'login_failure'
+           ELSE x.new_row->>'action'
+         END AS event_type,
+         x.new_row->>'summary' AS purpose, x.new_row->>'actorName' AS actor_name, x.new_row->>'actorLogin' AS actor_login,
+         x.module_name
+  FROM audit_row_change x
+  WHERE x.module_name <> 'core' AND x.table_name = 'session'
+) e`;
 
 /** One page of sign-in and access events, newest first, and the total that matches the filters. */
 export async function listAuthEventRows(
@@ -19,33 +46,36 @@ export async function listAuthEventRows(
 ): Promise<{ rows: AuthEventRow[]; total: number }> {
   // the listed event types only: internal rows (code hashes, passkey challenges) never match
   const params: unknown[] = [query.eventType ? [query.eventType] : [...AUTH_EVENT_TYPES]];
-  const where: string[] = ['a.event_type = ANY($1::text[])'];
+  const where: string[] = ['e.event_type = ANY($1::text[])'];
   if (query.from !== undefined) {
     params.push(query.from);
-    where.push(`a.occurred_at >= (($${params.length}::date)::timestamp AT TIME ZONE 'UTC')`);
+    where.push(`e.occurred_at >= (($${params.length}::date)::timestamp AT TIME ZONE 'UTC')`);
   }
   if (query.to !== undefined) {
     params.push(query.to);
-    where.push(`a.occurred_at < ((($${params.length}::date + 1))::timestamp AT TIME ZONE 'UTC')`);
+    where.push(`e.occurred_at < ((($${params.length}::date + 1))::timestamp AT TIME ZONE 'UTC')`);
+  }
+  if (query.module !== undefined) {
+    params.push(query.module);
+    where.push(`e.module_name = $${params.length}`);
   }
   if (query.actor !== undefined) {
     params.push(`%${query.actor.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
-    where.push(`(u.name ILIKE $${params.length} OR u.login_id::text ILIKE $${params.length})`);
+    where.push(`(e.actor_name ILIKE $${params.length} OR e.actor_login ILIKE $${params.length})`);
   }
   const clause = ` WHERE ${where.join(' AND ')}`;
   const rows = await many<AuthEventRow>(
     client,
-    `SELECT a.id, a.occurred_at, a.event_type, a.purpose, u.name AS actor_name, u.login_id::text AS actor_login
-     FROM core_auth_activity a
-     LEFT JOIN core_user u ON u.id = a.user_id
+    `SELECT e.id, e.occurred_at, e.event_type, e.purpose, e.actor_name, e.actor_login, e.module_name
+     FROM ${AUTH_EVENT_SOURCE}
      ${clause}
-     ORDER BY a.occurred_at DESC NULLS LAST, a.id
+     ORDER BY e.occurred_at DESC NULLS LAST, e.id
      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, query.limit, query.offset],
   );
   const [counted] = await many<{ total: string }>(
     client,
-    `SELECT count(*) AS total FROM core_auth_activity a LEFT JOIN core_user u ON u.id = a.user_id${clause}`,
+    `SELECT count(*) AS total FROM ${AUTH_EVENT_SOURCE}${clause}`,
     params,
   );
   return { rows, total: Number(counted?.total ?? 0) };
@@ -58,6 +88,7 @@ export interface AuditRow {
   table_name: string | null;
   record_id: string | null;
   op: string | null;
+  module_name: string | null;
   old_row: Record<string, unknown> | null;
   new_row: Record<string, unknown> | null;
   actor_name: string | null;
@@ -87,11 +118,17 @@ function filterOf(query: AuditListQuery): { clause: string; params: unknown[] } 
     params.push({ created: 'INSERT', updated: 'UPDATE', deleted: 'DELETE' }[query.action]);
     where.push(`a.op = $${params.length}`);
   }
+  if (query.module !== undefined) {
+    params.push(query.module);
+    where.push(`a.module_name = $${params.length}`);
+  }
   if (query.actor !== undefined) {
     params.push(`%${query.actor.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+    // CORE entries name their actor through core_user; entries from other modules carry the name inside the entry
     where.push(
-      `EXISTS (SELECT 1 FROM core_user u WHERE u.id = a.actor_id
-         AND (u.name ILIKE $${params.length} OR u.login_id::text ILIKE $${params.length}))`,
+      `(EXISTS (SELECT 1 FROM core_user u WHERE u.id = a.actor_id
+         AND (u.name ILIKE $${params.length} OR u.login_id::text ILIKE $${params.length}))
+        OR a.new_row->>'actorName' ILIKE $${params.length} OR a.new_row->>'actorLogin' ILIKE $${params.length})`,
     );
   }
   return { clause: where.length > 0 ? ` WHERE ${where.join(' AND ')}` : '', params };
@@ -101,7 +138,7 @@ function filterOf(query: AuditListQuery): { clause: string; params: unknown[] } 
 export async function findAuditRow(client: PoolClient, id: string): Promise<AuditRow | null> {
   const [row] = await many<AuditRow>(
     client,
-    `SELECT a.id, a.changed_at, a.table_name, a.record_id, a.op, a.old_row, a.new_row,
+    `SELECT a.id, a.changed_at, a.table_name, a.record_id, a.op, a.module_name, a.old_row, a.new_row,
             u.name AS actor_name, u.login_id::text AS actor_login
      FROM audit_row_change a
      LEFT JOIN core_user u ON u.id = a.actor_id
@@ -119,7 +156,7 @@ export async function listAuditRows(
   const { clause, params } = filterOf(query);
   const rows = await many<AuditRow>(
     client,
-    `SELECT a.id, a.changed_at, a.table_name, a.record_id, a.op, a.old_row, a.new_row,
+    `SELECT a.id, a.changed_at, a.table_name, a.record_id, a.op, a.module_name, a.old_row, a.new_row,
             u.name AS actor_name, u.login_id::text AS actor_login
      FROM audit_row_change a
      LEFT JOIN core_user u ON u.id = a.actor_id

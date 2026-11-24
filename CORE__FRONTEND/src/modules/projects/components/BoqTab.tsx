@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useWatch } from 'react-hook-form';
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { z } from 'zod'
 import { Button } from '@/shared/ui/Button'
 import { Card } from '@/shared/ui/Card'

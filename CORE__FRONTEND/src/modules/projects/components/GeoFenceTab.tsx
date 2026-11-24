@@ -39,7 +39,6 @@ const MIN_R = 50;
 const MAX_R = 5000;
 const MIN_B = 5;
 const MAX_B = 1000;
-const MAX_PINS = 60;
 /** pins mean a boundary (Polygon) or a centre line (Linear) */
 const isPinned = (s: GeoShape) => s !== "Radius";
 
@@ -60,7 +59,6 @@ function problems(d: Draft): string[] {
       out.push(
         `Drop at least 2 pins along the centre line (${d.points.length} so far).`,
       );
-    if (d.points.length > MAX_PINS) out.push(`Use at most ${MAX_PINS} pins.`);
     if (!(d.bufferM >= MIN_B && d.bufferM <= MAX_B))
       out.push(
         `Corridor width must be ${MIN_B} to ${MAX_B.toLocaleString("en-IN")} m each side.`,
@@ -71,7 +69,6 @@ function problems(d: Draft): string[] {
   }
   if (d.points.length < 3)
     return [`Drop at least 3 pins (${d.points.length} so far).`];
-  if (d.points.length > MAX_PINS) return [`Use at most ${MAX_PINS} pins.`];
   if (selfIntersects(d.points))
     return [
       "The boundary crosses itself. Drag or remove pins so the edges do not cross.",
@@ -447,7 +444,6 @@ function GeoEdit({
   };
   const onMapClick = (p: LatLng) => {
     if (d.shape === "Radius") return setCentre(p);
-    if (d.points.length >= MAX_PINS) return notify(`At most ${MAX_PINS} pins.`);
     patch({ points: [...d.points, p] });
   };
   const applyText = () => {

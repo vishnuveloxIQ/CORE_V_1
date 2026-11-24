@@ -626,6 +626,8 @@ function planLineFields(input: PlanLineInput): PlanLineFields {
     status: input.status ?? 'draft',
     stage: input.stage ?? null,
     reason: input.reason ?? null,
+    capacity: input.capacity ?? null,
+    model: input.model ?? null,
   };
 }
 

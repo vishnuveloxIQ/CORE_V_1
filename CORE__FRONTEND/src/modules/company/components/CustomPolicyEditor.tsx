@@ -1,11 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo } from "react";
-import {
-  useFieldArray,
-  useForm,
-  useWatch,
-  type Resolver,
-} from "react-hook-form";
+import { useFieldArray, useWatch, type Resolver } from 'react-hook-form';
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { z } from "zod";
 import { Button } from "@/shared/ui/Button";
 import { KV, VersionFields } from "@/shared/ui/Extras";

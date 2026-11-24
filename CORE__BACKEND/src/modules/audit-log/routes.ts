@@ -3,8 +3,8 @@ import { guardRoute, idParamsSchema, inTenant, type RouteOptions } from '../../c
 import { ok } from '../../core/response.js';
 import { parseInput } from '../../core/validation.js';
 import { ACCESS_MANAGE } from '../access/roles.js';
-import { auditListQuery, authEventsQuery } from './schema.js';
-import { getAuditEntry, listAuditEntries, listAuthEvents } from './service.js';
+import { auditListQuery, authEventsQuery, externalAuditBody } from './schema.js';
+import { getAuditEntry, listAuditEntries, listAuthEvents, recordExternalAudit } from './service.js';
 
 /**
  * GET /audit-log: the tenant's audit trail, read-only, newest first. It needs access.manage at company scope:
@@ -31,6 +31,19 @@ export function registerAuditLogRoutes(app: CoreApp, options: RouteOptions): voi
       const query = parseInput(authEventsQuery, request.query);
       const { events, total } = await inTenant(options, request, (client) => listAuthEvents(client, query));
       return ok(events, { limit: query.limit, offset: query.offset, total });
+    },
+  );
+
+  // An entry from another module's own audit trail (a sign-in in HRMS, a request raised in PMS). Stored in the same
+  // append-only chain as CORE's entries, so the trail shows every module's activity in one place. Same privilege as
+  // the inbound event route: the calling module signs in as a user who holds access.manage.
+  app.post(
+    '/audit-log/external',
+    guardRoute(options, ACCESS_MANAGE, { summary: 'POST /audit-log/external', body: externalAuditBody }),
+    async (request, reply) => {
+      const body = parseInput(externalAuditBody, request.body);
+      const result = await inTenant(options, request, (client, actor) => recordExternalAudit(client, actor, body));
+      return reply.code(201).send(ok(result));
     },
   );
 

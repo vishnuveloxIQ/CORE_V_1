@@ -71,7 +71,9 @@ export interface TokenPair {
 
 let accessToken: string | null = null
 let refreshing: Promise<boolean> | null = null
-let onSessionLost: (() => void) | null = null
+let onSessionLost: ((reason?: string) => void) | null = null
+/** The error code the server gave for the last refused refresh (e.g. SESSION_REPLACED), or null. */
+let lastRefusalCode: string | null = null
 let onPasswordChange: (() => void) | null = null
 
 const store = {
@@ -110,7 +112,7 @@ const STEP_UP_ROUTE = /^\/access\/users\/[^/]+\/grants$|^\/access\/grants\/[^/]+
 export const hasSession = () => !!accessToken || !!store.get()
 
 /** Called once when the session cannot be restored (refresh refused), so the app can sign the user out. */
-export function onSessionExpired(handler: (() => void) | null) {
+export function onSessionExpired(handler: ((reason?: string) => void) | null) {
   onSessionLost = handler
 }
 
@@ -212,6 +214,8 @@ export function onReachability(listener: (r: Reachability) => void): () => void 
 }
 
 /** What a user reads when the server has ended this device's session (expired, signed out elsewhere, or revoked). */
+/** The server's code when this user signed in on another device and the session ended for that reason. */
+export const SESSION_REPLACED_CODE = 'SESSION_REPLACED'
 export const SESSION_ENDED_MESSAGE = 'You have been signed out. Your session ended, or this device was signed out from another one. Sign in again.'
 
 /**
@@ -219,7 +223,7 @@ export const SESSION_ENDED_MESSAGE = 'You have been signed out. Your session end
  * so a screen that shows the error reads "You have been signed out…" rather than "Access token is invalid or expired".
  */
 function sessionEnded(): never {
-  onSessionLost?.()
+  onSessionLost?.(lastRefusalCode ?? undefined)
   throw new ApiError(401, 'SESSION_ENDED', SESSION_ENDED_MESSAGE)
 }
 
@@ -233,6 +237,7 @@ export function refreshSession(): Promise<boolean> {
     const res = await send('POST', '/auth/refresh', { body: { refreshToken }, auth: false })
     const body = await parse(res)
     if (!res.ok) {
+      lastRefusalCode = (body as { error?: { code?: string } } | null)?.error?.code ?? null;
       // a refused refresh token means the session is gone (expired, signed out, or revoked after reuse)
       if (res.status === 401 || res.status === 400) setTokens(null)
       return false

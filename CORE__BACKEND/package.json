@@ -1,6 +1,6 @@
 {
   "name": "velox-core-backend",
-  "version": "1.7.0",
+  "version": "1.10.0",
   "description": "VeloxIQ Core backend",
   "main": "index.js",
   "scripts": {

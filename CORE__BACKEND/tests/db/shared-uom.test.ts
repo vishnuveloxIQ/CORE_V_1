@@ -18,11 +18,12 @@ describe.skipIf(!TEST_DATABASE_URL)('provisional shared.uom', () => {
   });
 
   it('keeps one row per unit code', async () => {
-    await db.pool.query(
+    // shared.uom is reference data the app may only read, so the owner seeds it
+    await db.owner.query(
       `INSERT INTO shared.uom (uom_code, uom_name) VALUES ('KG-TEST', 'Kilogram')`,
     );
     await expect(
-      db.pool.query(`INSERT INTO shared.uom (uom_code, uom_name) VALUES ('KG-TEST', 'Kilogram 2')`),
+      db.owner.query(`INSERT INTO shared.uom (uom_code, uom_name) VALUES ('KG-TEST', 'Kilogram 2')`),
     ).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
   });
 
@@ -38,7 +39,8 @@ describe.skipIf(!TEST_DATABASE_URL)('provisional shared.uom', () => {
   });
 
   it('accepts a material, allocation and plan line that point to a known unit', async () => {
-    const { rows } = await db.pool.query<{ id: string }>(
+    // shared.uom is seeded by the owner (the app login may only read it)
+    const { rows } = await db.owner.query<{ id: string }>(
       `INSERT INTO shared.uom (uom_code, uom_name) VALUES ('M-TEST', 'Metre') RETURNING id`,
     );
     const uomId = rows[0]!.id;

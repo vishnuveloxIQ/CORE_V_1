@@ -309,7 +309,9 @@ export type MaterialPlanStatus = 'Planned' | 'Requested' | 'Ordered' | 'Received
 /** Planned material requirement for a project. TODO(backend): GET/POST/PUT/DELETE /projects/{id}/material-plan. */
 export interface MaterialPlanLine { id: string; projectId: string; materialId: string; qty: number; uom: string; requiredBy: string; storeId: string; status: MaterialPlanStatus; rowVersion?: number }
 /** Planned equipment for a project. Planning is done at project level only. */
-export interface PlanLine { id: string; equipmentType: string; projectId: string; plannedQty: number; from: string; to: string; reason: string; rowVersion?: number }
+export interface PlanLine { id: string; equipmentType: string; projectId: string; plannedQty: number; from: string; to: string; reason: string; rowVersion?: number
+  /** the capacity or size and the model the line needs, as text; optional */
+  capacity?: string; model?: string }
 export type Availability = 'Available' | 'In use' | 'Under maintenance' | 'Breakdown'
 export interface EquipmentUnit {
   id: string; assetCode: string; type: string; makeModel: string; regNo: string; chainageId: string; lat: number | null; lng: number | null; lastPing: string | null; availability: Availability
@@ -551,7 +553,9 @@ export interface Grievance {
 }
 
 // ---------- 4. Audit + 3.10 support ----------
-export interface AuditEntry { id: string; at: string; user: string; action: string; entity: string; entityId: string; before: string; after: string }
+export interface AuditEntry { id: string; at: string; user: string; action: string; entity: string; entityId: string; before: string; after: string
+  /** which module the entry comes from: core, hrms, pm, pms or stores */
+  module?: string }
 export interface Ticket { id: string; code: string; subject: string; category: string; priority: 'Low' | 'Medium' | 'High'; description: string; status: 'Open' | 'Answered' | 'Closed'; createdAt: string
   /** user id of whoever raised it (raised_by_user_id) */
   raisedById: string

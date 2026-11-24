@@ -3,6 +3,9 @@ import { appendAuditRow, verifyAuditChain } from '../../src/core/audit.js';
 import { withTenant } from '../../src/db/tenant.js';
 import { createTestDatabase, TEST_DATABASE_URL, type TestDatabase } from './helpers.js';
 
+// The app login is refused by the grants ("permission denied"); a refusal by the trigger says "append-only".
+const REFUSED = /append-only|permission denied/;
+
 // The tests run in order: the chain is built by the first test and checked by the later ones.
 describe.skipIf(!TEST_DATABASE_URL)('audit_row_change', () => {
   let db: TestDatabase;
@@ -71,17 +74,18 @@ describe.skipIf(!TEST_DATABASE_URL)('audit_row_change', () => {
       withTenant(db.pool, 'acme', (client) =>
         client.query(`UPDATE audit_row_change SET op = 'DELETE'`),
       ),
-    ).rejects.toThrow(/append-only/);
+    ).rejects.toThrow(REFUSED);
     await expect(
       withTenant(db.pool, 'acme', (client) => client.query(`DELETE FROM audit_row_change`)),
-    ).rejects.toThrow(/append-only/);
+    ).rejects.toThrow(REFUSED);
     await expect(
       withTenant(db.pool, 'acme', (client) => client.query(`TRUNCATE audit_row_change`)),
-    ).rejects.toThrow(/append-only/);
+    ).rejects.toThrow(REFUSED);
   });
 
   it('detects a row changed behind the trigger', async () => {
-    const report = await withTenant(db.pool, 'acme', async (client) => {
+    // the owner bypasses the grants, and the trigger is what stops the change: the chain check must still catch it
+    const report = await withTenant(db.owner, 'acme', async (client) => {
       const { rows } = await client.query<{ id: string }>(
         `SELECT id FROM audit_row_change ORDER BY changed_at LIMIT 2 OFFSET 1`,
       );

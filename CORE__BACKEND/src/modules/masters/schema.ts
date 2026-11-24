@@ -121,6 +121,9 @@ const planLineFields = z.object({
   // Working stage (0030), checked against the resource kind by planLineStageIssue. null clears it.
   stage: z.enum(PLAN_LINE_STAGES).nullable().optional(),
   reason: text(500).nullable().optional(),
+  // equipment lines: the capacity (a description such as "30-ton (300)") and model needed (migrations 0041, 0042); optional
+  capacity: text(100).nullable().optional(),
+  model: text(100).nullable().optional(),
 });
 export const planLineCreateBody = planLineFields;
 export const planLinePatchBody = planLineFields

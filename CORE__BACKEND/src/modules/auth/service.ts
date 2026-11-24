@@ -265,6 +265,10 @@ export async function refresh(
     if (!session) {
       return null;
     }
+    // ended because the user signed in on another device (the device limit): the login page says so
+    if (session.revoked_at !== null && session.revoked_reason === 'device_limit') {
+      throw new AppError('SESSION_REPLACED', 401, 'You signed in on another device, so this session has ended.');
+    }
     if (session.revoked_at !== null) {
       // A token from a session that was replaced by a refresh is reuse, which looks like theft: every session ends.
       // A session the user signed out or revoked is only refused, so another device does not sign the user out.

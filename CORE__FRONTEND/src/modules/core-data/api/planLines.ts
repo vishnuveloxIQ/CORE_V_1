@@ -19,6 +19,8 @@ export interface PlanLineRecord {
   id: string; projectId: string; resourceKind: PlanKind; equipmentTypeId: string | null; positionId: string | null; role: string | null
   materialId: string | null; uomId: string | null; storeId: string | null; quantity: number | null; withdrawn: boolean
   fromDate: string | null; toDate: string | null; requiredBy: string | null; status: PlanStatus; reason: string | null; rowVersion: number
+  /** equipment lines: the capacity or size and the model needed, as text (API 1.9.0) */
+  capacity?: string | null; model?: string | null
   /** null reads as Planned */
   stage?: PlanStage | null
 }
@@ -42,11 +44,22 @@ export const materialStatusOf = (stage: PlanStage | null | undefined): MaterialP
 export const planLineFrom = (r: PlanLineRecord, types: EquipmentTypeRecord[]): PlanLine => ({
   id: r.id, equipmentType: types.find((t) => t.id === r.equipmentTypeId)?.name ?? r.equipmentTypeId ?? '', projectId: r.projectId,
   plannedQty: r.quantity ?? 0, from: r.fromDate ?? '', to: r.toDate ?? '', reason: r.reason ?? '', rowVersion: r.rowVersion,
+  capacity: r.capacity ?? undefined, model: r.model ?? undefined,
 })
 /** Returns null when the type is not on the server, so the caller keeps the line local. */
 export const planLineBody = (l: Omit<PlanLine, 'id' | 'rowVersion'>, types: EquipmentTypeRecord[]) => {
   const equipmentTypeId = typeIdByName(types, l.equipmentType)
-  return equipmentTypeId ? { equipmentTypeId, quantity: l.plannedQty, fromDate: l.from || null, toDate: l.to || null, reason: l.reason || null } : null
+  return equipmentTypeId
+    ? {
+        equipmentTypeId,
+        quantity: l.plannedQty,
+        fromDate: l.from || null,
+        toDate: l.to || null,
+        reason: l.reason || null,
+        capacity: l.capacity?.trim() || null,
+        model: l.model?.trim() || null,
+      }
+    : null
 }
 
 // ---------- people ----------

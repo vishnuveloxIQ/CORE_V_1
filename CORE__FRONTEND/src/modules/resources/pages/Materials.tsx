@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { z } from "zod";
 import { BulkUpload, type RowCheck } from "@/shared/ui/data/BulkUpload";
 import { TablePanel } from "@/shared/ui/data/TablePanel";

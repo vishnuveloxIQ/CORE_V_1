@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/shared/ui/Button";
@@ -25,6 +25,7 @@ import { GeoFenceTab } from "../components/GeoFenceTab";
 import { BoqTab } from "../components/BoqTab";
 import { PeopleForm } from "../components/PeopleForm";
 import { MaterialForm } from "../components/MaterialForm";
+import { PlanForm as EquipmentPlanForm } from "@/modules/resources/pages/EquipmentPlanning";
 
 const TABS = [
   "Details",
@@ -35,6 +36,7 @@ const TABS = [
   "Geo-fence",
   "Resource Planning",
   "Material Planning",
+  "Equipment Planning",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -176,6 +178,7 @@ export default function ProjectDetail() {
       )}
       {tab === "Resource Planning" && <ProjectPeoplePlan project={project} />}
       {tab === "Material Planning" && <ProjectMaterialPlan project={project} />}
+      {tab === "Equipment Planning" && <ProjectEquipmentPlan project={project} />}
     </div>
   );
 }
@@ -782,3 +785,45 @@ function ProjectMaterialPlan({ project }: { project: Project }) {
     </Card>
   );
 }
+
+/** Equipment plan lines of this project, with the same add popup as the Equipment planning page. */
+function ProjectEquipmentPlan({ project }: { project: Project }) {
+  const navigate = useNavigate();
+  const [adding, setAdding] = useState(false);
+  const lines = useCore((s) => s.planLines).filter((l) => l.projectId === project.id);
+  return (
+    <Card
+      title="Equipment planning"
+      subtitle={`${lines.length} equipment plan lines`}
+      action={
+        <div className="row-actions">
+          <Can privilege={MANAGE.masters}>
+            <Button size="sm" tone="primary" icon="plus" onClick={() => setAdding(true)}>
+              Add equipment line
+            </Button>
+          </Can>
+          <Button size="sm" onClick={() => navigate("/equipment/planning")}>
+            Manage
+          </Button>
+        </div>
+      }
+    >
+      <Modal open={adding} onOpenChange={setAdding} title="Add equipment line">
+        {adding && <EquipmentPlanForm defaultProjectId={project.id} lockProject onDone={() => setAdding(false)} />}
+      </Modal>
+      <MiniTable
+        head={["Equipment type", "Units needed", "Capacity", "Model", "Needed from", "Purpose"]}
+        empty="No equipment planned yet."
+        rows={lines.map((l) => [
+          <strong key="t">{l.equipmentType}</strong>,
+          l.plannedQty,
+          l.capacity || '—',
+          l.model || '—',
+          fmtDate(l.from),
+          l.reason,
+        ])}
+      />
+    </Card>
+  );
+}
+

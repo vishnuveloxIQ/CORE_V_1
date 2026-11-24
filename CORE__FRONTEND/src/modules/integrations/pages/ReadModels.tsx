@@ -24,7 +24,7 @@ const preview = (data: Record<string, unknown>) =>
  * back keeps them. Whether a copy is stale is not judged here: the freshness threshold is an open owner decision (D16),
  * so the screen shows the last sync time and leaves the judgement to the reader.
  */
-export default function ReadModels() {
+export default function ReadModels({ embedded = false }: { embedded?: boolean } = {}) {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'read-models')
   const [params, setParams] = useSearchParams()
@@ -65,7 +65,9 @@ export default function ReadModels() {
 
   return (
     <div ref={ref}>
-      <PageHead crumb="Read models" title="Read models" desc="Core's copies of records owned by HRMS, P&M, PMS and Stores, kept up to date from their events." />
+      {embedded
+        ? <p className="helper" style={{ margin: '0 0 16px' }}>The latest copy CORE holds of records owned by HRMS, P&M, PMS and Stores, kept up to date from their messages.</p>
+        : <PageHead crumb="Shared records" title="Shared records" desc="The latest copy CORE holds of records owned by HRMS, P&M, PMS and Stores, kept up to date from their messages." />}
       <Card title="Sync by module" subtitle="How many records Core holds and when each kind last changed. Local time; hover for UTC.">
         <MiniTable label="Sync by module" head={['Module', 'Record type', 'Records', 'Last sequence', 'Last synced']} empty="No records have been received from the other modules yet."
           rows={status.map((s) => [
@@ -76,7 +78,7 @@ export default function ReadModels() {
           Not decided yet: the freshness threshold is an open owner decision. The last sync time is shown so you can judge it; Core does not mark copies as stale.
         </Note>
       </Card>
-      {state === 'error' && <div className="login-error" role="alert" style={{ margin: '16px 0' }}><span>The read models could not be loaded: {loadError}</span></div>}
+      {state === 'error' && <div className="login-error" role="alert" style={{ margin: '16px 0' }}><span>The shared records could not be loaded: {loadError}</span></div>}
       <div className="form-grid" style={{ margin: '16px 0 12px' }}>
         <FormGroup label="Module">
           {(id) => (

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BulkUpload, type RowCheck } from "@/shared/ui/data/BulkUpload";
 import { TablePanel } from "@/shared/ui/data/TablePanel";
@@ -44,7 +44,10 @@ export default function Users() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "users");
   const navigate = useNavigate();
-  const { users, projects, createUserRemote } = useCore();
+  const { users: allUsers, projects, createUserRemote } = useCore();
+  // tenant admins are not listed here: their details are not shown on this tab. Login IDs are still checked
+  // against every user (allUsers), so an admin's login ID cannot be reused.
+  const users = useMemo(() => allUsers.filter((u) => !/tenant admin/i.test(u.designation)), [allUsers]);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [upload, setUpload] = useState(false);
   // logins and one-time passwords from a CSV upload: held only while the dialog is open
@@ -86,12 +89,12 @@ export default function Users() {
   ): RowCheck<CoreUser>[] => {
     const emails = bulk.dupes(records.map((r) => r.email));
     const taken = new Set<ModuleName>(
-      users
+      allUsers
         .filter((u) => u.role === "Module head" && u.status === "Active")
         .flatMap((u) => u.modules),
     );
     // login IDs already in use, plus the ones earlier rows of this file take
-    const ids = users.map((u) => ({ loginId: u.loginId }));
+    const ids = allUsers.map((u) => ({ loginId: u.loginId }));
     return records.map((r) => {
       const errors: string[] = [];
       const role = bulk.pick(
@@ -119,7 +122,7 @@ export default function Users() {
       if (!r.designation) errors.push("designation is required.");
       if (!email.safeParse(r.email).success) errors.push("email is not valid.");
       else if (
-        users.some((u) => u.email.toLowerCase() === r.email.toLowerCase())
+        allUsers.some((u) => u.email.toLowerCase() === r.email.toLowerCase())
       )
         errors.push("A user with this email already exists.");
       else if (emails.has(r.email.toUpperCase()))

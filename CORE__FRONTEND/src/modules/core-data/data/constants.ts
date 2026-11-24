@@ -31,3 +31,14 @@ export const PRIVILEGES: Record<string, { id: string; label: string }[]> = {
     { id: 'pm.register.manage', label: 'Register equipment units' }, { id: 'pm.reports.view', label: 'View module reports' }, { id: 'pm.approve', label: 'Approve as approver' },
   ],
 }
+
+/** The equipment types offered first on a plan line; any other type is added with "Other". */
+export const PLAN_EQUIPMENT_TYPES = ['Tipper', 'Excavator', 'Wheel Loader', 'Roller'] as const
+
+/** Suggested capacities or sizes for a plan line, by equipment type. The planner can also type their own. */
+export const CAPACITY_OPTIONS: Record<string, readonly string[]> = {
+  Tipper: ['6-wheel', '10-wheel', '12-wheel', '14-wheel', '16-wheel'],
+  Excavator: ['20-ton (210)', '30-ton (300)', '40-ton (400)', 'Mini excavator'],
+  'Wheel Loader': ['1.5 m³ bucket', '2 m³ bucket', '3 m³ bucket'],
+  Roller: ['8-ton', '10-ton', '12-ton', '14-ton'],
+}

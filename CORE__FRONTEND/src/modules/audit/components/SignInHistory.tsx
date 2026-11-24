@@ -7,7 +7,7 @@ import { errorText } from '@/shared/lib/api'
 import { fmtDateTime } from '@/shared/lib/format'
 import { notify } from '@/shared/lib/toast'
 import {
-  AUTH_EVENT_WARNINGS, AUTH_EVENTS, authEventLabel, listAuthEvents,
+  AUDIT_MODULES, AUTH_EVENT_WARNINGS, AUTH_EVENTS, auditModuleLabel, authEventLabel, listAuthEvents,
   type AuthEvent, type AuthEventFilter, type AuthEventType,
 } from '@/modules/core-data'
 
@@ -15,8 +15,8 @@ import {
 const PAGE = 50
 
 type Applied = Omit<AuthEventFilter, 'limit' | 'offset'>
-type Draft = { from: string; to: string; eventType: string; actor: string }
-const NO_FILTER: Draft = { from: '', to: '', eventType: '', actor: '' }
+type Draft = { from: string; to: string; module: string; eventType: string; actor: string }
+const NO_FILTER: Draft = { from: '', to: '', module: '', eventType: '', actor: '' }
 
 /**
  * CORE-19-02: the sign-in and access history (GET /audit-log/auth-events), shown as a tab of the audit trail.
@@ -52,6 +52,7 @@ export function SignInHistory() {
     setApplied({
       from: draft.from || undefined,
       to: draft.to || undefined,
+      module: draft.module || undefined,
       eventType: (draft.eventType || undefined) as AuthEventType | undefined,
       actor: draft.actor.trim() || undefined,
     })
@@ -70,9 +71,17 @@ export function SignInHistory() {
 
   return (
     <div>
-      <div className="form-grid" style={{ marginBottom: 16 }}>
+      <div className="filter-bar">
         <FormGroup label="From">{(id) => <Input id={id} type="date" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} />}</FormGroup>
         <FormGroup label="To">{(id) => <Input id={id} type="date" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />}</FormGroup>
+        <FormGroup label="Module">
+          {(id) => (
+            <Select id={id} name="module" value={draft.module} onChange={(e) => setDraft({ ...draft, module: e.target.value })}>
+              <option value="">All modules</option>
+              {AUDIT_MODULES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </Select>
+          )}
+        </FormGroup>
         <FormGroup label="Event">
           {(id) => (
             <Select id={id} name="eventType" value={draft.eventType} onChange={(e) => setDraft({ ...draft, eventType: e.target.value })}>
@@ -81,19 +90,20 @@ export function SignInHistory() {
             </Select>
           )}
         </FormGroup>
-        <FormGroup label="Person" helper="Name or login, part of either">
-          {(id) => <Input id={id} name="actor" placeholder="e.g. Dev User" value={draft.actor} onChange={(e) => setDraft({ ...draft, actor: e.target.value })} />}
+        <FormGroup label="Person">
+          {(id) => <Input id={id} name="actor" placeholder="Name or login" value={draft.actor} onChange={(e) => setDraft({ ...draft, actor: e.target.value })} />}
         </FormGroup>
-      </div>
-      <div className="form-actions" style={{ marginTop: 0, marginBottom: 16 }}>
+        <div className="filter-actions">
         <Button onClick={clear}>Clear filters</Button>
         <Button tone="primary" onClick={apply}>Apply filters</Button>
+      </div>
       </div>
       {loadError && <div className="login-error" role="alert" style={{ marginBottom: 16 }}><span>The sign-in history could not be read: {loadError}</span></div>}
       <TablePanel title="Sign-in and access events" subtitle="Filters above are applied on the server. Search below only narrows the rows on this page. Most recent events first."
         rows={events} rowKey={(e) => e.id}
         columns={[
           { header: 'Date/Time', kind: 'c-id', cell: (e) => <strong>{e.at ? fmtDateTime(e.at) : '—'}</strong>, csv: (e) => e.at ?? '' },
+          { header: 'Module', kind: 'c-more', cell: (e) => <span className="cell-pill">{auditModuleLabel(e.module ?? 'core')}</span>, csv: (e) => auditModuleLabel(e.module ?? 'core') },
           { header: 'Person', kind: 'c-sub', cell: (e) => <span>{who(e)}{e.user && e.loginId && e.user !== e.loginId ? <span className="helper" style={{ display: 'block' }}>{e.loginId}</span> : null}</span>, csv: (e) => who(e) },
           {
             header: 'Event', kind: 'c-status',
@@ -102,7 +112,7 @@ export function SignInHistory() {
           },
           { header: 'Detail', kind: 'c-more', cell: (e) => <span style={{ whiteSpace: 'normal' }}>{e.detail ?? '—'}</span>, csv: (e) => e.detail ?? '' },
         ]}
-        searchText={(e) => `${who(e)} ${e.loginId ?? ''} ${authEventLabel(e.event)} ${e.detail ?? ''}`}
+        searchText={(e) => `${auditModuleLabel(e.module ?? 'core')} ${who(e)} ${e.loginId ?? ''} ${authEventLabel(e.event)} ${e.detail ?? ''}`}
         searchPlaceholder="Search this page by person, event or detail…" exportName="core-sign-in-history" />
       <div className="form-actions" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <span className="helper">{loading ? 'Loading…' : total ? `Showing ${from}–${to} of ${total}` : 'No events match these filters.'}</span>

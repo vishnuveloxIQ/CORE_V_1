@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, useWatch } from 'react-hook-form'
+import { useWatch } from 'react-hook-form';
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { Button } from '@/shared/ui/Button'
 import { Muted } from '@/shared/ui/Extras'
 import { FormGroup, Input, Select, Textarea } from '@/shared/ui/Field'

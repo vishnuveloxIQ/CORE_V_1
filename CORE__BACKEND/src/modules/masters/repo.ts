@@ -101,6 +101,8 @@ export interface PlanLineFields {
   status: string;
   stage: string | null;
   reason: string | null;
+  capacity: string | null;
+  model: string | null;
 }
 
 export interface Versioned {
@@ -144,7 +146,8 @@ const PLAN_LINE_SELECT = `id, project_id AS "projectId", resource_kind AS "resou
   material_id AS "materialId", uom_id AS "uomId", store_id AS "storeId",
   CAST(quantity AS double precision) AS quantity, withdrawn,
   to_char(from_date, 'YYYY-MM-DD') AS "fromDate", to_char(to_date, 'YYYY-MM-DD') AS "toDate",
-  to_char(required_by, 'YYYY-MM-DD') AS "requiredBy", status, stage, reason, ${TIMESTAMPS}`;
+  to_char(required_by, 'YYYY-MM-DD') AS "requiredBy", status, stage, reason,
+  capacity, model, ${TIMESTAMPS}`;
 
 const VENDOR_COLUMNS: readonly Column[] = [
   { name: 'code' },
@@ -213,6 +216,8 @@ const PLAN_LINE_COLUMNS: readonly Column[] = [
   { name: 'status' },
   { name: 'stage' },
   { name: 'reason' },
+  { name: 'capacity' },
+  { name: 'model' },
 ];
 
 /** True when a row with this id exists in the named reference table. */
@@ -543,6 +548,8 @@ function planLineValues(f: PlanLineFields): unknown[] {
     f.status,
     f.stage,
     f.reason,
+    f.capacity,
+    f.model,
   ];
 }
 

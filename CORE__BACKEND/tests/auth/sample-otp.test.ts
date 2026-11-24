@@ -43,7 +43,7 @@ describe.skipIf(!TEST_DATABASE_URL)('password reset with the sample code', { tim
   });
   beforeEach(async () => {
     logLines = [];
-    await db.pool.query('TRUNCATE public.core_rate_limit_window');
+    await db.owner.query('TRUNCATE public.core_rate_limit_window');
   });
   afterEach(async () => {
     await app?.close();

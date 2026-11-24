@@ -857,8 +857,13 @@ export const useCore = create<CoreState>()((set, get) => {
     },
 
     saveUnitRemote: async (u, key) => {
-      const typeId = eq.typeIdByName(get().equipmentTypes, u.type)
-      if (!typeId) throw new ApiError(400, 'EQUIPMENT_UNIT_TYPE_NOT_ON_SERVER', `The category ${u.type} is not on the server yet, so the unit cannot be saved.`)
+      const existing = get().equipmentTypes.find((t) => t.code === eq.COMPANY_EQUIPMENT_TYPE.code)
+      const type = existing ?? await (async () => {
+        const rec = await eq.createEquipmentType({ code: eq.COMPANY_EQUIPMENT_TYPE.code, name: eq.COMPANY_EQUIPMENT_TYPE.name, active: true })
+        set((s) => ({ equipmentTypes: upsert(s.equipmentTypes, rec) }))
+        return rec
+      })()
+      const typeId = type.id
       // a chainage marker is not a location: the link is sent only when a server location has that id, else the unit is unassigned (null)
       const locationId = get().sites.some((s) => s.id === u.chainageId) ? u.chainageId : null
       const draft = unitApi.draftFrom(u, typeId, locationId)
@@ -924,6 +929,16 @@ export const useCore = create<CoreState>()((set, get) => {
 
     saveEquipmentPlanRemote: async (l, key) => {
       needSource(get().planSource, 'Plan lines')
+      // a planner can name a type the company has not used before ("Other"): it is created on the server from its name
+      if (!eq.typeIdByName(get().equipmentTypes, l.equipmentType) && l.equipmentType.trim()) {
+        const name = l.equipmentType.trim()
+        const taken = new Set(get().equipmentTypes.map((t) => t.code.toUpperCase()))
+        const base = (name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'EQUIPMENT').replace(/^[^A-Z]/, 'T$&').slice(0, 30)
+        let code = base
+        for (let n = 2; taken.has(code); n += 1) code = `${base}_${n}`
+        const created = await eq.createEquipmentType({ code, name, active: true })
+        set((s) => ({ equipmentTypes: upsert(s.equipmentTypes, created) }))
+      }
       const body = plans.planLineBody(l, get().equipmentTypes)
       if (!body) throw new ApiError(400, 'TYPE_UNKNOWN', `"${l.equipmentType}" is not an equipment type on the server yet.`)
       const prev = get().planLines.find((x) => x.id === l.id)

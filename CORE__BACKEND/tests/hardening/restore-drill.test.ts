@@ -57,7 +57,7 @@ describe.skipIf(!TEST_DATABASE_URL || !hasTools)('restore drill against a real d
   beforeAll(async () => {
     db = await createTestDatabase(TEST_DATABASE_URL!, ['acme', 'beta']);
     // A unit in the shared schema and a material that points at it: the restore must bring the shared data back first.
-    const uom = await db.pool.query<{ id: string }>(
+    const uom = await db.owner.query<{ id: string }>(
       `INSERT INTO shared.uom (uom_code, uom_name) VALUES ('BAG', 'Bag') RETURNING id`,
     );
     await db.pool.query(
@@ -89,7 +89,7 @@ describe.skipIf(!TEST_DATABASE_URL || !hasTools)('restore drill against a real d
 
   it('restores the tenant into a scratch database, finds no difference, and verifies the audit chain', async () => {
     const before = await db.pool.query(`SELECT count(*)::int AS n FROM tenant_acme.core_material`);
-    const report = await runRestoreDrill(db.url, 'acme');
+    const report = await runRestoreDrill(db.ownerUrl, 'acme');
 
     expect(report.error).toBeUndefined();
     expect(report.mismatches).toEqual([]);
@@ -114,11 +114,11 @@ describe.skipIf(!TEST_DATABASE_URL || !hasTools)('restore drill against a real d
   });
 
   it('refuses an unsafe tenant id before anything runs', async () => {
-    await expect(runRestoreDrill(db.url, 'acme; DROP SCHEMA tenant_beta')).rejects.toThrow(/tenant id/);
+    await expect(runRestoreDrill(db.ownerUrl, 'acme; DROP SCHEMA tenant_beta')).rejects.toThrow(/tenant id/);
   });
 
   it('reports a failure, and still cleans up, when the tenant schema does not exist', async () => {
-    const report = await runRestoreDrill(db.url, 'nosuchtenant');
+    const report = await runRestoreDrill(db.ownerUrl, 'nosuchtenant');
     expect(report.ok).toBe(false);
     expect(report.error).toBeDefined();
     const scratch = await db.pool.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [report.scratchDatabase]);

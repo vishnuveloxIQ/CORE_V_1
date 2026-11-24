@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { Icon } from '@/shared/ui/icons'
+import { hasUnsaved, useUnsaved } from '@/shared/lib/unsaved'
 
 interface ModalProps {
   open: boolean
@@ -10,6 +11,8 @@ interface ModalProps {
   children: ReactNode
   /** 'full' fills most of the viewport (for previews); 'wide' is a larger dialog for dense detail views. */
   size?: 'full' | 'wide'
+  /** false for a dialog that must not ask about unsaved changes (the leave prompt itself) */
+  guard?: boolean
 }
 
 const SIZE_CLASS = { full: 'modal modal-full', wide: 'modal modal-wide' } as const
@@ -19,7 +22,13 @@ function restore(el: HTMLElement | null) {
   if (el?.isConnected) el.focus({ preventScroll: true })
 }
 
-export function Modal({ open, onOpenChange, title, description, children, size }: ModalProps) {
+export function Modal({ open, onOpenChange, title, description, children, size, guard = true }: ModalProps) {
+  const confirmLeave = useUnsaved((s) => s.confirmLeave)
+  // closing with the X, Escape or a click outside asks first when the form inside has unsaved changes
+  const requestChange = (o: boolean) => {
+    if (o || !guard || !hasUnsaved()) return onOpenChange(o)
+    void confirmLeave().then((leave) => { if (leave) onOpenChange(false) })
+  }
   // The control that had focus when the dialog opened. Radix returns focus there on close, but many dialogs are
   // removed from the page as they close (their parent stops rendering them), which loses that step. Keeping the
   // element here returns keyboard and screen-reader users to where they were, both on close and on removal.
@@ -37,7 +46,7 @@ export function Modal({ open, onOpenChange, title, description, children, size }
   }, [])
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={requestChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="modal-backdrop open">
           <Dialog.Content

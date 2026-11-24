@@ -236,6 +236,8 @@ function UserView({ user: u, onEdit }: { user: CoreUser; onEdit: () => void }) {
   const projects = useCore((s) => s.projects);
   const sites = useCore((s) => s.sites);
   const work = workplaceOf(u, projects, sites);
+  // only an administrator account has privileges; a module head or approver never shows or receives them
+  const isAdminAccount = u.privileges.includes("access.manage");
   const label = (pid: string) =>
     Object.values(PRIVILEGES)
       .flat()
@@ -334,7 +336,7 @@ function UserView({ user: u, onEdit }: { user: CoreUser; onEdit: () => void }) {
             )}
           </KV>
         </div>
-        {u.role === "Module head" && (
+        {u.role === "Module head" && isAdminAccount && (
           <>
             <h3 className="section-t">Privileges ({u.privileges.length})</h3>
             {u.privileges.length ? (
@@ -351,7 +353,7 @@ function UserView({ user: u, onEdit }: { user: CoreUser; onEdit: () => void }) {
           </>
         )}
       </Card>
-      <PrivilegeGrants userId={u.id} />
+      {isAdminAccount && <PrivilegeGrants userId={u.id} />}
     </div>
   );
 }

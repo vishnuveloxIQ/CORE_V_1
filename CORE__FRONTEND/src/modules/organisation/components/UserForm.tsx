@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { ApiError } from "@/shared/lib/api";
-import { useForm, useWatch } from "react-hook-form";
+import { useWatch } from 'react-hook-form';
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { z } from "zod";
 import { PhoneField } from "@/shared/ui/PhoneField";
 import { DEFAULT_COUNTRY } from "@/shared/lib/countryCodes";
@@ -11,8 +12,8 @@ import { CheckRow, FormGroup, Input, Select } from "@/shared/ui/Field";
 import { MODULES, type CoreUser, type ModuleName } from "@/modules/core-data";
 import { a11y, email, phone, req } from "@/shared/lib/core";
 import { useRemoteSave } from "@/shared/hooks/useRemoteSave";
-import { LOGIN_ID_RE, nextLoginId, useCore } from "@/modules/core-data";
-import { loginPrefixFor, matchesCompanyPrefix, withCompanyPrefix } from "@/modules/auth";
+import { LOGIN_ID_RE, useCore } from "@/modules/core-data";
+import { loginPrefixFor, matchesCompanyPrefix } from "@/modules/auth";
 import { tenantId } from "@/shared/lib/api";
 import type { TempPassword } from "./TempPasswordDialog";
 
@@ -24,7 +25,7 @@ const schema = z
     designation: req("Designation"),
     loginId: req("Login ID").regex(
       LOGIN_ID_RE,
-      "Use 3–6 letters or digits followed by 4 digits, for example VELOX1234.",
+      "Enter exactly 4 digits after the company prefix, for example .",
     ),
     role: z.enum(["Module head", "Approver"]),
     modules: z.array(z.enum(["HRMS", "PMS", "Stores", "P&M"])),
@@ -97,7 +98,7 @@ export function UserForm({
           email: "",
           phone: "",
           designation: "",
-          loginId: nextLoginId(users, prefix),
+          loginId: "",
           role: "Module head" as const,
           modules: [] as ModuleName[],
           scopeType: "Company" as const,
@@ -235,18 +236,62 @@ export function UserForm({
           label="Login ID"
           required
           error={e.loginId?.message}
-          helper={user ? "A login ID cannot change." : prefix ? `${prefix} followed by 4 digits. Type just the 4 digits if you like.` : undefined}
+          helper={user ? "A login ID cannot change." : prefix ? "Type exactly 4 digits. The company prefix is added for you." : undefined}
         >
-          {(id, d) => (
-            <Input
-              placeholder={prefix ? `e.g. ${prefix}1024` : "e.g. VELOX1234"}
-              autoComplete="off"
-              readOnly={!!user}
-              style={{ textTransform: "uppercase" }}
-              {...a11y(id, d, e.loginId?.message)}
-              {...register("loginId", { setValueAs: (v: string) => (user ? v : withCompanyPrefix(v, prefix)) })}
-            />
-          )}
+          {(id, d) => {
+            const reg = register("loginId", {
+              // a new login ID is the company prefix and the 4 digits typed; an existing one is kept as it is
+              setValueAs: (v: string) => {
+                const t = v.trim().toUpperCase();
+                return user || !prefix ? t : /^\d{4}$/.test(t) ? `${prefix}${t}` : t;
+              },
+            });
+            const digitsOnly = (raw: string) => raw.replace(/\D/g, "").slice(0, 4);
+            if (user || !prefix) {
+              return (
+                <Input
+                  placeholder="e.g. VELOX1234"
+                  autoComplete="off"
+                  readOnly={!!user}
+                  style={{ textTransform: "uppercase" }}
+                  {...a11y(id, d, e.loginId?.message)}
+                  {...reg}
+                />
+              );
+            }
+            return (
+              <div style={{ display: "flex", alignItems: "stretch" }}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 12px",
+                    border: "1px solid var(--line)",
+                    borderRight: 0,
+                    borderRadius: "10px 0 0 10px",
+                    background: "var(--slate-bg)",
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {prefix}
+                </span>
+                <Input
+                  autoComplete="off"
+                  inputMode="numeric"
+                  maxLength={4}
+                  style={{ borderRadius: "0 10px 10px 0" }}
+                  {...a11y(id, d, e.loginId?.message)}
+                  {...reg}
+                  onChange={(ev) => {
+                    ev.target.value = digitsOnly(ev.target.value);
+                    return reg.onChange(ev);
+                  }}
+                />
+              </div>
+            );
+          }}
         </FormGroup>
       </div>
 

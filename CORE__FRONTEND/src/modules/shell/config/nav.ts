@@ -95,9 +95,7 @@ export const NAV: NavGroup[] = [
           return visitRequests();
         },
       },
-      { label: "Audit trail", to: "/audit", icon: "history", needs: "access.manage" },
-      { label: "Event monitor", to: "/integrations/events", icon: "activity", needs: "access.manage" },
-      { label: "Read models", to: "/integrations/read-models", icon: "folderTree", needs: "access.manage" },
+      { label: "Activity log", to: "/audit", icon: "history", needs: "access.manage" },
     ],
   },
   {

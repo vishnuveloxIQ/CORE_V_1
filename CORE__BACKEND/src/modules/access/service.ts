@@ -13,7 +13,8 @@ import {
   revokeAllSessions,
   setTemporaryPassword,
 } from '../auth/repo.js';
-import { type AccessScope, type HeldPrivilege, holdsPrivilege } from './policy.js';
+import { type AccessScope, type HeldPrivilege } from './policy.js';
+import { ACCESS_MANAGE } from './roles.js';
 import {
   auditSnapshot,
   type AccessRecord,
@@ -136,13 +137,17 @@ export function heldPrivileges(rows: readonly GrantRecord[]): HeldPrivilege[] {
 export async function userMayAct(
   client: PoolClient,
   userId: string,
-  privilege: string,
-  requested: AccessScope,
+  _privilege: string,
+  _requested: AccessScope,
 ): Promise<boolean> {
   const rows = await listAccessRows(client, userId);
   const suspended = rows.some((row) => row.accessType === 'suspension' && row.restoredAt === null);
   if (suspended) return false;
-  return holdsPrivilege(heldPrivileges(rows), privilege, requested);
+  // Only an administrator (a holder of access.manage) may act. Module heads and approvers hold no privileges, even
+  // when grants from before this rule still exist; they use only their own module's screens.
+  const held = heldPrivileges(rows);
+  if (!held.some((entry) => entry.privilege === ACCESS_MANAGE)) return false;
+  return true;
 }
 
 async function requireUser(client: PoolClient, userId: string): Promise<void> {

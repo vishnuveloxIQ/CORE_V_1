@@ -1,3 +1,4 @@
+import { setTenantId } from '@/shared/lib/api'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
@@ -581,6 +582,7 @@ describe('CORE users', () => {
       }
       return Promise.reject(new TypeError('offline'))
     }))
+    setTenantId('acme'); // login prefix VELOX
     const user = userEvent.setup()
     const fill = fillWith(user)
     window.location.hash = '#/users/new'
@@ -590,6 +592,8 @@ describe('CORE users', () => {
     await fill(screen.getByLabelText(/designation/i), 'Vice president, finance')
     await fill(screen.getByLabelText(/^email/i), 'meena.joshi@veloxiq.example')
     await fill(screen.getByLabelText(/mobile/i), '9811100099')
+    // the login ID is the company prefix (shown beside the field) and exactly 4 digits typed here
+    await fill(screen.getByLabelText(/login id/i), '4321')
     await user.click(screen.getByRole('radio', { name: /high-level approver/i }))
     const create = screen.getByRole('button', { name: /create user/i })
     expect(create).toBeEnabled()

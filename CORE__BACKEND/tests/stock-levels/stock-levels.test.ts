@@ -149,7 +149,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
        VALUES ($1, 'Fictional store', 'active', $2) RETURNING id`,
         [uniq('ST').toUpperCase(), location.rows[0]!.id],
       );
-      const uom = await db.pool.query<{ id: string }>(
+      const uom = await db.owner.query<{ id: string }>(
         `INSERT INTO shared.uom (uom_code, uom_name) VALUES ($1, 'Fictional unit') RETURNING id`,
         [uniq('UOM').toUpperCase()],
       );

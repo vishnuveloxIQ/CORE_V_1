@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState, type ChangeEvent } from "react";
-import { useForm, type UseFormRegisterReturn } from "react-hook-form";
+import { type UseFormRegisterReturn } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import logo from "@/shared/assets/veloxiq-logo.svg";
@@ -11,7 +12,27 @@ import { notify } from "@/shared/lib/toast";
 import { setTenantId, tenantId } from "@/shared/lib/api";
 import { tenantForLogin } from "../utils/tenants";
 import { rememberLoginRole } from "../utils/loginRole";
-import { useAuth, type LoginResult } from "../store/useAuth";
+import { ADMIN_PRIVILEGE, useAuth, type LoginResult } from "../store/useAuth";
+
+/**
+ * The admin login takes only an administrator (holds access.manage); the user login takes everyone else. Returns the
+ * message for an account on the wrong login, or null when it belongs there.
+ */
+function wrongLoginFor(role: "admin" | "user"): string | null {
+  const isAdmin = useAuth.getState().privileges.includes(ADMIN_PRIVILEGE);
+  if (role === "user" && isAdmin)
+    return "This login ID does not sign in on the user login. Try a different password, or login as admin.";
+  if (role === "admin" && !isAdmin)
+    return "This login ID does not sign in on the admin login. Try a different password, or login as user.";
+  return null;
+}
+
+/** Signs the account out again when it is on the wrong login, and returns the message to show. */
+async function refuseWrongLogin(role: "admin" | "user"): Promise<string | null> {
+  const message = wrongLoginFor(role);
+  if (message) await useAuth.getState().logout();
+  return message;
+}
 import { Icon } from "@/shared/ui/icons";
 import { PublicNav } from "../components/PublicNav";
 
@@ -28,7 +49,7 @@ async function signInWithPasskey(
   loginId: string,
   signIn: (id: string) => Promise<LoginResult>,
   fail: (message: string) => void,
-  done: () => void,
+  done: () => void | Promise<void>,
 ) {
   const id = loginId.trim();
   if (!id) return fail("Enter your login ID first.");
@@ -38,7 +59,7 @@ async function signInWithPasskey(
   setTenantId(tenant);
   const result = await signIn(id);
   if (result === "ok") {
-    done();
+    await done();
     // a different company's data may be in memory: reload so only this company's data loads
     if (switching) window.location.reload();
     return;
@@ -64,9 +85,10 @@ const safeNext = (next: string | null) =>
     : "/dashboard";
 
 function AdminLogin() {
+  const sessionReplaced = useAuth((s) => s.sessionReplaced);
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const next = safeNext(params.get("next"));
+  // an administrator always starts at the dashboard, whatever page the sign-in was for
+  const next = "/dashboard";
   const { user, login, loginWithPasskey, lockedUntil } = useAuth();
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
@@ -98,7 +120,7 @@ function AdminLogin() {
     clearSignedOut();
   }, [clearSignedOut]);
 
-  if (user) return <Navigate to={next} replace />;
+  if (user && !wrongLoginFor("admin")) return <Navigate to={next} replace />;
 
   const submit = handleSubmit(async ({ loginId, password }) => {
     setError("");
@@ -109,6 +131,8 @@ function AdminLogin() {
     const result = await login(loginId, password);
     setNow(clock());
     if (result === "ok") {
+      const wrong = await refuseWrongLogin("admin");
+      if (wrong) return setError(wrong);
       rememberLoginRole("admin");
       notify("Signed in");
       navigate(next, { replace: true });
@@ -176,6 +200,11 @@ function AdminLogin() {
                 className="stack"
                 style={{ gap: 16 }}
               >
+                {sessionReplaced && (
+                  <div className="info-box" role="status" style={{ marginBottom: 4 }}>
+                    <span>You signed in on another device, so this session has ended.</span>
+                  </div>
+                )}
                 {error && (
                   <div className="login-error" role="alert">
                     <Icon name="alert" />
@@ -239,7 +268,9 @@ function AdminLogin() {
                 disabled={locked}
                 className="login-btn"
                 onClick={() =>
-                  void signInWithPasskey(getValues("loginId"), loginWithPasskey, setError, () => {
+                  void signInWithPasskey(getValues("loginId"), loginWithPasskey, setError, async () => {
+                    const wrong = await refuseWrongLogin("admin");
+                    if (wrong) return setError(wrong);
                     rememberLoginRole("admin");
                     notify("Signed in");
                     navigate(next, { replace: true });
@@ -278,6 +309,7 @@ const userSchema = z.object({
 
 /** Signs in through POST /auth/login, the same call as the admin login. */
 function UserLogin() {
+  const sessionReplaced = useAuth((s) => s.sessionReplaced);
   const user = useAuth((s) => s.user);
   const login = useAuth((s) => s.login);
   const loginWithPasskey = useAuth((s) => s.loginWithPasskey);
@@ -299,7 +331,7 @@ function UserLogin() {
   useEffect(() => {
     document.title = "User login | VeloxIQ";
   }, []);
-  if (user) return <Navigate to={next} replace />;
+  if (user && !wrongLoginFor("user")) return <Navigate to={next} replace />;
   const submit = handleSubmit(async ({ loginId, password }) => {
     setError("");
     const tenant = tenantForLogin(loginId);
@@ -308,6 +340,8 @@ function UserLogin() {
     setTenantId(tenant);
     const result = await login(loginId, password);
     if (result === "ok") {
+      const wrong = await refuseWrongLogin("user");
+      if (wrong) return setError(wrong);
       rememberLoginRole("user");
       notify("Signed in");
       navigate(next, { replace: true });
@@ -331,7 +365,7 @@ function UserLogin() {
         <div className="login-wrap">
           <section className="plan login-hero" aria-hidden>
             <span className="tag">VeloxIQ</span>
-            <h2>Welcome back</h2>
+            <h2>Welcome</h2>
             <p>
               login to see your requests, projects and updates from your
               company.
@@ -363,6 +397,11 @@ function UserLogin() {
                 className="stack"
                 style={{ gap: 16 }}
               >
+                {sessionReplaced && (
+                  <div className="info-box" role="status" style={{ marginBottom: 4 }}>
+                    <span>You signed in on another device, so this session has ended.</span>
+                  </div>
+                )}
                 {error && (
                   <div className="login-error" role="alert">
                     <Icon name="alert" />
@@ -421,7 +460,9 @@ function UserLogin() {
                 icon="fingerprint"
                 className="login-btn"
                 onClick={() =>
-                  void signInWithPasskey(getValues("loginId"), loginWithPasskey, setError, () => {
+                  void signInWithPasskey(getValues("loginId"), loginWithPasskey, setError, async () => {
+                    const wrong = await refuseWrongLogin("user");
+                    if (wrong) return setError(wrong);
                     rememberLoginRole("user");
                     notify("Signed in");
                     navigate(next, { replace: true });

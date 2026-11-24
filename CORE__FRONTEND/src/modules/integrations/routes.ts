@@ -1,8 +1,9 @@
+import { createElement } from 'react'
+import { Navigate } from 'react-router-dom'
 import type { AppRoute } from '@/shared/types/route'
-import { page } from '@/shared/lib/route'
 
-// CORE-23-02, 23-03, 24-01, 24-02: integration diagnostics for the Core administrator (access.manage)
+// The module messages and module data screens now live as tabs of the Activity log; the old addresses open those tabs.
 export const integrationRoutes: AppRoute[] = [
-  { path: '/integrations/events', Component: page(() => import('./pages/EventMonitor')) },
-  { path: '/integrations/read-models', Component: page(() => import('./pages/ReadModels')) },
+  { path: '/integrations/events', Component: () => createElement(Navigate, { to: '/audit?view=messages', replace: true }) },
+  { path: '/integrations/read-models', Component: () => createElement(Navigate, { to: '/audit?view=data', replace: true }) },
 ]

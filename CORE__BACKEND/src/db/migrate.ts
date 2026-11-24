@@ -42,6 +42,7 @@ export const GLOBAL_MIGRATIONS: readonly string[] = [
  * 0035 creates the Bill of Quantities (core_boq_item: priced items per project, amount = quantity x rate, stored).
  * 0036 adds the optional date a request is needed by (core_approval_request.needed_by).
  * 0037 creates the equipment maintenance schedules (core_maintenance_schedule: service task every N months or hours).
+ * 0041 adds capacity, capacity unit and model to equipment plan lines (all optional); 0042 makes the capacity text and drops the unit.
  * 0040 creates the read models (ref_record: Core's copy of other modules' records, kept from inbound events by sequence).
  * 0039 adds the event relay indexes (unique event id per direction, relay queue, aggregate order, monitor) and replay states.
  * 0038 adds the approval reminder time (core_approval_request.last_reminded_at) and an index for waiting requests.
@@ -83,6 +84,8 @@ export const TENANT_MIGRATIONS: readonly string[] = [
   '0038_approval_reminders.sql',
   '0039_event_relay.sql',
   '0040_ref_records.sql',
+  '0041_plan_line_equipment_details.sql',
+  '0042_plan_line_capacity_text.sql',
 ];
 
 const TENANT_ID_PATTERN = /^[a-z][a-z0-9_]{0,39}$/;

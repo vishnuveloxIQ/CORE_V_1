@@ -46,7 +46,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
     beforeEach(async () => {
       logLines = [];
       sent = [];
-      await db.pool.query('TRUNCATE public.core_rate_limit_window');
+      await db.owner.query('TRUNCATE public.core_rate_limit_window');
       app = buildApp({
         env,
         pool: db.pool,

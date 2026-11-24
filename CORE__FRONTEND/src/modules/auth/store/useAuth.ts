@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { startAuthentication, browserSupportsWebAuthn, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
-import { api, ApiError, onPasswordChangeRequired, onSessionExpired, setTokens, type TokenPair } from '@/shared/lib/api'
+import { api, ApiError, onPasswordChangeRequired, onSessionExpired, SESSION_REPLACED_CODE, setTokens, type TokenPair } from '@/shared/lib/api'
 import { passkeyLoginOptions, passkeyLoginVerify, type PasskeyAuthenticationResponse } from '../api'
 
 /**
@@ -30,6 +30,8 @@ interface AuthState {
   lastError: string
   /** true right after a deliberate sign-out, so the guard does not add ?next= */
   signedOut: boolean
+  /** true when the session ended because the user signed in on another device; the login page says so */
+  sessionReplaced: boolean
   /** the server requires a new password (temporary password in use); the guard sends the user to /change-password */
   mustChangePassword: boolean
   login: (loginId: string, password: string) => Promise<LoginResult>
@@ -60,7 +62,7 @@ export function onSignedOut(listener: () => void): () => void {
 
 const notifySignedOut = () => signedOutListeners.forEach((listener) => listener())
 
-const signedOutState = { user: null, profile: null, privileges: [], isAdmin: false, signedInAt: null, mustChangePassword: false }
+const signedOutState = { user: null, profile: null, privileges: [], isAdmin: false, signedInAt: null, mustChangePassword: false, sessionReplaced: false }
 
 /** Stores the tokens of a successful sign-in and reads the user's privileges. Shared by password and passkey sign-in. */
 async function applySignIn(
@@ -74,7 +76,7 @@ async function applySignIn(
   } catch { /* access is optional for sign-in; screens that need it re-check on the server */ }
   set({
     user: result.user.loginId, profile: result.user, privileges, isAdmin: privileges.includes(ADMIN_PRIVILEGE),
-    signedInAt: new Date().toISOString(), lockedUntil: 0, lastError: '', signedOut: false,
+    signedInAt: new Date().toISOString(), lockedUntil: 0, lastError: '', signedOut: false, sessionReplaced: false,
     mustChangePassword: result.mustChangePassword === true,
   })
 }
@@ -155,9 +157,9 @@ export const useAuth = create<AuthState>()(
 )
 
 // a refused refresh means the server ended the session: drop the local sign-in so the guard sends the user to login
-onSessionExpired(() => {
+onSessionExpired((reason) => {
   setTokens(null)
-  useAuth.setState({ ...signedOutState })
+  useAuth.setState({ ...signedOutState, sessionReplaced: reason === SESSION_REPLACED_CODE })
   notifySignedOut()
 })
 

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/shared/ui/Button'
 import { TablePanel } from '@/shared/ui/data/TablePanel'
@@ -6,28 +6,26 @@ import { Note } from '@/shared/ui/Extras'
 import { StatTile } from '@/shared/ui/StatTile'
 import { PageHead } from '@/modules/shell'
 import { useEnter } from '@/shared/hooks/useMotion'
-import { useCore, type EquipmentUnit } from '@/modules/core-data'
+import { Can, MANAGE } from '@/modules/auth'
+import { typeIdByName, useCore, type EquipmentUnit } from '@/modules/core-data'
+import { AssignUnitDialog } from '../components/EquipmentControls'
 
 /**
  * Equipment that is free to be assigned to work: units whose availability is Available, with the location and
  * project each one is registered at. Read from the company equipment register (the same data as the register).
- * Assigning a unit to a project is done on the register.
+ * A unit can be assigned to a project from here (the same dialog as the register).
  */
 export default function AvailableEquipment() {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'available-equipment')
   const navigate = useNavigate()
-  const { units, sites, projects } = useCore()
-
-  const where = (u: EquipmentUnit) => {
-    const site = sites.find((s) => s.id === u.chainageId)
-    const project = site?.projectId ? projects.find((p) => p.id === site.projectId) : undefined
-    return { location: site?.name ?? '—', project: project ? `${project.code} · ${project.name}` : 'Not assigned to a project' }
-  }
+  const { units, equipmentTypes } = useCore()
+  const [assignFor, setAssignFor] = useState<EquipmentUnit | null>(null)
+  const capacityOf = (u: EquipmentUnit) => [u.capacity, u.capacityUnit].filter(Boolean).join(' ')
 
   const available = units
     .filter((u) => u.availability === 'Available')
-    .map((u) => ({ unit: u, ...where(u) }))
+    .map((u) => ({ unit: u }))
     .sort((a, b) => a.unit.assetCode.localeCompare(b.unit.assetCode))
   const types = new Set(available.map((r) => r.unit.type)).size
 
@@ -50,19 +48,25 @@ export default function AvailableEquipment() {
       )}
       <TablePanel
         title="Available units"
-        subtitle="Only units marked Available. Search by asset code, type, location or project."
+        subtitle="Only units marked Available. Search by asset code, type, model or capacity."
         rows={available}
         rowKey={(r) => r.unit.id}
         columns={[
           { header: 'Asset', kind: 'c-sub', cell: (r) => <span><strong>{r.unit.assetCode}</strong><span className="sub">{r.unit.name ?? r.unit.makeModel ?? ''}</span></span>, csv: (r) => r.unit.assetCode },
           { header: 'Type', kind: 'c-more', cell: (r) => <span className="cell-pill">{r.unit.type}</span>, csv: (r) => r.unit.type },
-          { header: 'Location', kind: 'c-more', cell: (r) => r.location, csv: (r) => r.location },
-          { header: 'Project', kind: 'c-more', cell: (r) => <span style={{ whiteSpace: 'normal' }}>{r.project}</span>, csv: (r) => r.project },
+          { header: 'Model', kind: 'c-more', cell: (r) => r.unit.model || '—', csv: (r) => r.unit.model ?? '' },
+          { header: 'Capacity / size', kind: 'c-more', cell: (r) => capacityOf(r.unit) || '—', csv: (r) => capacityOf(r.unit) },
         ]}
-        searchText={(r) => `${r.unit.assetCode} ${r.unit.name ?? ''} ${r.unit.type} ${r.unit.makeModel ?? ''} ${r.location} ${r.project}`}
-        searchPlaceholder="Search by asset, type, location or project…"
+        action={(r) => (
+          <Can privilege={MANAGE.masters}>
+            <Button size="sm" icon="plus" disabled={!typeIdByName(equipmentTypes, r.unit.type)} title={typeIdByName(equipmentTypes, r.unit.type) ? undefined : 'This type is not on the server yet'} onClick={() => setAssignFor(r.unit)}>Assign to project</Button>
+          </Can>
+        )}
+        searchText={(r) => `${r.unit.assetCode} ${r.unit.name ?? ''} ${r.unit.type} ${r.unit.makeModel ?? ''} ${r.unit.model ?? ''} ${capacityOf(r.unit)}`}
+        searchPlaceholder="Search by asset, type, model or capacity…"
         exportName="core-available-equipment"
       />
+      {assignFor && <AssignUnitDialog unit={assignFor} onClose={() => setAssignFor(null)} />}
     </div>
   )
 }

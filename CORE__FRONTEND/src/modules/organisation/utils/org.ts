@@ -4,6 +4,8 @@ import { code, req } from '@/shared/lib/core'
 
 /** Department accents (CSS tokens), picked by Department.color. */
 export const DEPT_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--c-green)', 'var(--c-amber)', 'var(--c-red)', 'var(--sky)', 'var(--c-blue)', 'var(--slate)'] as const
+/** The same eight colours as hex. The server stores a palette choice as its index and its hex together. */
+export const DEPT_COLOR_HEX = ['#123C94', '#C27D70', '#1FA97A', '#E5A23A', '#D9625F', '#2A56BE', '#4F7BE8', '#5B6685'] as const
 export const deptColor = (d?: Department) => d?.colorHex || DEPT_COLORS[(d?.color ?? 0) % DEPT_COLORS.length]
 
 export const GRADES = ['E1', 'E2', 'E3', 'M1', 'M2', 'M3', 'S1', 'S2', 'S3', 'S4', 'W1', 'W2'] as const

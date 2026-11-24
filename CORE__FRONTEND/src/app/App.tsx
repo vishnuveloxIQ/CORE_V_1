@@ -4,8 +4,10 @@ import { Toaster } from 'sonner'
 import { ErrorBoundary } from './ErrorBoundary'
 import { APP, Shell, privilegeFor, useDocumentTheme } from '@/modules/shell'
 import { StepUpHost } from '@/shared/lib/stepUp'
+import { UnsavedChangesGuard } from '@/shared/ui/UnsavedChangesGuard'
 import NotFound from './pages/NotFound'
 import NoAccess from './pages/NoAccess'
+import ModuleHome from './pages/ModuleHome'
 import { ROUTES } from './routes'
 import { ADMIN_PRIVILEGE, lastLoginRole, onSignedOut, useAuth } from '@/modules/auth'
 import { useCore } from '@/modules/core-data'
@@ -28,11 +30,13 @@ function Protected() {
   const signedOut = useAuth((s) => s.signedOut)
   // a temporary password must be replaced first; nothing else loads until then
   const mustChange = useAuth((s) => s.mustChangePassword)
+  // only an administrator (holds access.manage) uses the Core screens; everyone else sees the module message
+  const isAdmin = useAuth((s) => s.privileges.includes(ADMIN_PRIVILEGE))
   const { pathname, search } = useLocation()
   useEffect(() => { if (user) document.title = `${APP.module} | VeloxIQ` }, [user])
   // modules wired to the Core API load once per sign-in; the rest show only what is held on this device
   useEffect(() => {
-    if (!user || mustChange) return
+    if (!user || mustChange || !isAdmin) return
     const core = useCore.getState()
     // projects first: locations and markers are attached to the projects read from the API
     const storesReady = core.loadProjects().then(() => Promise.all([core.loadSites(), core.loadStores()]))
@@ -58,13 +62,14 @@ function Protected() {
     void core.loadRequests()
     void core.loadGrievances()
     void core.loadTickets()
-  }, [user, mustChange])
+  }, [user, mustChange, isAdmin])
   if (!user) {
     const next = pathname === '/' || signedOut ? '' : `?next=${encodeURIComponent(pathname + search)}`
     // back to the login page the user signed in from (user or admin)
     return <Navigate to={`/login?role=${lastLoginRole()}${next.replace('?', '&')}`} replace />
   }
   if (mustChange) return <Navigate to={`/change-password?next=${encodeURIComponent(pathname + search)}`} replace />
+  if (!isAdmin) return <ModuleHome />
   return (
     <Shell>
       <ErrorBoundary resetKey={pathname}>
@@ -83,6 +88,8 @@ function Protected() {
 function Frame() {
   useDocumentTheme()
   return (
+    <>
+    <UnsavedChangesGuard />
     <Routes>
       <Route path="/" element={<Suspense fallback={null}><Home /></Suspense>} />
       <Route path="/forgot" element={<Suspense fallback={null}><ForgotPassword /></Suspense>} />
@@ -91,6 +98,7 @@ function Frame() {
       <Route path="/change-password" element={<Suspense fallback={null}><ChangePassword /></Suspense>} />
       <Route path="*" element={<Protected />} />
     </Routes>
+    </>
   )
 }
 

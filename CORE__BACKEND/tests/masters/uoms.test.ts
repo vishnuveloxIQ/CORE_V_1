@@ -36,7 +36,7 @@ describe.skipIf(!TEST_DATABASE_URL)('units of measure (GET /uoms)', { timeout: 6
 
   beforeAll(async () => {
     db = await createTestDatabase(TEST_DATABASE_URL!, [TENANT]);
-    await db.pool.query(
+    await db.owner.query(
       `INSERT INTO shared.uom (uom_code, uom_name) VALUES ($1, 'Metre'), ($2, 'Bag'), ($3, 'Kilogram')`,
       [`M-${tag}`, `BAG-${tag}`, `KG-${tag}`],
     );

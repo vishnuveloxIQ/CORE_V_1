@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { useForm } from 'react-hook-form'
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { BulkUpload, type RowCheck } from '@/shared/ui/data/BulkUpload'
@@ -17,26 +17,24 @@ import type { Availability, EquipmentUnit, UnitDocKey, UnitUpload } from '@/modu
 import { useEnter } from '@/shared/hooks/useMotion'
 import { bulk } from '@/shared/lib/bulk'
 import { a11y, req } from '@/shared/lib/core'
-import { AVAIL_TONE, EQUIPMENT_TYPES } from '@/modules/core-data'
+import { AVAIL_TONE, COMPANY_EQUIPMENT_TYPE } from '@/modules/core-data'
 import { fmtDate, fmtDateTime } from '@/shared/lib/format'
 import { newId, nextCode, projectOf, useCore } from '@/modules/core-data'
-import { typeIdByName, type EquipmentTypeRecord, type FuelNormUnit, type MeterKind } from '@/modules/core-data'
+import { typeIdByName } from '@/modules/core-data'
 import { ApiError, errorText, idempotencyKey } from '@/shared/lib/api'
 import { notify } from '@/shared/lib/toast'
 import { Can, MANAGE } from '@/modules/auth'
-import { AssignUnitDialog, EditUnitDialog, EquipmentTypeDialog, UnitAssignments, UnitFiles } from '../components/EquipmentControls'
+import { AssignUnitDialog, EditUnitDialog, UnitAssignments, UnitFiles } from '../components/EquipmentControls'
 import { asUpload, DOC_ACCEPT, FILE_HINT, IMAGE_ACCEPT, PHOTO_HINT, reportFileFailures } from '../utils/unitFiles'
 
 const AVAILABILITY: Availability[] = ['Available', 'In use', 'Under maintenance', 'Breakdown']
 const OWNERSHIP = ['Owned', 'Hired']
-const CAPACITY_UNITS = ['kVA', 'kW', 'HP', 'Ton']
+const CAPACITY_UNITS = ['kVA', 'kW', 'HP', 'Ton', 'm³', 'm³/h', 'm', 'cfm']
+/** capacity as the register shows it: the figure and its unit when both are there */
+const capacityText = (u: { capacity?: string; capacityUnit?: string }) => [u.capacity, u.capacityUnit].filter(Boolean).join(' ')
 const FUEL_TYPES = ['Petrol', 'Diesel', 'CNG', 'Electric']
 /** Meter type is fixed for every unit: hour meter (hours run). */
 const METER_TYPE = 'HMR'
-const METER_LABEL: Record<MeterKind, string> = { hours: 'Hours', km: 'Kilometres', none: 'None' }
-const FUEL_LABEL: Record<FuelNormUnit, string> = { litre_per_hour: 'Litre per hour', litre_per_km: 'Litre per km' }
-const meterText = (k: MeterKind | null) => (k ? METER_LABEL[k] : '—')
-const fuelText = (u: FuelNormUnit | null) => (u ? FUEL_LABEL[u] : '—')
 
 const text = z.string().optional()
 const dateField = z.string().optional().refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), 'Use a date.')
@@ -96,7 +94,6 @@ type DocKey = keyof typeof docShape
 const unitSchema = z.object({
   assetCode: req('Equipment ID'),
   name: req('Equipment name'),
-  type: z.string().min(1, 'Choose one of the equipment categories.'),
   regNo: text,
   ownershipType: z.string().min(1, 'Choose Owned or Hired.'),
   chainageId: z.string().min(1, NO_LOCATION),
@@ -162,7 +159,7 @@ const STEPS = [
 const LAST = STEPS.length - 1
 /** Fields that must be valid before Continue moves past each step (required DOC_FIELDS and FILE_STEPS are added per step). */
 const REQUIRED_BY_STEP: FieldName[][] = [
-  ['assetCode', 'name', 'type', 'ownershipType'],
+  ['assetCode', 'name', 'ownershipType'],
   [],
   ['projectId'],
   [],
@@ -215,7 +212,7 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
   const { register, handleSubmit, trigger, watch, setError, setValue, formState: { errors: e } } = useForm<AddValues>({
     resolver: zodResolver(addSchema),
     defaultValues: {
-      assetCode: '', name: '', type: '', regNo: '', ownershipType: 'Owned', projectId: '', availability: 'Available',
+      assetCode: '', name: '', regNo: '', ownershipType: 'Owned', projectId: '', availability: 'Available',
       ...blankDocs, ...blankFiles, capacityUnit: 'kVA', fuelType: 'Petrol',
     },
   })
@@ -305,7 +302,7 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
       id: newId(),
       assetCode,
       name: v.name.trim(),
-      type: v.type,
+      type: COMPANY_EQUIPMENT_TYPE.name,
       makeModel: makeModelOf(v.manufacturer, v.model),
       regNo: v.regNo?.trim() ?? '',
       meterType: METER_TYPE,
@@ -330,11 +327,6 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
       if (err instanceof ApiError && err.code === 'EQUIPMENT_UNIT_DUPLICATE') {
         setStep(0)
         setError('assetCode', { message: err.message })
-        return
-      }
-      if (err instanceof ApiError && err.code === 'EQUIPMENT_UNIT_TYPE_NOT_ON_SERVER') {
-        setStep(0)
-        setError('type', { message: err.message })
         return
       }
       setFormError(errorText(err))
@@ -435,7 +427,6 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
         <div className="form-grid form-grid-4">
           <FormGroup label="Equipment ID" required error={e.assetCode?.message}>{(id, d) => <Input placeholder="e.g. EXC-006" style={{ textTransform: 'uppercase' }} {...a11y(id, d, e.assetCode?.message)} {...register('assetCode')} />}</FormGroup>
           <FormGroup label="Equipment name" required error={e.name?.message}>{(id, d) => <Input placeholder="e.g. JCB 3DX Backhoe 01" {...a11y(id, d, e.name?.message)} {...register('name')} />}</FormGroup>
-          <FormGroup label="Category" required error={e.type?.message}>{(id, d) => <Select {...a11y(id, d, e.type?.message)} {...register('type')}><option value="">Choose a category</option>{EQUIPMENT_TYPES.map((t) => <option key={t}>{t}</option>)}</Select>}</FormGroup>
           <FormGroup label="Ownership type" required error={e.ownershipType?.message}>{(id, d) => <Select {...a11y(id, d, e.ownershipType?.message)} {...register('ownershipType')}>{OWNERSHIP.map((o) => <option key={o}>{o}</option>)}</Select>}</FormGroup>
           <FormGroup label="Machine photo" helper={PHOTO_HINT}>
             {(id) => (
@@ -522,7 +513,6 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
         <div className="detail-grid detail-grid-4">
           <KV k="Equipment ID"><strong>{shown(v.assetCode?.trim() ?? '')}</strong></KV>
           <KV k="Equipment name"><strong>{shown(v.name)}</strong></KV>
-          <KV k="Category"><strong>{shown(v.type)}</strong></KV>
           <KV k="Ownership type"><strong>{shown(v.ownershipType)}</strong></KV>
           <KV k="Machine photo"><strong>{photo ? 'Attached' : '—'}</strong></KV>
           <KV k="Make and model"><strong>{shown(makeModelOf(v.manufacturer ?? '', v.model ?? ''))}</strong></KV>
@@ -562,14 +552,12 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
 export default function EquipmentRegister() {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'eq-register')
-  const { units, projects, sites, saveUnitRemote, unitsLoad, unitsError, equipmentTypes, planSource } = useCore()
+  const { units, projects, sites, saveUnitRemote, unitsLoad, unitsError, equipmentTypes } = useCore()
   const [selected, setSelected] = useState<EquipmentUnit | null>(null)
   const [editFor, setEditFor] = useState<EquipmentUnit | null>(null)
   const [upload, setUpload] = useState(false)
   const [adding, setAdding] = useState(false)
   const [projectId, setProjectId] = useState('')
-  // equipment type dialog: 'new' to add, a record to edit, null when closed
-  const [typeEdit, setTypeEdit] = useState<EquipmentTypeRecord | 'new' | null>(null)
   const [assignFor, setAssignFor] = useState<EquipmentUnit | null>(null)
   // a unit links to a server location (chainageId holds its id); '' means unassigned
   const siteOf = (u: EquipmentUnit) => sites.find((s) => s.id === u.chainageId)
@@ -592,7 +580,6 @@ export default function EquipmentRegister() {
   const validate = (records: Record<string, string>[]): RowCheck<EquipmentUnit>[] => {
     let n = Number(nextCode('EQ', units).split('-')[1])
     return records.map((r) => {
-      const type = bulk.pick(r.equipment_type ?? '', EQUIPMENT_TYPES)
       const availRaw = (r.availability ?? '').trim()
       const avail = availRaw ? bulk.pick(availRaw, AVAILABILITY) : 'Available'
       const ownership = bulk.pick(r.ownership_type ?? '', OWNERSHIP)
@@ -604,7 +591,7 @@ export default function EquipmentRegister() {
       const value = {
         assetCode: (r.asset_code ?? '').trim(),
         name: (r.equipment_name ?? '').trim(),
-        type: type ?? '',
+        type: COMPANY_EQUIPMENT_TYPE.name,
         regNo: (r.reg_no ?? '').trim(),
         ownershipType: ownership ?? '',
         chainageId: locationsOf(projects, sites, where?.id).find((s) => s.name === docs.currentLocation)?.id ?? '',
@@ -612,7 +599,6 @@ export default function EquipmentRegister() {
         ...docs,
       }
       const errors = bulk.check(unitSchema, value)
-      if (!type) errors.push(`equipment_type must be one of: ${EQUIPMENT_TYPES.join(', ')}.`)
       if (availRaw && !avail) errors.push(`availability must be one of: ${AVAILABILITY.join(', ')}.`)
       if (!ownership) errors.push(`ownership_type must be one of: ${OWNERSHIP.join(', ')}.`)
       for (const f of DOC_FIELDS) {
@@ -624,7 +610,7 @@ export default function EquipmentRegister() {
       if (r.project_code && !where) errors.push(`Project code ${r.project_code} does not exist.`)
       if (value.assetCode && units.some((u) => u.assetCode.toUpperCase() === value.assetCode.toUpperCase()))
         errors.push(`Company code ${value.assetCode} is already registered.`)
-      const label = `${value.assetCode || r.asset_code || '?'} · ${value.name || type || r.equipment_type || '?'}`
+      const label = `${value.assetCode || r.asset_code || '?'} · ${value.name || '?'}`
       return errors.length
         ? { label, errors }
         : {
@@ -633,7 +619,7 @@ export default function EquipmentRegister() {
               id: `EQ-${n++}`,
               assetCode: value.assetCode,
               name: value.name,
-              type: value.type,
+              type: COMPANY_EQUIPMENT_TYPE.name,
               makeModel: makeModelOf(docs.manufacturer, docs.model),
               regNo: value.regNo,
               meterType: METER_TYPE,
@@ -673,7 +659,6 @@ export default function EquipmentRegister() {
         actions={<>
           <Can privilege={MANAGE.masters}>
             <Button icon="upload" onClick={() => setUpload(true)}>Bulk upload</Button>
-            <Button icon="plus" onClick={() => setTypeEdit('new')}>Add equipment type</Button>
             <Button tone="primary" icon="plus" onClick={() => setAdding(true)}>Add equipment</Button>
           </Can>
         </>} />
@@ -701,6 +686,8 @@ export default function EquipmentRegister() {
           { header: 'S No', kind: 'c-id', cell: (u) => shownUnits.indexOf(u) + 1, csv: (u) => String(shownUnits.indexOf(u) + 1) },
           { header: 'Equipment Name', kind: 'c-sub', cell: (u) => <strong>{u.name || u.type}</strong>, csv: (u) => u.name || u.type },
           { header: 'Made', kind: 'c-more', cell: (u) => u.makeModel, csv: (u) => u.makeModel },
+          { header: 'Model', kind: 'c-more', cell: (u) => u.model || '—', csv: (u) => u.model ?? '' },
+          { header: 'Capacity / size', kind: 'c-more', cell: (u) => capacityText(u) || '—', csv: capacityText },
           { header: 'Company Code', kind: 'c-amt', cell: (u) => u.assetCode, csv: (u) => u.assetCode },
           { header: 'Current Project', kind: 'c-amt', cell: (u) => projectCodeOf(u), csv: (u) => projectCodeOf(u) },
           { header: 'Current Status', kind: 'c-status', cell: (u) => <StatusBadge tone={AVAIL_TONE[u.availability]}>{u.availability}</StatusBadge>, csv: (u) => u.availability },
@@ -711,17 +698,6 @@ export default function EquipmentRegister() {
           <Button size="sm" onClick={() => setSelected(u)}>Details</Button>
         </>}
         searchPlaceholder="Search by asset, name, type or registration…" exportName="core-equipment-register" chipNoun="availability" />
-      <TablePanel title="Equipment types" subtitle="Equipment type master on the server. The code is fixed after create." rows={equipmentTypes} rowKey={(t) => t.id}
-        columns={[
-          { header: 'Code', kind: 'c-id', cell: (t) => t.code, csv: (t) => t.code },
-          { header: 'Name', kind: 'c-sub', cell: (t) => <strong>{t.name}</strong>, csv: (t) => t.name },
-          { header: 'Meter', kind: 'c-more', cell: (t) => meterText(t.meterKind), csv: (t) => meterText(t.meterKind) },
-          { header: 'Fuel norm unit', kind: 'c-more', cell: (t) => fuelText(t.fuelNormUnit), csv: (t) => fuelText(t.fuelNormUnit) },
-          { header: 'Status', kind: 'c-status', cell: (t) => (t.active ? 'Active' : 'Inactive'), csv: (t) => (t.active ? 'Active' : 'Inactive') },
-        ]}
-        searchText={(t) => `${t.code} ${t.name}`} statusOf={(t) => (t.active ? 'Active' : 'Inactive')}
-        action={(t) => <Can privilege={MANAGE.masters}><Button size="sm" disabled={planSource !== 'api'} onClick={() => setTypeEdit(t)}>Edit</Button></Can>}
-        searchPlaceholder="Search by code or name…" exportName="core-equipment-types" chipNoun="status" />
       <BulkUpload
         open={upload}
         onOpenChange={setUpload}
@@ -730,7 +706,6 @@ export default function EquipmentRegister() {
         fields={[
           { key: 'asset_code', label: 'Company code', required: true, example: 'EXC-020', hint: 'Must be unique' },
           { key: 'equipment_name', label: 'Equipment name', required: true, example: 'JCB 3DX Backhoe 01' },
-          { key: 'equipment_type', label: 'Equipment type', required: true, example: 'Excavator', hint: EQUIPMENT_TYPES.join(', ') },
           { key: 'reg_no', label: 'Registration number', required: false, example: 'TS09EX1402', hint: 'Optional' },
           { key: 'ownership_type', label: 'Ownership', required: true, example: 'Owned', hint: OWNERSHIP.join(', ') },
           { key: 'project_code', label: 'Current project code', required: true, example: projects[0]?.code ?? '', hint: `Projects: ${projects.map((p) => p.code).join(', ')}` },
@@ -745,7 +720,6 @@ export default function EquipmentRegister() {
           <div className="detail-grid detail-grid-4">
             <KV k="S No"><strong>{shownUnits.indexOf(selected) + 1}</strong></KV>
             <KV k="Equipment Name"><strong>{selected.name || selected.type}</strong></KV>
-            <KV k="Category"><strong>{selected.type}</strong></KV>
             <KV k="Made"><strong>{selected.makeModel}</strong></KV>
             <KV k="Company Code"><strong>{selected.assetCode}</strong></KV>
             <KV k="Registration Number"><strong>{txt(selected.regNo)}</strong></KV>
@@ -768,7 +742,6 @@ export default function EquipmentRegister() {
           </div>
         </>}
       </Modal>
-      {typeEdit !== null && <EquipmentTypeDialog type={typeEdit === 'new' ? null : typeEdit} onClose={() => setTypeEdit(null)} />}
       {assignFor && <AssignUnitDialog unit={assignFor} onClose={() => setAssignFor(null)} />}
       {editFor && <EditUnitDialog unit={editFor} onClose={() => setEditFor(null)} />}
     </div>

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { z } from "zod";
 import { BulkUpload, type RowCheck } from "@/shared/ui/data/BulkUpload";
 import { TablePanel } from "@/shared/ui/data/TablePanel";
@@ -9,15 +9,14 @@ import { FormGroup, Input, Select, Textarea } from "@/shared/ui/Field";
 import { Modal } from "@/shared/ui/Modal";
 import { PageHead } from "@/modules/shell";
 import { StatTile } from "@/shared/ui/StatTile";
-import { StatusBadge } from "@/shared/ui/Status";
-import { EQUIPMENT_TYPES } from "@/modules/core-data";
+import { CAPACITY_OPTIONS, COMPANY_EQUIPMENT_TYPE, EQUIPMENT_TYPES, PLAN_EQUIPMENT_TYPES } from "@/modules/core-data";
 import type { PlanLine } from "@/modules/core-data";
 import { useEnter } from "@/shared/hooks/useMotion";
 import { bulk, saveEach } from "@/shared/lib/bulk";
 import { a11y, num, req } from "@/shared/lib/core";
 import { fmtDate } from "@/shared/lib/format";
 import { notify } from "@/shared/lib/toast";
-import { newId, nextCode, projectOf, useCore } from "@/modules/core-data";
+import { newId, nextCode, useCore } from "@/modules/core-data";
 import { ApiError, errorText, idempotencyKey } from "@/shared/lib/api";
 import { Can, MANAGE } from '@/modules/auth';
 
@@ -26,29 +25,34 @@ const schema = z
     equipmentType: req("Equipment type"),
     projectId: z.string().min(1, "Choose the project."),
     plannedQty: num("Quantity", 1).int("Whole units only."),
+    // the capacity and model the line needs: optional (API 1.9.0)
+    capacity: z.string().trim().max(100, "Keep it under 100 characters.").optional(),
+    model: z.string().trim().max(100, "Keep it under 100 characters.").optional(),
     from: z.string().min(1, "Pick a start date."),
-    to: z.string().min(1, "Pick an end date."),
     reason: z.string().trim().min(3, "Say what the units are for."),
-  })
-  .refine((v) => !v.from || !v.to || v.to > v.from, {
-    path: ["to"],
-    message: "End date must be after the start date.",
   });
 
 /** 3.5 Equipment planning: CORE decides units needed per type per site or project. */
 export default function EquipmentPlanning() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "eq-planning");
-  const { planLines, units, projects, saveEquipmentPlanRemote, cancelPlanRemote } = useCore();
+  const { planLines, projects, saveEquipmentPlanRemote, cancelPlanRemote } = useCore();
   const [edit, setEdit] = useState<PlanLine | "new" | null>(null);
   const [upload, setUpload] = useState(false);
   const [projectId, setProjectId] = useState("");
   const rows = projectId
     ? planLines.filter((l) => l.projectId === projectId)
     : planLines;
-  const shownUnits = projectId
-    ? units.filter((u) => projectOf(projects, u.chainageId)?.id === projectId)
-    : units;
+  // one row per project and equipment type, with the units added up
+  const groups: PlanGroup[] = [];
+  for (const l of rows) {
+    const key = [l.projectId, l.equipmentType].map((x) => x.trim().toLowerCase()).join("|");
+    const g = groups.find((x) => x.key === key);
+    if (g) g.lines.push(l);
+    else groups.push({ key, lines: [l] });
+  }
+  const [manage, setManage] = useState<string | null>(null);
+  const managed = groups.find((g) => g.key === manage);
   const validate = (
     records: Record<string, string>[],
   ): RowCheck<PlanLine>[] => {
@@ -63,7 +67,7 @@ export default function EquipmentPlanning() {
         projectId: where?.id ?? "",
         plannedQty: bulk.num(r.units ?? ""),
         from: r.from ?? "",
-        to: r.to ?? "",
+        to: "",
         reason: r.purpose ?? "",
       };
       const errors = bulk.check(schema, value);
@@ -75,8 +79,6 @@ export default function EquipmentPlanning() {
         errors.push(`Project code ${r.code} does not exist.`);
       if (value.from && !bulk.date(value.from))
         errors.push("from must be a date like 2027-01-01.");
-      if (value.to && !bulk.date(value.to))
-        errors.push("to must be a date like 2027-06-30.");
       if (
         planLines.some(
           (l) =>
@@ -101,28 +103,20 @@ export default function EquipmentPlanning() {
     setReasonErr("");
   };
 
-  const registered = (l: PlanLine) =>
-    units.filter(
-      (u) =>
-        u.type === l.equipmentType &&
-        projectOf(projects, u.chainageId)?.id === l.projectId,
-    ).length;
   const where = (l: PlanLine) =>
     projects.find((p) => p.id === l.projectId)?.name ?? l.projectId;
-  const gapOf = (l: PlanLine) => registered(l) - l.plannedQty;
-  const state = (l: PlanLine) =>
-    gapOf(l) < 0 ? "Shortfall" : gapOf(l) > 0 ? "Surplus" : "Fulfilled";
-  const gapText = (l: PlanLine) =>
-    gapOf(l) > 0 ? `+${gapOf(l)}` : gapOf(l) < 0 ? `−${-gapOf(l)}` : "0";
-  const gapTone = (l: PlanLine) =>
-    gapOf(l) > 0 ? "approved" : gapOf(l) < 0 ? "rejected" : "pending";
+  const totalOf = (g: PlanGroup) => g.lines.reduce((n, l) => n + l.plannedQty, 0);
+  const earliest = (g: PlanGroup) => g.lines.map((l) => l.from).filter(Boolean).sort()[0] ?? "";
+  const distinct = (g: PlanGroup, pick: (l: PlanLine) => string | undefined) =>
+    Array.from(new Set(g.lines.map((l) => pick(l)?.trim()).filter(Boolean))).join(", ");
+  const purposes = (g: PlanGroup) => Array.from(new Set(g.lines.map((l) => l.reason).filter(Boolean))).join("; ");
 
   return (
     <div ref={ref}>
       <PageHead
         crumb="Project equipment planning"
         title="Project equipment planning"
-        desc="Define the equipment required for each project. Onboarded units are tracked against these requirements."
+        desc="The equipment each project needs: type, capacity or size, model and the number of units planned."
         actions={
           <Can privilege={MANAGE.masters}>
             <Button icon="upload" onClick={() => setUpload(true)}>
@@ -155,95 +149,126 @@ export default function EquipmentPlanning() {
       <div className="grid stats">
         <StatTile
           label="Planned units"
-          value={rows.reduce((s, l) => s + l.plannedQty, 0)}
+          value={rows.reduce((n, l) => n + l.plannedQty, 0)}
           icon="clipboard"
           tone="blue"
         />
         <StatTile
-          label="Onboarded units"
-          value={shownUnits.length}
-          icon="truck"
+          label="Equipment types"
+          value={new Set(rows.map((l) => l.equipmentType)).size}
+          icon="layers"
           tone="green"
         />
         <StatTile
-          label="shortfall"
-          value={rows.filter((l) => gapOf(l) < 0).length}
-          icon="trendDown"
-          tone="rose"
-        />
-        <StatTile
-          label="surplus"
-          value={rows.filter((l) => gapOf(l) > 0).length}
-          icon="trend"
+          label="Projects planned"
+          value={new Set(rows.map((l) => l.projectId)).size}
+          icon="clipboard"
           tone="gold"
         />
       </div>
       <TablePanel
-        title="Plan lines"
-        subtitle="Filter by state using the chips; pick more than one to combine. Each line compares the planned units with the units registered by P&M."
-        rows={rows}
-        rowKey={(l) => l.id}
+        title="Equipment planned"
+        subtitle="The equipment planned for each project. Lines for the same equipment type are added together."
+        rows={groups}
+        rowKey={(g) => g.key}
         columns={[
           {
             header: "Type",
             kind: "c-id",
-            cell: (l) => <strong>{l.equipmentType}</strong>,
-            csv: (l) => l.equipmentType,
+            cell: (g) => <strong>{g.lines[0]!.equipmentType}</strong>,
+            csv: (g) => g.lines[0]!.equipmentType,
           },
           {
             header: "Needed at",
             kind: "c-sub",
-            cell: (l) => (
+            cell: (g) => (
               <>
-                <strong>{where(l)}</strong>
-                <span className="sub">Project · {l.reason}</span>
+                <strong>{where(g.lines[0]!)}</strong>
+                <span className="sub">{purposes(g)}</span>
               </>
             ),
-            csv: (l) => `Project: ${where(l)}`,
+            csv: (g) => where(g.lines[0]!),
           },
           {
-            header: "Registered / planned",
-            kind: "c-amt",
-            cell: (l) => `${registered(l)} / ${l.plannedQty}`,
-            csv: (l) => `${registered(l)}/${l.plannedQty}`,
-          },
-          {
-            header: "Time Period",
+            header: "Capacity / size",
             kind: "c-more",
-            cell: (l) => `${fmtDate(l.from)} – ${fmtDate(l.to)}`,
-            csv: (l) => `${l.from} to ${l.to}`,
+            cell: (g) => distinct(g, (l) => l.capacity) || "—",
+            csv: (g) => distinct(g, (l) => l.capacity),
           },
           {
-            header: "State",
-            kind: "c-status",
-            cell: (l) => (
-              <StatusBadge tone={gapTone(l)}>{gapText(l)}</StatusBadge>
-            ),
-            csv: gapText,
+            header: "Model",
+            kind: "c-more",
+            cell: (g) => distinct(g, (l) => l.model) || "—",
+            csv: (g) => distinct(g, (l) => l.model),
+          },
+          {
+            header: "Units planned",
+            kind: "c-amt",
+            cell: (g) => totalOf(g),
+            csv: (g) => String(totalOf(g)),
+          },
+          {
+            header: "Needed from",
+            kind: "c-more",
+            cell: (g) => fmtDate(earliest(g)),
+            csv: (g) => earliest(g),
           },
         ]}
-        searchText={(l) => `${l.equipmentType} ${where(l)} ${l.reason}`}
-        statusOf={state}
-        action={(l) => (
+        searchText={(g) => `${g.lines[0]!.equipmentType} ${where(g.lines[0]!)} ${distinct(g, (l) => l.capacity)} ${distinct(g, (l) => l.model)} ${purposes(g)}`}
+        action={(g) => (
           <Can privilege={MANAGE.masters}>
             <div className="row-actions">
-              <Button size="sm" icon="pencil" onClick={() => setEdit(l)}>
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                tone="danger"
-                icon="trash"
-                onClick={() => setRemove(l)}
-              >
-                Remove
-              </Button>
+              {g.lines.length === 1 ? (
+                <>
+                  <Button size="sm" icon="pencil" onClick={() => setEdit(g.lines[0]!)}>
+                    Edit
+                  </Button>
+                  <Button size="sm" tone="danger" icon="trash" onClick={() => setRemove(g.lines[0]!)}>
+                    Remove
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" icon="pencil" onClick={() => setManage(g.key)}>
+                  Manage {g.lines.length} lines
+                </Button>
+              )}
             </div>
           </Can>
         )}
         exportName="core-equipment-plan"
-        chipNoun="states"
       />
+      <Modal
+        open={!!managed}
+        onOpenChange={(o) => !o && setManage(null)}
+        title="Planned lines"
+        description={managed ? `${managed.lines[0]!.equipmentType} at ${where(managed.lines[0]!)}: ${totalOf(managed)} units in ${managed.lines.length} lines.` : undefined}
+      >
+        {managed && (
+          <>
+            {managed.lines.map((l) => (
+              <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--line, #e5e7eb)" }}>
+                <div>
+                  <strong>{l.plannedQty} {l.plannedQty === 1 ? "unit" : "units"}</strong>
+                  {[l.capacity, l.model].filter(Boolean).length > 0 && <> · {[l.capacity, l.model].filter(Boolean).join(" · ")}</>}
+                  {" "}· from {fmtDate(l.from)}
+                  <div className="helper">{l.reason}</div>
+                </div>
+                <div className="row-actions">
+                  <Button size="sm" icon="pencil" onClick={() => { setManage(null); setEdit(l); }}>
+                    Edit
+                  </Button>
+                  <Button size="sm" tone="danger" icon="trash" onClick={() => { setManage(null); setRemove(l); }}>
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <div className="form-actions">
+              <Button onClick={() => setManage(null)}>Close</Button>
+            </div>
+          </>
+        )}
+      </Modal>
       <BulkUpload
         open={upload}
         onOpenChange={setUpload}
@@ -279,17 +304,10 @@ export default function EquipmentPlanning() {
             hint: "yyyy-mm-dd",
           },
           {
-            key: "to",
-            label: "To",
-            required: true,
-            example: "2027-06-30",
-            hint: "yyyy-mm-dd, after from",
-          },
-          {
             key: "purpose",
             label: "What the units are for",
             required: true,
-            example: "Bituminous surfacing km 0–20",
+            example: "Bituminous surfacing",
           },
         ]}
         validate={validate}
@@ -359,39 +377,65 @@ export default function EquipmentPlanning() {
   );
 }
 
-function PlanForm({
+interface PlanGroup {
+  key: string;
+  lines: PlanLine[];
+}
+
+/** The equipment type list's last choice: the planner types a type the company has not used before. */
+const OTHER_TYPE = "__other__";
+
+export function PlanForm({
   line,
   defaultProjectId = "",
+  lockProject = false,
   onDone,
 }: {
   line?: PlanLine;
   defaultProjectId?: string;
+  /** true when opened from a project: the project is fixed to it */
+  lockProject?: boolean;
   onDone: () => void;
 }) {
   const { projects, planSource, saveEquipmentPlanRemote, equipmentTypes } = useCore();
-  // once the server's equipment types are read they are the only ones a line can use
-  const typeNames = planSource === "api" && equipmentTypes.length ? equipmentTypes.filter((t) => t.active || t.name === line?.equipmentType).map((t) => t.name) : EQUIPMENT_TYPES;
+  // the standard types first, then any other type already on the server; "Other" names one the company has not used yet
+  const typeNames = Array.from(
+    new Set<string>([
+      ...PLAN_EQUIPMENT_TYPES,
+      ...(planSource === "api"
+        ? equipmentTypes.filter((t) => t.code !== COMPANY_EQUIPMENT_TYPE.code && (t.active || t.name === line?.equipmentType)).map((t) => t.name)
+        : EQUIPMENT_TYPES),
+    ]),
+  );
+  const startType = line?.equipmentType ?? typeNames[0] ?? "";
+  const startsCustom = !typeNames.includes(startType);
+  const [otherType, setOtherType] = useState(startsCustom ? startType : "");
   const [formError, setFormError] = useState("");
   const [pending, setPending] = useState<{ key: string; body: string } | null>(null);
   const {
     register,
     handleSubmit,
+    setError,
+    watch,
     formState: { errors: e },
   } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: line ?? {
+    defaultValues: line ? { ...line, equipmentType: startsCustom ? OTHER_TYPE : line.equipmentType } : {
       equipmentType: typeNames[0] ?? EQUIPMENT_TYPES[0],
       projectId: defaultProjectId,
       plannedQty: 1,
       from: "",
-      to: "",
       reason: "",
     },
   });
+  const chosenType = watch("equipmentType");
+  const typeName = chosenType === OTHER_TYPE ? otherType.trim() : chosenType;
+  const capacityHints = CAPACITY_OPTIONS[typeName] ?? [];
   const submit = handleSubmit(async (v) => {
     setFormError("");
-    const next = { ...v, id: line?.id ?? newId(), rowVersion: line?.rowVersion };
-    const body = JSON.stringify(v);
+    if (v.equipmentType === OTHER_TYPE && !typeName) return setError("equipmentType", { message: "Name the equipment type." });
+    const next = { ...v, to: "", equipmentType: typeName, id: line?.id ?? newId(), rowVersion: line?.rowVersion };
+    const body = JSON.stringify({ ...v, equipmentType: typeName });
     const key = pending?.body === body ? pending.key : idempotencyKey();
     setPending({ key, body });
     try {
@@ -416,15 +460,23 @@ function PlanForm({
         </div>
       )}
       <div className="form-grid">
-        <FormGroup label="Equipment type" required>
+        <FormGroup label="Equipment type" required error={e.equipmentType?.message}>
           {(id) => (
             <Select id={id} {...register("equipmentType")}>
               {typeNames.map((t) => (
                 <option key={t}>{t}</option>
               ))}
+              <option value={OTHER_TYPE}>Other…</option>
             </Select>
           )}
         </FormGroup>
+        {chosenType === OTHER_TYPE && (
+          <FormGroup label="Other equipment type" required>
+            {(id) => (
+              <Input id={id} value={otherType} onChange={(ev) => setOtherType(ev.target.value)} placeholder="e.g. Crawler crane" />
+            )}
+          </FormGroup>
+        )}
         <FormGroup label="Units needed" required error={e.plannedQty?.message}>
           {(id, d) => (
             <Input
@@ -435,36 +487,64 @@ function PlanForm({
             />
           )}
         </FormGroup>
-        <FormGroup label="Project" required error={e.projectId?.message}>
+        <FormGroup label="Capacity / size" error={e.capacity?.message} helper={capacityHints.length ? "Pick a suggestion or type your own." : "Type the capacity or size you need."}>
           {(id, d) => (
-            <Select
-              {...a11y(id, d, e.projectId?.message)}
-              {...register("projectId")}
-            >
-              <option value="">Choose…</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
+            <>
+              <Input
+                list={`${id}-options`}
+                placeholder={capacityHints[0] ? `e.g. ${capacityHints[0]}` : "e.g. 30-ton"}
+                {...a11y(id, d, e.capacity?.message)}
+                {...register("capacity", { setValueAs: (v: string) => v?.trim() || undefined })}
+              />
+              <datalist id={`${id}-options`}>
+                {capacityHints.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </>
           )}
         </FormGroup>
-        <FormGroup label="From" required error={e.from?.message}>
+        <FormGroup label="Model" error={e.model?.message}>
+          {(id, d) => (
+            <Input
+              placeholder="e.g. EX200"
+              {...a11y(id, d, e.model?.message)}
+              {...register("model", { setValueAs: (v: string) => v.trim() || undefined })}
+            />
+          )}
+        </FormGroup>
+        {lockProject ? (
+          <FormGroup label="Project" full>
+            {(id) => (
+              <>
+                <Input id={id} value={projects.find((p) => p.id === defaultProjectId)?.name ?? ""} readOnly />
+                <input type="hidden" {...register("projectId")} />
+              </>
+            )}
+          </FormGroup>
+        ) : (
+          <FormGroup label="Project" required error={e.projectId?.message}>
+            {(id, d) => (
+              <Select
+                {...a11y(id, d, e.projectId?.message)}
+                {...register("projectId")}
+              >
+                <option value="">Choose…</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </FormGroup>
+        )}
+        <FormGroup label="Needed from" required error={e.from?.message}>
           {(id, d) => (
             <Input
               type="date"
               {...a11y(id, d, e.from?.message)}
               {...register("from")}
-            />
-          )}
-        </FormGroup>
-        <FormGroup label="To" required error={e.to?.message}>
-          {(id, d) => (
-            <Input
-              type="date"
-              {...a11y(id, d, e.to?.message)}
-              {...register("to")}
             />
           )}
         </FormGroup>

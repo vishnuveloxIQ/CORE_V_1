@@ -14,10 +14,12 @@ import { fmtDateTime, todayISO } from '@/shared/lib/format'
 import { requireStepUp } from '@/shared/lib/stepUp'
 import { notify } from '@/shared/lib/toast'
 import {
-  AUDIT_AREAS, changeSummary, changedRows, listAudit, scopeText, snapshotRows, useCore,
+  AUDIT_AREAS, AUDIT_MODULES, auditModuleLabel, changeSummary, changedRows, listAudit, scopeText, snapshotRows, useCore,
   type AuditAction, type AuditFilter, type AuditEntry,
 } from '@/modules/core-data'
 import { SignInHistory } from '../components/SignInHistory'
+import EventMonitor from '@/modules/integrations/pages/EventMonitor'
+import ReadModels from '@/modules/integrations/pages/ReadModels'
 
 /** Rows per page, sent as the limit; Previous and Next move the offset by one page. */
 const PAGE = 50
@@ -25,8 +27,8 @@ const PAGE = 50
 const EXPORT_PAGE = 200
 
 type Applied = Omit<AuditFilter, 'limit' | 'offset'>
-type Draft = { from: string; to: string; area: string; action: string; actor: string }
-const NO_FILTER: Draft = { from: '', to: '', area: '', action: '', actor: '' }
+type Draft = { from: string; to: string; module: string; area: string; action: string; actor: string }
+const NO_FILTER: Draft = { from: '', to: '', module: '', area: '', action: '', actor: '' }
 
 /** The detail rows of one entry: the changed fields for an update, the recorded values for a create or delete. */
 const detailRows = (a: AuditEntry): { field: string; value: string }[] =>
@@ -37,39 +39,51 @@ const detailRows = (a: AuditEntry): { field: string; value: string }[] =>
 /** A snapshot as readable text, for the export. */
 const readable = (json: string) => snapshotRows(json).map((r) => `${r.field}: ${r.value}`).join('; ')
 
-const VIEWS = ['Changes', 'Sign-in history'] as const
+const parseSnapshot = (json: string): Record<string, unknown> | null => {
+  try { const o: unknown = JSON.parse(json); return o && typeof o === 'object' ? (o as Record<string, unknown>) : null } catch { return null }
+}
+const VIEWS = ['Activity', 'Sign-ins', 'Data exchange log', 'Shared records'] as const
 type View = (typeof VIEWS)[number]
+/** The address parameter that opens each tab (the old sign-in, events and read-model links use these). */
+const VIEW_PARAM: Record<View, string> = { Activity: '', 'Sign-ins': 'sign-in', 'Data exchange log': 'messages', 'Shared records': 'data' }
+const DESC: Record<View, string> = {
+  Activity: 'What people did in CORE and in the other modules (HRMS, P&M, PMS, Stores): who did what, and when. Entries cannot be edited or deleted.',
+  'Sign-ins': 'Sign-ins, failed attempts, lockouts, ended sessions, passkeys and refused access in CORE and in the other modules.',
+  'Data exchange log': 'Messages CORE sends to and receives from HRMS, P&M, PMS and Stores: what is waiting, sent, received or failed.',
+  'Shared records': 'The latest copy CORE holds of records owned by HRMS, P&M, PMS and Stores.',
+}
 
 /**
- * PRD §4 audit trail: who changed what and when, and (second tab) the sign-in and access history. Read-only; the
- * server writes every entry. `?view=sign-in` opens the sign-in tab, so the old /audit/access link still lands there.
+ * The activity log: everything that happened in and around CORE, on one screen with four tabs. Changes (who changed what),
+ * Sign-ins, Data exchange log (the event monitor) and Shared records (the read models). Read-only; the server writes every
+ * entry. `?view=sign-in`, `?view=messages` and `?view=data` open the matching tab, so the older addresses still land there.
  */
 export default function AuditTrail() {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'audit')
   const [params, setParams] = useSearchParams()
-  const view: View = params.get('view') === 'sign-in' ? 'Sign-in history' : 'Changes'
+  const view: View = VIEWS.find((v) => VIEW_PARAM[v] && VIEW_PARAM[v] === params.get('view')) ?? 'Activity'
   // the export lives with the change list's filters; the list hands it up so the header button can run it
   const exportChanges = useRef<(() => Promise<void>) | null>(null)
   return (
     <div ref={ref}>
-      <PageHead crumb="Audit trail" title="Audit trail"
-        desc={view === 'Changes'
-          ? 'A read-only record of who changed what in CORE, and when. Entries cannot be edited or deleted.'
-          : 'A read-only record of sign-ins, failed attempts, lockouts, ended sessions, passkeys and refused access in CORE.'}
-        actions={view === 'Changes' ? <Button tone="primary" icon="download" onClick={() => void exportChanges.current?.()}>Export all entries</Button> : undefined} />
+      <PageHead crumb="Activity log" title="Activity log" desc={DESC[view]}
+        actions={view === 'Activity' ? <Button tone="primary" icon="download" onClick={() => void exportChanges.current?.()}>Export all entries</Button> : undefined} />
       <div style={{ marginBottom: 16 }} data-enter>
-        <Tabs label="Audit trail view" value={view} items={VIEWS}
-          onChange={(v) => setParams(v === 'Sign-in history' ? { view: 'sign-in' } : {}, { replace: true })} />
+        <Tabs label="Activity log view" value={view} items={VIEWS}
+          onChange={(v) => setParams(VIEW_PARAM[v] ? { view: VIEW_PARAM[v] } : {}, { replace: true })} />
       </div>
-      {view === 'Changes' ? <ChangeHistory exportRef={exportChanges} /> : <SignInHistory />}
+      {view === 'Activity' && <ChangeHistory exportRef={exportChanges} />}
+      {view === 'Sign-ins' && <SignInHistory />}
+      {view === 'Data exchange log' && <EventMonitor embedded />}
+      {view === 'Shared records' && <ReadModels embedded />}
     </div>
   )
 }
 
 /** Changes to records: filters, the server-paged list, entry details and the export (run from the page header). */
 function ChangeHistory({ exportRef }: { exportRef: { current: (() => Promise<void>) | null } }) {
-  const { projects, sites, stores, materials, units, users, requests, grievances, tickets, departments, roles, chains } = useCore()
+  const { projects, sites, stores, materials, units, users, requests, grievances, tickets, departments, roles, chains, equipmentTypes, planLines, peoplePlan } = useCore()
   const [draft, setDraft] = useState<Draft>(NO_FILTER)
   const [applied, setApplied] = useState<Applied>({})
   const [offset, setOffset] = useState(0)
@@ -94,19 +108,36 @@ function ChangeHistory({ exportRef }: { exportRef: { current: (() => Promise<voi
     return () => { live = false }
   }, [applied, offset])
 
-  // Records are stored by id; show the readable code people see on each screen instead.
-  const codeOf = useMemo(() => {
+  // Records are stored by id. Show what a person would call the record: its code and name, or a short description.
+  const labelOf = useMemo(() => {
     const m = new Map<string, string>()
-    const lists: { id: string; code?: string }[][] = [
-      projects, sites, stores, materials, users, requests, grievances, tickets, departments, roles,
-      units.map((u) => ({ id: u.id, code: u.assetCode })),
-    ]
-    for (const list of lists) for (const x of list) if (x.code) m.set(x.id, x.code)
-    // Approval chains have no code: label them by request type and scope, as the matrix shows them.
+    const named: { id: string; code?: string; name?: string }[][] = [projects, sites, stores, materials, departments, roles, equipmentTypes]
+    for (const list of named) for (const x of list) { const t = [x.code, x.name].filter(Boolean).join(' · '); if (t) m.set(x.id, t) }
+    for (const u of users) m.set(u.id, u.name || u.id)
+    for (const u of units) m.set(u.id, [u.assetCode, u.name].filter(Boolean).join(' · '))
+    for (const x of [...grievances, ...tickets]) if (x.code) m.set(x.id, x.code)
+    for (const x of requests) if (x.code) m.set(x.id, x.code)
     for (const c of chains) m.set(c.id, `${c.requestType} · ${scopeText(c.scopeType, c.scopeIds, projects)}`)
+    const projectName = (id: string) => projects.find((p) => p.id === id)?.name
+    for (const l of planLines) m.set(l.id, `${l.equipmentType} × ${l.plannedQty}${projectName(l.projectId) ? ` · ${projectName(l.projectId)}` : ''}`)
+    for (const l of peoplePlan) m.set(l.id, `${l.role} × ${l.headcount}${projectName(l.projectId) ? ` · ${projectName(l.projectId)}` : ''}`)
     return m
-  }, [projects, sites, stores, materials, units, users, requests, grievances, tickets, departments, roles, chains])
-  const recordOf = (id: string) => codeOf.get(id) ?? id
+  }, [projects, sites, stores, materials, units, users, requests, grievances, tickets, departments, roles, chains, equipmentTypes, planLines, peoplePlan])
+  /** A record that is gone from the lists (for example a deleted one) is described from the values the change stored. */
+  const describe = (a: AuditEntry): string => {
+    const o = parseSnapshot(a.after) ?? parseSnapshot(a.before)
+    if (!o) return ''
+    const str = (k: string) => (typeof o[k] === 'string' && o[k] ? (o[k] as string) : '')
+    if (a.entity === 'Plan line') {
+      const what = str('role') || equipmentTypes.find((t) => t.id === o.equipment_type_id)?.name || materials.find((x) => x.id === o.material_id)?.name || 'Plan line'
+      const project = projects.find((p) => p.id === o.project_id)?.name
+      return `${what}${o.quantity != null ? ` × ${Number(o.quantity)}` : ''}${project ? ` · ${project}` : ''}`
+    }
+    const code = str('asset_code') || str('code')
+    const name = str('name') || str('full_name') || str('title') || str('subject') || str('task') || str('label')
+    return [code, name].filter(Boolean).join(' · ') || str('email') || str('login_id')
+  }
+  const recordOf = (a: AuditEntry) => (a.module ?? 'core') !== 'core' ? (a.entityId && a.entityId !== '-' ? a.entityId : a.entity) : labelOf.get(a.entityId) ?? (describe(a) || `${a.entity} (ref ${a.entityId.slice(0, 8)})`)
 
   const apply = () => {
     if (draft.from && draft.to && draft.from > draft.to) return notify('From must be on or before To.')
@@ -114,6 +145,7 @@ function ChangeHistory({ exportRef }: { exportRef: { current: (() => Promise<voi
     setApplied({
       from: draft.from || undefined,
       to: draft.to || undefined,
+      module: draft.module || undefined,
       entityType: draft.area || undefined,
       action: (draft.action || undefined) as AuditAction | undefined,
       actor: draft.actor.trim() || undefined,
@@ -137,8 +169,8 @@ function ChangeHistory({ exportRef }: { exportRef: { current: (() => Promise<voi
         all.push(...r.entries)
         if (all.length >= r.total || r.entries.length === 0) break
       }
-      downloadText(`core-audit-trail-${todayISO()}.csv`, toCsv(['Date/Time', 'Name/Purpose', 'What', 'Area', 'Record', 'Before', 'After'], all.map((a) => [a.at, a.user, a.action, a.entity, recordOf(a.entityId), readable(a.before), readable(a.after)])))
-      notify(`Audit trail exported: ${all.length} entries`)
+      downloadText(`core-audit-trail-${todayISO()}.csv`, toCsv(['Date/Time', 'Name/Purpose', 'What', 'Area', 'Record', 'Before', 'After'], all.map((a) => [a.at, a.user, a.action, a.entity, recordOf(a), readable(a.before), readable(a.after)])))
+      notify(`Activity log exported: ${all.length} entries`)
     } catch (err) {
       notify(errorText(err))
     }
@@ -154,9 +186,17 @@ function ChangeHistory({ exportRef }: { exportRef: { current: (() => Promise<voi
 
   return (
     <div>
-      <div className="form-grid" style={{ marginBottom: 16 }}>
+      <div className="filter-bar">
         <FormGroup label="From">{(id) => <Input id={id} type="date" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} />}</FormGroup>
         <FormGroup label="To">{(id) => <Input id={id} type="date" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />}</FormGroup>
+        <FormGroup label="Module">
+          {(id) => (
+            <Select id={id} value={draft.module} onChange={(e) => setDraft({ ...draft, module: e.target.value })}>
+              <option value="">All modules</option>
+              {AUDIT_MODULES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </Select>
+          )}
+        </FormGroup>
         <FormGroup label="Area">
           {(id) => (
             <Select id={id} value={draft.area} onChange={(e) => setDraft({ ...draft, area: e.target.value })}>
@@ -168,32 +208,33 @@ function ChangeHistory({ exportRef }: { exportRef: { current: (() => Promise<voi
         <FormGroup label="What">
           {(id) => (
             <Select id={id} value={draft.action} onChange={(e) => setDraft({ ...draft, action: e.target.value })}>
-              <option value="">All changes</option>
+              <option value="">All actions</option>
               <option value="created">Created</option>
               <option value="updated">Updated</option>
               <option value="deleted">Deleted</option>
             </Select>
           )}
         </FormGroup>
-        <FormGroup label="Person" helper="Name or login, part of either">
-          {(id) => <Input id={id} placeholder="e.g. Dev User" value={draft.actor} onChange={(e) => setDraft({ ...draft, actor: e.target.value })} />}
+        <FormGroup label="Person">
+          {(id) => <Input id={id} placeholder="Name or login" value={draft.actor} onChange={(e) => setDraft({ ...draft, actor: e.target.value })} />}
         </FormGroup>
-      </div>
-      <div className="form-actions" style={{ marginTop: 0, marginBottom: 16 }}>
+        <div className="filter-actions">
         <Button onClick={clear}>Clear filters</Button>
         <Button tone="primary" onClick={apply}>Apply filters</Button>
       </div>
+      </div>
       {loadError && <div className="login-error" role="alert" style={{ marginBottom: 16 }}><span>The audit trail could not be read: {loadError}</span></div>}
-      <TablePanel title="All changes" subtitle="Filters above are applied on the server. Search below only narrows the rows on this page. Most recent changes first." rows={entries} rowKey={(a) => a.id}
+      <TablePanel title="All activity" subtitle="Filters above are applied on the server. Search below only narrows the rows on this page. Most recent changes first." rows={entries} rowKey={(a) => a.id} className="fit-table"
         columns={[
-          { header: 'Date/Time', kind: 'c-id', cell: (a) => <strong>{fmtDateTime(a.at)}</strong>, csv: (a) => a.at },
-          { header: 'Name/Purpose', kind: 'c-sub', cell: (a) => <Who name={a.user} sub={a.action} />, csv: (a) => `${a.user}: ${a.action}` },
-          { header: 'Record', kind: 'c-amt', cell: (a) => recordOf(a.entityId), csv: (a) => `${a.entity} ${recordOf(a.entityId)}` },
-          { header: 'Changes', kind: 'c-more', cell: (a) => <span style={{ whiteSpace: 'normal' }}>{changeSummary(a)}</span>, csv: (a) => changeSummary(a) },
+          { header: 'Date/Time', kind: 'c-sub', cell: (a) => { const [day, time] = fmtDateTime(a.at).split(' · '); return <span style={{ whiteSpace: 'nowrap' }}><strong>{day}</strong><span className="sub">{time ?? ''}</span></span> }, csv: (a) => a.at },
+          { header: 'Module', kind: 'c-status', cell: (a) => <span className="cell-pill">{auditModuleLabel(a.module ?? 'core')}</span>, csv: (a) => auditModuleLabel(a.module ?? 'core') },
+          { header: 'Changed by', kind: 'c-sub', cell: (a) => <Who name={a.user} sub={a.action} />, csv: (a) => `${a.user}: ${a.action}` },
+          { header: 'Record', kind: 'c-sub', cell: (a) => <strong style={{ whiteSpace: 'normal' }}>{recordOf(a)}</strong>, csv: (a) => `${a.entity} ${recordOf(a)}` },
+          { header: 'What happened', kind: 'c-more', cell: (a) => <span style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{changeSummary(a)}</span>, csv: (a) => changeSummary(a) },
           { header: 'Area', kind: 'c-status', cell: (a) => <span className="cell-pill">{a.entity}</span>, csv: (a) => a.entity },
         ]}
         action={(a) => <Button size="sm" onClick={() => setDetail(a)}>Details</Button>}
-        searchText={(a) => `${a.user} ${a.action} ${a.entity} ${recordOf(a.entityId)} ${changeSummary(a)}`}
+        searchText={(a) => `${a.user} ${a.action} ${a.entity} ${recordOf(a)} ${changeSummary(a)}`}
         searchPlaceholder="Search this page by person, record or change…" exportName="core-audit-trail" footNote="Export needs step-up verification" />
       <div className="form-actions" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <span className="helper">{loading ? 'Loading…' : total ? `Showing ${from}–${to} of ${total}` : 'No entries match these filters.'}</span>
@@ -209,7 +250,7 @@ function ChangeHistory({ exportRef }: { exportRef: { current: (() => Promise<voi
             <KV k="Person"><strong>{detail.user}</strong></KV>
             <KV k="What"><strong>{detail.action}</strong></KV>
             <KV k="Area"><strong>{detail.entity}</strong></KV>
-            <KV k="Record"><strong>{recordOf(detail.entityId)}</strong></KV>
+            <KV k="Record"><strong>{recordOf(detail)}</strong></KV>
           </div>
           <h3 style={{ margin: '18px 0 8px' }}>{detail.action === 'Updated' ? 'Changed fields' : detail.action === 'Deleted' ? 'Values removed' : 'Values recorded'}</h3>
           {detailRows(detail).length

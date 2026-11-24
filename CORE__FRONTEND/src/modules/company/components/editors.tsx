@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useFieldArray, useWatch } from 'react-hook-form';
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { z } from "zod";
 import { BulkUpload, type RowCheck } from "@/shared/ui/data/BulkUpload";
 import { Button } from "@/shared/ui/Button";

@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useWatch } from 'react-hook-form';
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { z } from "zod";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
@@ -17,7 +18,7 @@ import { a11y, email, phone, pin, req } from "@/shared/lib/core";
 import { notify } from "@/shared/lib/toast";
 import { Icon } from "@/shared/ui/icons";
 import { Modal } from "@/shared/ui/Modal";
-import { UnsavedChangesGuard } from "@/shared/ui/UnsavedChangesGuard";
+import { useUnsavedGuard } from "@/shared/lib/unsaved";
 import { useCore } from "@/modules/core-data";
 import { CIN_RE, GSTIN_RE, PAN_RE, suggestGstin, TAN_RE, taxIdErrors, taxIdWarnings } from "../utils/taxIds";
 
@@ -225,13 +226,15 @@ function ProfileForm({
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   // a logo chosen or removed here is kept until Save profile; Cancel drops it
   const [logoChange, setLogoChange] = useState<LogoChange | null>(null);
+  // a staged logo is unsaved too (the form's own fields are registered by useGuardedForm)
+  useUnsavedGuard(logoChange !== null);
   const {
     register,
     handleSubmit,
     control,
     setValue,
     setError,
-    formState: { errors, isDirty },
+    formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: fields(company),
@@ -275,7 +278,6 @@ function ProfileForm({
   });
   return (
     <>
-    <UnsavedChangesGuard when={(isDirty || logoChange !== null) && !saving} what="the company profile" />
     <form onSubmit={submit} noValidate className="stack">
       <Card
         title="Legal identity"

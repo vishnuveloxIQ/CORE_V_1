@@ -5,6 +5,9 @@ import type { EquipmentAssignment } from '../types'
 
 const path = (base: string, id: string) => `${base}/${encodeURIComponent(id)}`
 
+/** The company registers equipment, not types: every unit is held under this one type, created on first use. */
+export const COMPANY_EQUIPMENT_TYPE = { code: 'EQUIPMENT', name: 'Equipment' } as const
+
 // ---------- equipment types ----------
 export type MeterKind = 'hours' | 'km' | 'none'
 export type FuelNormUnit = 'litre_per_hour' | 'litre_per_km'

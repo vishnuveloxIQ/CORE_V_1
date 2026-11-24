@@ -13,6 +13,7 @@ export interface AuditRecord {
   entityId: string | null
   before: string
   after: string
+  module?: string
 }
 
 export type AuditAction = 'created' | 'updated' | 'deleted'
@@ -24,6 +25,8 @@ export interface AuditFilter {
   /** table name, e.g. core_equipment_unit */
   entityType?: string
   action?: AuditAction
+  /** core, hrms, pm, pms or stores */
+  module?: string
   /** name or login, a substring */
   actor?: string
   limit?: number
@@ -42,7 +45,9 @@ export const AUDIT_AREAS: [table: string, label: string][] = [
 ]
 
 /** Columns that are bookkeeping, not business data: left out of the readable before/after text. */
-const NOISE = new Set(['id', 'created_at', 'created_by', 'updated_at', 'updated_by', 'row_version', 'tenant_id'])
+/** Links to other records are stored as ids; an id means nothing to a reader, so those fields are left out. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const NOISE = new Set(['id', 'created_at', 'created_by', 'updated_at', 'updated_by', 'row_version', 'tenant_id', 'correlation_id', 'correlationId'])
 
 export interface AuditRow {
   field: string
@@ -56,7 +61,7 @@ export function snapshotRows(json: string): AuditRow[] {
   try { obj = JSON.parse(json) } catch { return [{ field: 'Value', value: json }] }
   if (!obj || typeof obj !== 'object') return [{ field: 'Value', value: String(obj) }]
   return Object.entries(obj as Record<string, unknown>)
-    .filter(([k]) => !NOISE.has(k))
+    .filter(([k, v]) => !NOISE.has(k) && !(typeof v === 'string' && UUID.test(v)))
     .map(([k, v]) => ({ field: fieldName(k), value: valueText(v) }))
 }
 
@@ -81,12 +86,22 @@ const valueText = (v: unknown): string => {
   return String(v)
 }
 
+/** The sentence another module sent with its entry ("Ravi Kumar signed in"), kept in the entry's values. */
+const parseSummary = (json: string): string => {
+  try { const o = JSON.parse(json) as { summary?: unknown }; return typeof o.summary === 'string' ? o.summary : '' } catch { return '' }
+}
+
+/** The modules whose activity the trail holds, with the names the screen shows. */
+export const AUDIT_MODULES: [module: string, label: string][] = [['core', 'CORE'], ['hrms', 'HRMS'], ['pm', 'P&M'], ['pms', 'PMS'], ['stores', 'Stores']]
+export const auditModuleLabel = (m: string) => AUDIT_MODULES.find(([k]) => k === m)?.[1] ?? m.toUpperCase()
+
 /** A one-line summary of the change, for the table. */
 export function changeSummary(e: AuditEntry): string {
-  if (e.action === 'Created') return `New record${snapshotRows(e.after).length ? `, ${snapshotRows(e.after).length} fields` : ''}`
+  if ((e.module ?? 'core') !== 'core') return parseSummary(e.after) || e.action
+  if (e.action === 'Created') return 'New record added'
   if (e.action === 'Deleted') return 'Record removed'
   const changed = changedRows(e.before, e.after)
-  if (!changed.length) return 'No field changes'
+  if (!changed.length) return 'Saved, no visible details changed'
   return changed.map((c) => `${c.field}: ${c.from} → ${c.to}`).join('; ')
 }
 
@@ -99,6 +114,7 @@ export const auditFrom = (r: AuditRecord): AuditEntry => ({
   entityId: r.entityId ?? '',
   before: r.before,
   after: r.after,
+  module: r.module ?? 'core',
 })
 
 /** One page of the audit trail. The envelope meta is { limit, offset, total }. */
@@ -159,12 +175,15 @@ export interface AuthEvent {
   user: string | null
   loginId: string | null
   detail: string | null
+  /** core, or the module whose sign-in this is: hrms, pm, pms or stores */
+  module?: string
 }
 
 export interface AuthEventFilter {
   from?: string
   to?: string
   eventType?: AuthEventType
+  module?: string
   actor?: string
   limit?: number
   offset?: number

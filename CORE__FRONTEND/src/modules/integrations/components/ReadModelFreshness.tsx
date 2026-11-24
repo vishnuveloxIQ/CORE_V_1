@@ -32,7 +32,7 @@ export function ReadModelFreshness() {
           : <> Core's copies were last updated: {[...latest].map(([m, at], i) => (
               <span key={m}>{i ? '; ' : ' '}{integrationApi.MODULE_LABEL[m] ?? m} <span title={fmtDateTime(at)}>{ago(at)}</span></span>
             ))}. The threshold for calling them stale is not set yet.</>}
-      {' '}<Link to="/integrations/read-models" className="id-link">See read models</Link>
+      {' '}<Link to="/audit?view=data" className="id-link">See shared records</Link>
     </Note>
   )
 }

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { Button } from '@/shared/ui/Button'
 import { FormGroup, Input, Select, Textarea } from '@/shared/ui/Field'
 import { Icon } from '@/shared/ui/icons'

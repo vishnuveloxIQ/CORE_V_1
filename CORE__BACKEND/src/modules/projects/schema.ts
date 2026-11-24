@@ -121,7 +121,7 @@ const geoZoneFields = z.object({
   centerLat: latitude.nullable().optional(),
   centerLng: longitude.nullable().optional(),
   radiusM: z.number().positive().max(9999999.99).nullable().optional(),
-  points: z.array(point).max(1000).nullable().optional(),
+  points: z.array(point).nullable().optional(),
   bufferM: z.number().positive().max(9999999.99).nullable().optional(),
 });
 export const geoZoneCreateBody = geoZoneFields;

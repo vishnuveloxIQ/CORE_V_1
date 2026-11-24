@@ -149,7 +149,7 @@ describe.skipIf(!TEST_DATABASE_URL)('master data (phase 5c)', { timeout: SLOW_TE
 
   async function newUom(): Promise<{ id: string; code: string }> {
     const code = uniq('UOM');
-    const { rows } = await db.pool.query<{ id: string }>(
+    const { rows } = await db.owner.query<{ id: string }>(
       `INSERT INTO shared.uom (uom_code, uom_name) VALUES ($1, 'Fictional unit') RETURNING id`,
       [code],
     );

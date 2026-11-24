@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 // CORE__BACKEND/docs/api/openapi-v1.json. A call to a path or method the backend does not have fails here.
 
 const ROOT = resolve(__dirname, '..')
-const CONTRACT = resolve(__dirname, '../../../../CORE__BACKEND/docs/api/openapi-v1.json')
+const CONTRACT = resolve(__dirname, '../../../CORE__BACKEND/docs/api/openapi-v1.json')
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
