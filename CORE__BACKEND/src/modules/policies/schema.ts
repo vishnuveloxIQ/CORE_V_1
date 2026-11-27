@@ -43,6 +43,8 @@ export const policyPatchBody = policyFields.partial().extend({ rowVersion: versi
 const policyVersionFields = z.object({
   policyId: uuid,
   versionNo: intMinOne.optional(),
+  // the project this version applies to; null or missing is the company-wide default
+  projectId: uuid.nullable().optional(),
   body: jsonObject,
   effectiveFrom: isoDate,
   reason: optionalText(500),

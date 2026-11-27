@@ -3,7 +3,6 @@ import * as Popover from '@radix-ui/react-popover'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import logo from '@/shared/assets/veloxiq-logo.svg'
-import { NOTIFICATIONS } from '../config/nav'
 import { ago } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/cn'
 import { notify } from '@/shared/lib/toast'
@@ -42,7 +41,7 @@ export function Notifications() {
   const load = useShell((s) => s.loadNotifications)
   const user = useAuth((s) => s.user)
   useEffect(() => { if (user) void load() }, [user, load])
-  const items = remote ?? NOTIFICATIONS
+  const items = remote
   const unread = items.filter((n) => !read.includes(n.id)).length
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>

@@ -9,8 +9,7 @@ import { Button } from "@/shared/ui/Button";
 import { FormGroup, Input } from "@/shared/ui/Field";
 import { a11y } from "@/shared/lib/core";
 import { notify } from "@/shared/lib/toast";
-import { setTenantId, tenantId } from "@/shared/lib/api";
-import { tenantForLogin } from "../utils/tenants";
+import { clearTenantId, tenantId } from "@/shared/lib/api";
 import { rememberLoginRole } from "../utils/loginRole";
 import { ADMIN_PRIVILEGE, useAuth, type LoginResult } from "../store/useAuth";
 
@@ -53,12 +52,11 @@ async function signInWithPasskey(
 ) {
   const id = loginId.trim();
   if (!id) return fail("Enter your login ID first.");
-  const tenant = tenantForLogin(id);
-  if (!tenant) return fail("This login ID does not belong to a company set up here.");
-  const switching = tenant !== tenantId();
-  setTenantId(tenant);
+  const before = tenantId();
+  clearTenantId();
   const result = await signIn(id);
   if (result === "ok") {
+    const switching = !!before && before !== tenantId();
     await done();
     // a different company's data may be in memory: reload so only this company's data loads
     if (switching) window.location.reload();
@@ -124,11 +122,10 @@ function AdminLogin() {
 
   const submit = handleSubmit(async ({ loginId, password }) => {
     setError("");
-    const tenant = tenantForLogin(loginId);
-    if (!tenant) return setError("This login ID does not belong to a company set up here.");
-    const switching = tenant !== tenantId();
-    setTenantId(tenant);
+    const before = tenantId();
+    clearTenantId();
     const result = await login(loginId, password);
+    const switching = !!before && before !== tenantId();
     setNow(clock());
     if (result === "ok") {
       const wrong = await refuseWrongLogin("admin");
@@ -140,14 +137,13 @@ function AdminLogin() {
       if (switching) window.location.reload();
       return;
     }
-    const wait = Math.max(1, Math.ceil((useAuth.getState().lockedUntil - clock()) / 1000));
-    if (result === "locked")
-      return setError(`Too many attempts. Try again in ${wait} seconds.`);
+    // while locked, the banner and the button count down from the live clock
+    if (result === "locked") return;
     if (result === "offline")
       return setError("Cannot reach the server. Check your connection and try again.");
     if (result === "invalid")
       return setError(
-        "Login ID or password is wrong. Repeated failures lock the account for a while.",
+        "Invalid User ID or Password. Your account will be temporarily locked after five consecutive failed attempts. Please contact the Super Administrator for account reset. ",
       );
     setError(useAuth.getState().lastError || "Sign-in failed. Try again.");
   });
@@ -161,15 +157,14 @@ function AdminLogin() {
         <div className="login-wrap">
           <section className="plan login-hero" aria-hidden>
             <span className="tag">Admin</span>
-            <h2>One place for company-wide decisions</h2>
+            <h2>A Centralised Platform for Organisation-Wide Governance</h2>
             <p>
-              Master data, policies, approval chains and grievances, set and
-              approved by the Tenant Admin.
+              Manage and oversee master data, corporate policies, approval hierarchies and grievance procedures, all established and approved by the Tenant Administrator.
             </p>
             <ul className="login-points">
               <li>
                 <Icon name="workflow" />
-                Approval matrix L1 to L4
+                Configurable Approval Hierarchy as Required <br /> (Levels 1–4)
               </li>
               <li>
                 <Icon name="scroll" />
@@ -205,9 +200,13 @@ function AdminLogin() {
                     <span>You signed in on another device, so this session has ended.</span>
                   </div>
                 )}
-                {error && (
+                {locked && (
                   <div className="login-error" role="alert">
-                    <Icon name="alert" />
+                    <span>{`Too many attempts. Try again in ${secondsLeft} seconds.`}</span>
+                  </div>
+                )}
+                {!locked && error && (
+                  <div className="login-error" role="alert">
                     <span>{error}</span>
                   </div>
                 )}
@@ -334,11 +333,10 @@ function UserLogin() {
   if (user && !wrongLoginFor("user")) return <Navigate to={next} replace />;
   const submit = handleSubmit(async ({ loginId, password }) => {
     setError("");
-    const tenant = tenantForLogin(loginId);
-    if (!tenant) return setError("This login ID does not belong to a company set up here.");
-    const switching = tenant !== tenantId();
-    setTenantId(tenant);
+    const before = tenantId();
+    clearTenantId();
     const result = await login(loginId, password);
+    const switching = !!before && before !== tenantId();
     if (result === "ok") {
       const wrong = await refuseWrongLogin("user");
       if (wrong) return setError(wrong);
@@ -354,7 +352,7 @@ function UserLogin() {
       return setError("Cannot reach the server. Check your connection and try again.");
     if (result === "invalid")
       return setError(
-        "Login ID or password is wrong. Repeated failures lock the account for a while.",
+        "Invalid User ID or Password. Your account will be temporarily locked after five consecutive failed attempts. Please contact the Super Administrator for account reset.",
       );
     setError(useAuth.getState().lastError || "Sign-in failed. Try again.");
   });
@@ -404,7 +402,6 @@ function UserLogin() {
                 )}
                 {error && (
                   <div className="login-error" role="alert">
-                    <Icon name="alert" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -515,7 +512,13 @@ function Chooser() {
             <p>For registered company users.</p>
           </Link>
           <Link to="/login?role=admin">
-            <Icon name="shield" />
+            <img
+              className="pub-choice-img"
+              src={`${import.meta.env.BASE_URL}admin-login.png`}
+              alt=""
+              width={110}
+              height={110}
+            />
             <h3>Login as admin</h3>
             <p>For the company administrator.</p>
           </Link>

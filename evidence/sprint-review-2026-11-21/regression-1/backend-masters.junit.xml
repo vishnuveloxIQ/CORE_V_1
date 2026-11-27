@@ -1,0 +1,557 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="258" failures="0" errors="0" time="111.9685708">
+    <testsuite name="tests/db/shared-uom.test.ts" timestamp="2026-11-21T14:53:43.385Z" hostname="Vishnu" tests="4" failures="0" errors="0" skipped="0" time="3.2812776">
+        <testcase classname="tests/db/shared-uom.test.ts" name="provisional shared.uom &gt; keeps one row per unit code" time="0.0114812">
+        </testcase>
+        <testcase classname="tests/db/shared-uom.test.ts" name="provisional shared.uom &gt; rejects a material that points to a unit that does not exist" time="0.0644646">
+        </testcase>
+        <testcase classname="tests/db/shared-uom.test.ts" name="provisional shared.uom &gt; accepts a material, allocation and plan line that point to a known unit" time="0.08148">
+        </testcase>
+        <testcase classname="tests/db/shared-uom.test.ts" name="provisional shared.uom &gt; creates an index on each unit foreign-key column" time="0.0082478">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/equipment-units/equipment-units.test.ts" timestamp="2026-11-21T14:53:43.388Z" hostname="Vishnu" tests="9" failures="0" errors="0" skipped="0" time="5.9588107">
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; answers a plain signed-in user on GET and refuses writes with 403" time="0.4556145">
+        </testcase>
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; refuses anonymous reads and writes with 401" time="0.1424757">
+        </testcase>
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; refuses a POST without an Idempotency-Key" time="0.4238725">
+        </testcase>
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; creates a unit with the type name, defaults availability, and reads it back" time="0.3787744">
+        </testcase>
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; refuses a duplicate asset code with 409, ignoring case" time="0.3646472">
+        </testcase>
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; refuses an unknown equipment type with 400 and an unknown field with 400" time="0.4567973">
+        </testcase>
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; patches a unit under its rowVersion, and refuses a stale version with 409" time="0.4652826">
+        </testcase>
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; requires rowVersion on PATCH, answers 404 for an unknown unit, and refuses a code already in use" time="0.4065166">
+        </testcase>
+        <testcase classname="tests/equipment-units/equipment-units.test.ts" name="equipment units (migration 0022) &gt; filters the register by equipment type, availability status and asset code" time="0.4484872">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/equipment-units/unit-media.test.ts" timestamp="2026-11-21T14:53:43.391Z" hostname="Vishnu" tests="7" failures="0" errors="0" skipped="0" time="7.1481164">
+        <testcase classname="tests/equipment-units/unit-media.test.ts" name="equipment unit media (migration 0028) &gt; returns the new fields as null on a unit that has none" time="0.8833176">
+        </testcase>
+        <testcase classname="tests/equipment-units/unit-media.test.ts" name="equipment unit media (migration 0028) &gt; sets lat, lng and lastPingAt on create and PATCH, and refuses out-of-range values" time="0.533021">
+        </testcase>
+        <testcase classname="tests/equipment-units/unit-media.test.ts" name="equipment unit media (migration 0028) &gt; links a machine photo and documents by file id, reads them back, and clears them with null" time="0.5130232">
+        </testcase>
+        <testcase classname="tests/equipment-units/unit-media.test.ts" name="equipment unit media (migration 0028) &gt; accepts files linked on POST" time="0.45861">
+        </testcase>
+        <testcase classname="tests/equipment-units/unit-media.test.ts" name="equipment unit media (migration 0028) &gt; refuses an unknown file id with 400 EQUIPMENT_UNIT_FILE_NOT_FOUND, on POST and PATCH" time="0.4711825">
+        </testcase>
+        <testcase classname="tests/equipment-units/unit-media.test.ts" name="equipment unit media (migration 0028) &gt; refuses a document key outside the allowed list and a value that is not a uuid" time="0.4638176">
+        </testcase>
+        <testcase classname="tests/equipment-units/unit-media.test.ts" name="equipment unit media (migration 0028) &gt; keeps the photo write behind masters.manage" time="0.7687426">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/masters/masters.test.ts" timestamp="2026-11-21T14:53:43.393Z" hostname="Vishnu" tests="25" failures="0" errors="0" skipped="0" time="15.1965221">
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; vendors: create with tax IDs, record the signed-in user, and audit the insert without the GSTIN" time="0.6630075">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; vendors: a code that differs only in case is a duplicate" time="0.3622886">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; vendors: a malformed GSTIN is refused with a validation error" time="0.2751696">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; vendors: a change needs the current version; a stale version conflicts; a missing one is refused" time="0.365159">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; vendors: verify sets verified_at and bumps the version; a stale verify conflicts" time="0.270134">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; vendors: deactivate instead of delete, and filter the list by status" time="0.2809322">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; materials: a known unit, a 4/6/8-digit HSN and a non-negative reorder level are accepted" time="0.2794633">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; materials: an unknown unit, a bad HSN, a negative reorder level and a duplicate code are refused" time="0.3079961">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; materials: a PATCH checks the version and the new unit" time="0.2583295">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; equipment types: the tolerance key is built from the code on create" time="0.2782654">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; equipment types: the code is fixed after create; a PATCH that sends it is refused" time="0.3050771">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; equipment types: a code that does not start with a letter is refused, and a case-insensitive duplicate too" time="0.2983164">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; allocations: create with a unit, read the unit code back, and delete" time="0.3464544">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; allocations: a zero quantity, an unknown project, and a changed project are refused" time="0.3405612">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; assignments: create records the time and user; a second row for the same type and project is a duplicate" time="0.3294219">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; assignments: a PATCH changes the quantity only; the project and type stay fixed" time="0.3304303">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; plan lines: a store must sit on the same project as the line; a store on another project is refused" time="0.3391806">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; plan lines: each kind needs its own references, and the end date cannot precede the start" time="0.3461644">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; plan lines: a people line needs a real position" time="0.3742422">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; plan lines: cancel with a PATCH to status cancelled; there is no delete route" time="0.3932828">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; reads need a signed-in user; every write needs a token (401) and masters.manage (403)" time="0.8142967">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; a project manager without masters.manage is refused" time="0.2746925">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; the database refuses an equipment plan line without an equipment type" time="0.3500975">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; the database refuses a malformed HSN and a malformed PAN" time="0.2143875">
+        </testcase>
+        <testcase classname="tests/masters/masters.test.ts" name="master data (phase 5c) &gt; the database refuses a vendor code that differs only in case" time="0.1452688">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/masters/plan-line-stage.test.ts" timestamp="2026-11-21T14:53:43.399Z" hostname="Vishnu" tests="8" failures="0" errors="0" skipped="0" time="7.5191968">
+        <testcase classname="tests/masters/plan-line-stage.test.ts" name="plan line stage (migration 0030) &gt; is null by default, and the status stays draft" time="1.0897046">
+        </testcase>
+        <testcase classname="tests/masters/plan-line-stage.test.ts" name="plan line stage (migration 0030) &gt; a people line accepts only its own stages on POST" time="0.561691">
+        </testcase>
+        <testcase classname="tests/masters/plan-line-stage.test.ts" name="plan line stage (migration 0030) &gt; a material line accepts only its own stages on POST" time="0.5013496">
+        </testcase>
+        <testcase classname="tests/masters/plan-line-stage.test.ts" name="plan line stage (migration 0030) &gt; a equipment line accepts only its own stages on POST" time="0.4946765">
+        </testcase>
+        <testcase classname="tests/masters/plan-line-stage.test.ts" name="plan line stage (migration 0030) &gt; refuses an unknown stage or a UI label with 400" time="0.5246986">
+        </testcase>
+        <testcase classname="tests/masters/plan-line-stage.test.ts" name="plan line stage (migration 0030) &gt; changes, checks and clears the stage on PATCH; the GET list returns it" time="0.4965566">
+        </testcase>
+        <testcase classname="tests/masters/plan-line-stage.test.ts" name="plan line stage (migration 0030) &gt; the database refuses a stage that does not fit the kind" time="0.4592626">
+        </testcase>
+        <testcase classname="tests/masters/plan-line-stage.test.ts" name="plan line stage (migration 0030) &gt; keeps the write behind masters.manage" time="0.5577509">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/masters/rules.test.ts" timestamp="2026-11-21T14:53:43.401Z" hostname="Vishnu" tests="34" failures="0" errors="0" skipped="0" time="0.0309479">
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; accepts 1234" time="0.0049742">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; accepts 123456" time="0.0005774">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; accepts 12345678" time="0.0003718">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; rejects &quot;123&quot;" time="0.0004578">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; rejects &quot;12345&quot;" time="0.0003887">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; rejects &quot;1234567&quot;" time="0.0003195">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; rejects &quot;12A4&quot;" time="0.0002925">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; rejects &quot; 1234&quot;" time="0.0003171">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="HSN codes (design point d) &gt; rejects &quot;&quot;" time="0.0003826">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="vendor tax IDs (design point b) &gt; accepts a well-formed GSTIN and PAN" time="0.006934">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="vendor tax IDs (design point b) &gt; rejects a bad GSTIN &quot;29ABCDE1234F1Z&quot;" time="0.0011488">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="vendor tax IDs (design point b) &gt; rejects a bad GSTIN &quot;29ABCDE1234F1X5&quot;" time="0.0003729">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="vendor tax IDs (design point b) &gt; rejects a bad GSTIN &quot;2ABCDE1234F1Z5&quot;" time="0.0003764">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="vendor tax IDs (design point b) &gt; rejects a lower-case PAN" time="0.000476">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; accepts the code EXC" time="0.0003002">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; accepts the code exc_01" time="0.0001808">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; accepts the code A1" time="0.0002567">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; rejects the code &quot;1EXC&quot;" time="0.0002364">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; rejects the code &quot;EXC-01&quot;" time="0.0003009">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; rejects the code &quot;_EXC&quot;" time="0.0002302">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; rejects the code &quot;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&quot;" time="0.0001961">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; builds the tolerance key from the lower-cased code" time="0.000249">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; accepts the key the 5a settings family allows" time="0.0004857">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="equipment type codes and tolerance keys (design point e) &gt; rejects an equipment code that does not start with a letter" time="0.0018209">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="plan line dates (design point h) &gt; accepts an end on or after the start" time="0.0003425">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="plan line dates (design point h) &gt; refuses an end before the start" time="0.0001572">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="plan line dates (design point h) &gt; allows a missing start or end" time="0.0002102">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="plan line references by resource kind (design point h) &gt; needs an equipment type for an equipment line" time="0.0004129">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="plan line references by resource kind (design point h) &gt; needs a position for a people line" time="0.0002405">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="plan line references by resource kind (design point h) &gt; needs a material and a unit for a material line" time="0.0003162">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="plan line references by resource kind (design point h) &gt; refuses an unknown resource kind" time="0.0002542">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="quantities and unit references &gt; accepts a positive quantity" time="0.0017819">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="quantities and unit references &gt; refuses zero and negative quantities" time="0.0004016">
+        </testcase>
+        <testcase classname="tests/masters/rules.test.ts" name="quantities and unit references &gt; refuses a quantity beyond the numeric(14,3) range" time="0.0002114">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/masters/uoms.test.ts" timestamp="2026-11-21T14:53:43.407Z" hostname="Vishnu" tests="3" failures="0" errors="0" skipped="0" time="2.7624278">
+        <testcase classname="tests/masters/uoms.test.ts" name="units of measure (GET /uoms) &gt; lists every unit for a plain signed-in user, sorted by name" time="0.5778973">
+        </testcase>
+        <testcase classname="tests/masters/uoms.test.ts" name="units of measure (GET /uoms) &gt; refuses an anonymous read with 401" time="0.0839496">
+        </testcase>
+        <testcase classname="tests/masters/uoms.test.ts" name="units of measure (GET /uoms) &gt; has no write routes, even for masters.manage" time="0.2459392">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/offer-letter/offer-letter.test.ts" timestamp="2026-11-21T14:53:43.408Z" hostname="Vishnu" tests="8" failures="0" errors="0" skipped="0" time="7.1462933">
+        <testcase classname="tests/offer-letter/offer-letter.test.ts" name="offer letter revisions (migration 0023) &gt; refuses anonymous reads and writes with 401" time="0.6051609">
+        </testcase>
+        <testcase classname="tests/offer-letter/offer-letter.test.ts" name="offer letter revisions (migration 0023) &gt; answers a plain signed-in user with 403 on GET and POST" time="0.4990638">
+        </testcase>
+        <testcase classname="tests/offer-letter/offer-letter.test.ts" name="offer letter revisions (migration 0023) &gt; creates revision 1 for the first letter and lists it with the uploader and no content" time="0.4876984">
+        </testcase>
+        <testcase classname="tests/offer-letter/offer-letter.test.ts" name="offer letter revisions (migration 0023) &gt; lists revisions newest first and assigns max plus one" time="0.456864">
+        </testcase>
+        <testcase classname="tests/offer-letter/offer-letter.test.ts" name="offer letter revisions (migration 0023) &gt; refuses a file that is not an offer letter with 400, and writes no revision" time="0.3715762">
+        </testcase>
+        <testcase classname="tests/offer-letter/offer-letter.test.ts" name="offer letter revisions (migration 0023) &gt; answers 404 for a file that does not exist" time="0.4716884">
+        </testcase>
+        <testcase classname="tests/offer-letter/offer-letter.test.ts" name="offer letter revisions (migration 0023) &gt; reports hasContent from core_file_content, per file" time="0.3959286">
+        </testcase>
+        <testcase classname="tests/offer-letter/offer-letter.test.ts" name="offer letter revisions (migration 0023) &gt; refuses a POST without an Idempotency-Key" time="0.3198078">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/organisation/organisation.test.ts" timestamp="2026-11-21T14:53:43.411Z" hostname="Vishnu" tests="11" failures="0" errors="0" skipped="0" time="10.9997245">
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; answers 404 for the profile, and 409 for a holiday, before the profile is set up" time="0.6667167">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; creates the profile once, changes it only with the current version, and audits both" time="0.3848944">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; accepts only the approved fuel settings keys" time="0.2840272">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; holidays: date range, duplicates, versioned edits, delete, and audit" time="0.3618384">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; shifts: timing, time zone, week-off days, effective dates; deactivate instead of delete" time="0.329732">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; number series: the code is unique per year scope, and the counter only rises" time="0.2872349">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; allocates numbers in order, leaves no gap after a rollback, and opens a year from the latest" time="0.3070574">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; departments: codes, colours, parent cycles, heads and in-use delete" time="0.3772918">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; positions: reporting cycles, department heads and in-use delete" time="0.3746286">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; the migration keys and CHECKs hold when rows are written directly (0009)" time="0.5494615">
+        </testcase>
+        <testcase classname="tests/organisation/organisation.test.ts" name="organisation (phase 5a) &gt; answers 401 without a token and 403 without organisation.manage on every write; reads need only a sign-in" time="0.4186725">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/organisation/rules.test.ts" timestamp="2026-11-21T14:53:43.413Z" hostname="Vishnu" tests="12" failures="0" errors="0" skipped="0" time="0.0644373">
+        <testcase classname="tests/organisation/rules.test.ts" name="tax ID formats (phase 5a, point b) &gt; accepts well-formed GSTIN, PAN, TAN and CIN values" time="0.0044519">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="tax ID formats (phase 5a, point b) &gt; refuses values with the wrong shape" time="0.0009621">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="time zone, settings keys and date rules (phase 5a, points c, e, f) &gt; accepts IANA zone names and refuses unknown ones" time="0.0483528">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="time zone, settings keys and date rules (phase 5a, points c, e, f) &gt; allows only the two fuel key families, with a lower-case name" time="0.0008547">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="time zone, settings keys and date rules (phase 5a, points c, e, f) &gt; reports each unknown settings key by name" time="0.00182">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="time zone, settings keys and date rules (phase 5a, points c, e, f) &gt; holidays end on or after they start; an open end is one day" time="0.0007074">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="time zone, settings keys and date rules (phase 5a, points c, e, f) &gt; shifts may end before they start for a night shift, but equal times are refused" time="0.0005151">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="time zone, settings keys and date rules (phase 5a, points c, e, f) &gt; effective dates: an open end is allowed; a closed end must not precede the start" time="0.0004169">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="time zone, settings keys and date rules (phase 5a, points c, e, f) &gt; week-off days are stored once each, sorted" time="0.0006061">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="time zone, settings keys and date rules (phase 5a, points c, e, f) &gt; the colour index and the hex value are set together or not at all" time="0.0006608">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="document number format (phase 5a, point g) &gt; pads the counter to five digits, with no year for a series that never resets" time="0.0004732">
+        </testcase>
+        <testcase classname="tests/organisation/rules.test.ts" name="document number format (phase 5a, point g) &gt; puts the year between the prefix and the counter for a yearly series" time="0.0002375">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/permissions/detail-routes.test.ts" timestamp="2026-11-21T14:53:43.416Z" hostname="Vishnu" tests="5" failures="0" errors="0" skipped="0" time="7.5695259">
+        <testcase classname="tests/permissions/detail-routes.test.ts" name="detail routes: permissions &gt; refuses every detail route without a token, with 401" time="0.598055">
+        </testcase>
+        <testcase classname="tests/permissions/detail-routes.test.ts" name="detail routes: permissions &gt; lets a signed-in user with no privileges read a record, the same as the list shows it" time="0.7455132">
+        </testcase>
+        <testcase classname="tests/permissions/detail-routes.test.ts" name="detail routes: permissions &gt; answers 404, not 401 or 403, for an unknown id on every open detail route" time="0.5463323">
+        </testcase>
+        <testcase classname="tests/permissions/detail-routes.test.ts" name="detail routes: permissions &gt; requires organisation.manage for offer-letter revisions: 403 without it, and the unknown-id 404 with it" time="0.744293">
+        </testcase>
+        <testcase classname="tests/permissions/detail-routes.test.ts" name="detail routes: permissions &gt; does not show a record of another company: a user of beta gets 404 for an acme project id" time="0.7526352">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/projects/project-chainage-range.test.ts" timestamp="2026-11-21T14:53:43.417Z" hostname="Vishnu" tests="3" failures="0" errors="0" skipped="0" time="2.82243">
+        <testcase classname="tests/projects/project-chainage-range.test.ts" name="project chainage range and grievance note &gt; patches and returns the range, and allows markers outside it" time="0.0585356">
+        </testcase>
+        <testcase classname="tests/projects/project-chainage-range.test.ts" name="project chainage range and grievance note &gt; validates the range and the row version" time="0.0665863">
+        </testcase>
+        <testcase classname="tests/projects/project-chainage-range.test.ts" name="project chainage range and grievance note &gt; stores the grievance note on PATCH and returns it" time="0.0662397">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/projects/projects.test.ts" timestamp="2026-11-21T14:53:43.418Z" hostname="Vishnu" tests="9" failures="0" errors="0" skipped="0" time="10.9514059">
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; projects: create with dates and value, change only with the current version, close by status, audit both" time="0.6945688">
+        </testcase>
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; locations: coordinates and chainage in pairs, week-off days, project fixed after create, deactivate" time="0.4248318">
+        </testcase>
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; stores: the chainage marker must sit on the same project as the location" time="0.3401845">
+        </testcase>
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; WBS nodes: parents in the same project, no cycles, codes per project, delete only when unused" time="0.3820406">
+        </testcase>
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; chainage markers: codes per project, km zero or more, delete only when unused, audit the delete" time="0.3069573">
+        </testcase>
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; geo zones: shape fields, version rises only when the fence changes, delete" time="0.4501497">
+        </testcase>
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; milestones: weights total at most 100 per project, cancelled ones count, the row itself is left out on edit" time="0.3922423">
+        </testcase>
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; the migration keys and CHECKs hold when rows are written directly (0010)" time="0.7073733">
+        </testcase>
+        <testcase classname="tests/projects/projects.test.ts" name="projects and sites (phase 5b) &gt; answers 401 without a token and 403 without projects.manage on every write; reads need only a sign-in" time="0.5207756">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/projects/rules.test.ts" timestamp="2026-11-21T14:53:43.420Z" hostname="Vishnu" tests="15" failures="0" errors="0" skipped="0" time="0.0171918">
+        <testcase classname="tests/projects/rules.test.ts" name="project dates &gt; accepts an end on or after the start, and a missing date" time="0.0061049">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="project dates &gt; refuses an end before the start" time="0.0007111">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="coordinate pairs &gt; accepts both set or both missing" time="0.0005483">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="coordinate pairs &gt; refuses one of the two set" time="0.0004335">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="chainage ranges &gt; accepts an ordered pair, or no range at all" time="0.0005653">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="chainage ranges &gt; refuses a half range and an end before the start" time="0.0003797">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="geo zone shapes &gt; accepts a circle with a centre and a radius" time="0.000471">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="geo zone shapes &gt; refuses a circle without a centre, without a radius, or with points" time="0.0005005">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="geo zone shapes &gt; needs three points for a polygon" time="0.0005683">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="geo zone shapes &gt; needs two points and a positive buffer for a corridor" time="0.0007827">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="geo zone shapes &gt; refuses a shape it does not know" time="0.0003396">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="geo zone version &gt; does not change for a label or a status-only edit" time="0.0003671">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="geo zone version &gt; changes for a new radius, centre, zone type or points" time="0.0003701">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="milestone weights &gt; accepts a total up to 100, and compares in hundredths so rounding does not decide it" time="0.0004216">
+        </testcase>
+        <testcase classname="tests/projects/rules.test.ts" name="milestone weights &gt; refuses a total above 100" time="0.0001877">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/regression/masters-contract.test.ts" timestamp="2026-11-21T14:53:43.424Z" hostname="Vishnu" tests="84" failures="0" errors="0" skipped="2" time="5.0653654">
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /projects &gt; refuses anonymous reads and writes with 401" time="0.0088517">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /projects &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.015372">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /projects &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0583138">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /projects &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0189467">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /projects &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0065336">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /projects &gt; refuses a second row with the same unique value with 409" time="0.0292803">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /locations &gt; refuses anonymous reads and writes with 401" time="0.0060325">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /locations &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0120215">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /locations &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0403703">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /locations &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0125511">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /locations &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0043976">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /locations &gt; refuses a second row with the same unique value with 409" time="0.0172222">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /stores &gt; refuses anonymous reads and writes with 401" time="0.0071076">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /stores &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0144086">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /stores &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0561904">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /stores &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0153236">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /stores &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0051352">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /stores &gt; refuses a second row with the same unique value with 409" time="0.0189392">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /wbs-nodes &gt; refuses anonymous reads and writes with 401" time="0.0040153">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /wbs-nodes &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0132684">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /wbs-nodes &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0401721">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /wbs-nodes &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0143176">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /wbs-nodes &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0047271">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /wbs-nodes &gt; refuses a second row with the same unique value with 409" time="0.0174461">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /chainage-markers &gt; refuses anonymous reads and writes with 401" time="0.0058554">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /chainage-markers &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0129309">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /chainage-markers &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0372101">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /chainage-markers &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0178407">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /chainage-markers &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0053269">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /chainage-markers &gt; refuses a second row with the same unique value with 409" time="0.0191416">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /milestones &gt; refuses anonymous reads and writes with 401" time="0.006384">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /milestones &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0171769">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /milestones &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0536655">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /milestones &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0170366">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /milestones &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0061011">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /milestones &gt; refuses a second row with the same unique value with 409" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /vendors &gt; refuses anonymous reads and writes with 401" time="0.0064318">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /vendors &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0181235">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /vendors &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0555665">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /vendors &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0206719">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /vendors &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0072253">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /vendors &gt; refuses a second row with the same unique value with 409" time="0.0201164">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /materials &gt; refuses anonymous reads and writes with 401" time="0.0094058">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /materials &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0186056">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /materials &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0571681">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /materials &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0159694">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /materials &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0061838">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /materials &gt; refuses a second row with the same unique value with 409" time="0.0191187">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /equipment-types &gt; refuses anonymous reads and writes with 401" time="0.0064801">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /equipment-types &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0188064">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /equipment-types &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0631187">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /equipment-types &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0212083">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /equipment-types &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0078023">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /equipment-types &gt; refuses a second row with the same unique value with 409" time="0.0212435">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/departments &gt; refuses anonymous reads and writes with 401" time="0.0081105">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/departments &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0224958">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/departments &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0567484">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/departments &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0176237">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/departments &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0075678">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/departments &gt; refuses a second row with the same unique value with 409" time="0.0235792">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/positions &gt; refuses anonymous reads and writes with 401" time="0.0072185">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/positions &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0164191">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/positions &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0531742">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/positions &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0205726">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/positions &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0068587">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/positions &gt; refuses a second row with the same unique value with 409" time="0.0188184">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/shifts &gt; refuses anonymous reads and writes with 401" time="0.0064284">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/shifts &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0176678">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/shifts &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0882129">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/shifts &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0163586">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/shifts &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0079741">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/shifts &gt; refuses a second row with the same unique value with 409" time="0.0283955">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/holidays &gt; refuses anonymous reads and writes with 401" time="0.0100609">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/holidays &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0173165">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/holidays &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0607357">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/holidays &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0200464">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/holidays &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0069896">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/holidays &gt; refuses a second row with the same unique value with 409" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/number-series &gt; refuses anonymous reads and writes with 401" time="0.0082854">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/number-series &gt; lets any signed-in user read, and refuses writes without the privilege (403)" time="0.0203729">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/number-series &gt; creates, reads the same row by id and in the list, and versions every change" time="0.0713576">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/number-series &gt; answers 404 for an unknown id and 400 or 404 (never 500) for a malformed one" time="0.0233292">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/number-series &gt; refuses an empty create with 400 VALIDATION_ERROR" time="0.0066697">
+        </testcase>
+        <testcase classname="tests/regression/masters-contract.test.ts" name="regression: master-data contract &gt; /organisation/number-series &gt; refuses a second row with the same unique value with 409" time="0.0268721">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/relationships/cross-project.test.ts" timestamp="2026-11-21T14:53:43.440Z" hostname="Vishnu" tests="6" failures="0" errors="0" skipped="0" time="7.494809">
+        <testcase classname="tests/relationships/cross-project.test.ts" name="cross-project leakage and relationships &gt; filtered lists show only the chosen project: locations, markers, WBS nodes and milestones" time="1.1516561">
+        </testcase>
+        <testcase classname="tests/relationships/cross-project.test.ts" name="cross-project leakage and relationships &gt; a store cannot take a location and a marker from two different projects, on create or on move" time="0.6751966">
+        </testcase>
+        <testcase classname="tests/relationships/cross-project.test.ts" name="cross-project leakage and relationships &gt; a WBS node cannot have a parent from another project" time="0.566098">
+        </testcase>
+        <testcase classname="tests/relationships/cross-project.test.ts" name="cross-project leakage and relationships &gt; a record cannot be moved to another project: location, marker, WBS node and milestone refuse a projectId change" time="0.625758">
+        </testcase>
+        <testcase classname="tests/relationships/cross-project.test.ts" name="cross-project leakage and relationships &gt; a location, marker or milestone cannot be created under a project that does not exist" time="0.4062139">
+        </testcase>
+        <testcase classname="tests/relationships/cross-project.test.ts" name="cross-project leakage and relationships &gt; a store cannot point at a marker or location that does not exist" time="0.5363918">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/stock-levels/stock-levels.test.ts" timestamp="2026-11-21T14:53:43.442Z" hostname="Vishnu" tests="9" failures="0" errors="0" skipped="0" time="7.1615914">
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; answers a plain signed-in user on GET and refuses writes with 403" time="0.8478884">
+        </testcase>
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; refuses a POST without an Idempotency-Key" time="0.4662834">
+        </testcase>
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; creates a row with defaults, reads it back with the filters, and sets an existing row" time="0.4264085">
+        </testcase>
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; keeps the stored reserved value when a set leaves it out" time="0.4176246">
+        </testcase>
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; refuses reserved above qty with 422 on create and on patch" time="0.4494535">
+        </testcase>
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; answers 404 for an unknown store, an unknown material and an unknown stock row" time="0.4051939">
+        </testcase>
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; patches qty and reserved under rowVersion, and refuses a stale version with 409" time="0.4498444">
+        </testcase>
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; writes an audit row for each change" time="0.4248841">
+        </testcase>
+        <testcase classname="tests/stock-levels/stock-levels.test.ts" name="stock levels (migration 0020) &gt; enforces reserved &lt;= qty and the unique (store, material) pair in the database" time="0.2112922">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/testing-pass/conflicts-and-ownership.test.ts" timestamp="2026-11-21T14:53:43.444Z" hostname="Vishnu" tests="6" failures="0" errors="0" skipped="0" time="10.778497">
+        <testcase classname="tests/testing-pass/conflicts-and-ownership.test.ts" name="tenant writes, 409 conflicts and ownership &gt; tenant writes &gt; a token for beta cannot change an acme vendor: 404, and the acme row is unchanged" time="0.5002068">
+        </testcase>
+        <testcase classname="tests/testing-pass/conflicts-and-ownership.test.ts" name="tenant writes, 409 conflicts and ownership &gt; tenant writes &gt; a token for beta cannot delete an acme vendor, and the acme vendor stays" time="0.3685188">
+        </testcase>
+        <testcase classname="tests/testing-pass/conflicts-and-ownership.test.ts" name="tenant writes, 409 conflicts and ownership &gt; tenant writes &gt; a beta session id sent with an acme token is not a session of acme: 401 and nothing is revoked" time="0.3872286">
+        </testcase>
+        <testcase classname="tests/testing-pass/conflicts-and-ownership.test.ts" name="tenant writes, 409 conflicts and ownership &gt; 409 under concurrency &gt; two saves with the same row version race: one succeeds, the other is 409, and the row moves once" time="0.2704503">
+        </testcase>
+        <testcase classname="tests/testing-pass/conflicts-and-ownership.test.ts" name="tenant writes, 409 conflicts and ownership &gt; 409 under concurrency &gt; two creates with one code race: one is 201, the other is 409, and only one row exists" time="0.2110621">
+        </testcase>
+        <testcase classname="tests/testing-pass/conflicts-and-ownership.test.ts" name="tenant writes, 409 conflicts and ownership &gt; ownership &gt; one user cannot remove another user&apos;s passkey: 404, and the passkey stays" time="0.3003992">
+        </testcase>
+    </testsuite>
+</testsuites>

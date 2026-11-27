@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { idempotencyFor } from '../testing-pass/helpers.js';
@@ -25,7 +25,6 @@ const OPEN_DETAIL_PATHS = [
   '/projects',
   '/locations',
   '/stores',
-  '/wbs-nodes',
   '/chainage-markers',
   '/geo-zones',
   '/milestones',

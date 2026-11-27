@@ -1,19 +1,20 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { differenceInCalendarDays } from "date-fns";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
-import { KV, Muted, Note } from "@/shared/ui/Extras";
+import { KV, Muted } from "@/shared/ui/Extras";
 import { FormGroup, Input, Textarea } from "@/shared/ui/Field";
 import { Modal } from "@/shared/ui/Modal";
 import { StatusBadge } from "@/shared/ui/Status";
+import { Icon } from "@/shared/ui/icons";
 import { TablePanel } from "@/shared/ui/data/TablePanel";
 import { PageHead } from "@/modules/shell";
 import { useEnter } from "@/shared/hooks/useMotion";
 import { a11y } from "@/shared/lib/core";
 import { fmtDate, money } from "@/shared/lib/format";
 import { notify } from "@/shared/lib/toast";
-import { useCore } from "@/modules/core-data";
-import { INVOICES, PLANS, SUBSCRIPTION as S } from "../data/subscription";
+import { billingApi as billing, useCore, type BillingPlanRecord, type InvoiceRecord, type SubscriptionRecord } from "@/modules/core-data";
+import { errorText } from "@/shared/lib/api";
 
 const TONE = {
   Active: "approved",
@@ -68,9 +69,13 @@ function Usage({
 function UpgradeModal({
   open,
   onOpenChange,
+  plans,
+  current,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  plans: BillingPlanRecord[];
+  current: string;
 }) {
   const [pick, setPick] = useState("");
   const cell = {
@@ -79,8 +84,8 @@ function UpgradeModal({
     borderBottom: "1px solid var(--line)",
     fontSize: 13,
   } as const;
-  const higher = PLANS.filter(
-    (p) => p.price > (PLANS.find((x) => x.name === S.plan)?.price ?? 0),
+  const higher = plans.filter(
+    (p) => p.price > (plans.find((x) => x.name === current)?.price ?? 0),
   );
   const request = () => {
     // TODO(backend): POST /billing/subscription/upgrade-requests { plan }
@@ -114,17 +119,17 @@ function UpgradeModal({
             </tr>
           </thead>
           <tbody>
-            {PLANS.map((p) => (
+            {plans.map((p) => (
               <tr
                 key={p.name}
                 style={
-                  p.name === S.plan
+                  p.name === current
                     ? { background: "var(--soft, rgba(26,115,232,.08))" }
                     : undefined
                 }
               >
                 <td style={cell}>
-                  {p.name !== S.plan &&
+                  {p.name !== current &&
                   higher.some((h) => h.name === p.name) ? (
                     <label
                       style={{ display: "flex", gap: 6, alignItems: "center" }}
@@ -140,7 +145,7 @@ function UpgradeModal({
                   ) : (
                     <>
                       <strong>{p.name}</strong>
-                      {p.name === S.plan && (
+                      {p.name === current && (
                         <>
                           {" "}
                           <StatusBadge tone="approved">Current</StatusBadge>
@@ -179,40 +184,36 @@ function UpgradeModal({
   );
 }
 
-function SupportModal({
-  open,
-  onOpenChange,
+const MESSAGE_WORD_LIMIT = 250;
+
+/** The support message form, shown inline in the "We're Here to Help" card. */
+function SupportForm({
+  onSent,
+  onCancel,
 }: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
+  onSent: () => void;
+  onCancel?: () => void;
 }) {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const close = (o: boolean) => {
-    onOpenChange(o);
-    if (!o) {
-      setSubject("");
-      setMessage("");
-      setError("");
-    }
-  };
+  const words = message.trim() ? message.trim().split(/\s+/).length : 0;
   const send = () => {
     if (!subject.trim() || message.trim().length < 10)
       return setError(
         "Enter a subject and a message of at least 10 characters.",
       );
+    if (words > MESSAGE_WORD_LIMIT)
+      return setError(`Keep the message to ${MESSAGE_WORD_LIMIT} words or fewer.`);
     // TODO(backend): POST /support/messages { subject, message }
     notify("Your message has been sent to support.");
-    close(false);
+    setSubject("");
+    setMessage("");
+    setError("");
+    onSent();
   };
   return (
-    <Modal
-      open={open}
-      onOpenChange={close}
-      title="Contact support"
-      description="Send a message to the support team"
-    >
+    <>
       <div className="form-grid">
         <FormGroup label="Subject" required full>
           {(id, d) => (
@@ -227,7 +228,7 @@ function SupportModal({
             />
           )}
         </FormGroup>
-        <FormGroup label="Message" required full error={error || undefined}>
+        <FormGroup label="Message" required full error={error || undefined} helper={`${words}/${MESSAGE_WORD_LIMIT} words`}>
           {(id, d) => (
             <Textarea
               rows={4}
@@ -243,27 +244,40 @@ function SupportModal({
         </FormGroup>
       </div>
       <div className="form-actions">
-        <Button onClick={() => close(false)}>Cancel</Button>
+        {onCancel && <Button onClick={onCancel}>Cancel</Button>}
         <Button tone="primary" icon="check" onClick={send}>
           Send message
         </Button>
       </div>
-    </Modal>
+    </>
   );
 }
 
 export default function Subscription() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "subscription");
-  const { users, projects, sites } = useCore();
+  const { users } = useCore();
   const [upgrade, setUpgrade] = useState(false);
   const [renew, setRenew] = useState(false);
-  const [support, setSupport] = useState(false);
-  const gst = (S.baseAmount * S.gstRate) / 100;
-  const daysLeft = differenceInCalendarDays(
-    new Date(S.renewalDate),
-    new Date(),
-  );
+  const [data, setData] = useState<{
+    sub: SubscriptionRecord | null;
+    invoices: InvoiceRecord[];
+    plans: BillingPlanRecord[];
+  } | null>(null);
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => {
+    let live = true;
+    Promise.all([billing.listSubscriptions(), billing.listInvoices(), billing.listBillingPlans()]).then(
+      ([subs, invoices, plans]) => { if (live) setData({ sub: subs[0] ?? null, invoices, plans }); },
+      (err: unknown) => { if (live) setLoadError(errorText(err)); },
+    );
+    return () => { live = false; };
+  }, []);
+  const S = data?.sub ?? null;
+  const gst = S ? (S.baseAmount * S.gstRate) / 100 : 0;
+  const daysLeft = S
+    ? differenceInCalendarDays(new Date(S.renewalDate), new Date())
+    : 0;
 
   return (
     <div ref={ref}>
@@ -273,13 +287,22 @@ export default function Subscription() {
         desc="Company's current plan, usage limits, billing and invoices."
       />
 
+      {loadError ? (
+        <Card title="Subscription"><Muted>{loadError}</Muted></Card>
+      ) : !data ? (
+        <Card title="Subscription"><Muted>Loading the subscription…</Muted></Card>
+      ) : !S ? (
+        <Card title="Subscription"><Muted>No subscription is set up for this company yet.</Muted></Card>
+      ) : (
+      <>
+
       <Card
         title={`${S.plan} plan`}
         subtitle={`Subscription ${S.accountId}`}
         className="mb-16"
         action={
           <div className="form-actions" style={{ marginTop: 0 }}>
-            <StatusBadge tone={TONE.Active}>Active</StatusBadge>
+            <StatusBadge tone={TONE[S.status]}>{S.status}</StatusBadge>
             <Button icon="refresh" onClick={() => setRenew(true)}>
               Renew
             </Button>
@@ -298,7 +321,7 @@ export default function Subscription() {
             <strong>{money(S.baseAmount + gst)}</strong>
             <Muted> incl. GST ({S.gstRate}%)</Muted>
           </KV>
-          <KV k="Renews on">
+          <KV k="Next Renewal Date">
             <strong>{fmtDate(S.renewalDate)}</strong>
             <Muted> · {daysLeft} days</Muted>
           </KV>
@@ -315,41 +338,25 @@ export default function Subscription() {
       <div className="grid dash-grid">
         <div className="stack">
           <Card title="Usage against plan limits">
-            <Usage label="Users" used={users.length} limit={S.limits.users} />
-            <Usage
-              label="Projects"
-              used={projects.length}
-              limit={S.limits.projects}
-            />
-            <Usage
-              label="Locations"
-              used={sites.length}
-              limit={S.limits.sites}
-            />
-            <Usage
-              label="Storage"
-              used={86}
-              limit={S.limits.storageGb}
-              unit=" GB"
-            />
+            {S.limitUsers != null && <Usage label="Users" used={users.length} limit={S.limitUsers} />}
           </Card>
           <TablePanel
             title="Invoice history"
-            subtitle="Search by invoice number or period. Invoices issued for this subscription."
-            rows={INVOICES}
-            rowKey={(i) => i.no}
+            subtitle="Sort as required."
+            rows={data.invoices}
+            rowKey={(i) => i.invoiceNo}
             columns={[
               {
                 header: "Invoice",
                 kind: "c-id",
-                cell: (i) => i.no,
-                csv: (i) => i.no,
+                cell: (i) => i.invoiceNo,
+                csv: (i) => i.invoiceNo,
               },
               {
                 header: "Date",
                 kind: "c-more",
-                cell: (i) => fmtDate(i.date),
-                csv: (i) => i.date,
+                cell: (i) => fmtDate(i.invoiceDate),
+                csv: (i) => i.invoiceDate,
               },
               {
                 header: "For",
@@ -376,19 +383,19 @@ export default function Subscription() {
                 csv: (i) => i.status,
               },
             ]}
-            searchText={(i) => `${i.no} ${i.period}`}
+            searchText={(i) => `${i.invoiceNo} ${i.period}`}
             searchPlaceholder="Search invoices…"
             exportName="core-invoices"
           />
         </div>
         <Card title="We're Here to Help" subtitle="Get help with your plan or reach out to our support team">
-          <div className="stack" style={{ gap: 10 }}>
-            <Note title="Support" icon="help" className="mt-0">
-              {S.supportTier}
-            </Note>
-            <Button icon="help" onClick={() => setSupport(true)}>
-              Contact Support
-            </Button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 440 }}>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+              <SupportForm onSent={() => undefined} />
+            </div>
+            <div aria-hidden="true" style={{ display: "flex", justifyContent: "center", color: "var(--muted)" }}>
+              <Icon name="handshake" size={64} />
+            </div>
           </div>
         </Card>
       </div>
@@ -420,8 +427,9 @@ export default function Subscription() {
           </Button>
         </div>
       </Modal>
-      <UpgradeModal open={upgrade} onOpenChange={setUpgrade} />
-      <SupportModal open={support} onOpenChange={setSupport} />
+      <UpgradeModal open={upgrade} onOpenChange={setUpgrade} plans={data.plans} current={S.plan} />
+      </>
+      )}
     </div>
   );
 }

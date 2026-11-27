@@ -13,8 +13,10 @@ export interface UnitRecord {
   equipmentTypeId: string
   type: string | null
   availability: Availability
-  /** core_location id, or null when the unit is not assigned to a location */
-  locationId: string | null
+  /** core_project id, or null when the unit has no project */
+  projectId: string | null
+  /** core_approval_request id, or null (owned units) */
+  approvalRequestId: string | null
   vendorId: string | null
   name: string | null
   makeModel: string | null
@@ -37,6 +39,9 @@ export interface UnitRecord {
   tankCapacity: string | null
   owner: string | null
   hireRef: string | null
+  hiredFrom: string | null
+  hireStatus: 'Active' | 'Inactive' | null
+  overPlanReason: string | null
   agreementStart: string | null
   agreementEnd: string | null
   warrantyEnd: string | null
@@ -64,7 +69,7 @@ export interface UnitRecord {
 type UnitText =
   | 'name' | 'makeModel' | 'regNo' | 'currentLocation' | 'ownershipType' | 'manufacturer' | 'model' | 'mfgYear' | 'engineNo'
   | 'chasisNo' | 'capacity' | 'capacityUnit' | 'meterType' | 'meterReading' | 'fuelType' | 'fuelNorm' | 'tankCapacity' | 'owner'
-  | 'hireRef' | 'warrantyReading' | 'invoiceNo' | 'insuranceNo' | 'pucNo' | 'fitnessCert'
+  | 'hireRef' | 'hiredFrom' | 'overPlanReason' | 'warrantyReading' | 'invoiceNo' | 'insuranceNo' | 'pucNo' | 'fitnessCert'
 type UnitDate = 'agreementStart' | 'agreementEnd' | 'warrantyEnd' | 'invoiceDate' | 'regExpiry' | 'insuranceExpiry' | 'pollutionExpiry' | 'fitnessExpiry'
 
 /** Writable unit fields in API names. Empty text and unset values are sent as null. */
@@ -72,7 +77,9 @@ export type UnitDraft = {
   assetCode: string
   equipmentTypeId: string
   availability: Availability
-  locationId: string | null
+  projectId: string | null
+  approvalRequestId: string | null
+  hireStatus: 'Active' | 'Inactive' | null
   vendorId: string | null
   lat: number | null
   lng: number | null
@@ -93,12 +100,13 @@ const text = (v?: string | null) => (v?.trim() ? v.trim() : null)
 const opt = (v: string | null | undefined) => (v === null || v === undefined || v === '' ? undefined : v)
 
 /** The six photo and document keys a unit can store (the only keys the API accepts in `documents`). */
-export const UNIT_DOC_KEYS: UnitDocKey[] = ['chasisPhoto', 'enginePhoto', 'meterPhoto', 'invoiceDoc', 'insuranceDoc', 'pucDoc']
+export const UNIT_DOC_KEYS: UnitDocKey[] = ['chasisPhoto', 'enginePhoto', 'meterPhoto', 'invoiceDoc', 'insuranceDoc', 'regDoc', 'pucDoc', 'fitnessDoc']
 
 /** Labels of the photo and document keys, for messages and the unit details. */
 export const UNIT_DOC_LABEL: Record<UnitDocKey, string> = {
   chasisPhoto: 'Chassis number photo', enginePhoto: 'Engine number photo', meterPhoto: 'Meter photo',
   invoiceDoc: 'Invoice document', insuranceDoc: 'Insurance document', pucDoc: 'PUC document',
+  regDoc: 'Registration document', fitnessDoc: 'Fitness certificate document',
 }
 
 /** A chosen file or camera capture waiting to be uploaded for a unit. */
@@ -120,8 +128,9 @@ export const unitFrom = (r: UnitRecord): EquipmentUnit => ({
   type: r.type ?? '',
   makeModel: r.makeModel ?? '',
   regNo: r.regNo ?? '',
-  // the API links a unit to a location (locationId); the register's chainage link is that id, or '' when unassigned
-  chainageId: r.locationId ?? '',
+  chainageId: '',
+  projectId: r.projectId ?? undefined,
+  approvalRequestId: r.approvalRequestId ?? undefined,
   lat: r.lat,
   lng: r.lng,
   lastPing: r.lastPingAt ?? null,
@@ -145,6 +154,9 @@ export const unitFrom = (r: UnitRecord): EquipmentUnit => ({
   owner: opt(r.owner),
   vendorId: opt(r.vendorId),
   hireRef: opt(r.hireRef),
+  hiredFrom: opt(r.hiredFrom),
+  hireStatus: r.hireStatus ?? undefined,
+  overPlanReason: opt(r.overPlanReason),
   agreementStart: opt(r.agreementStart),
   agreementEnd: opt(r.agreementEnd),
   warrantyEnd: opt(r.warrantyEnd),
@@ -164,12 +176,13 @@ export const unitFrom = (r: UnitRecord): EquipmentUnit => ({
   equipmentTypeId: r.equipmentTypeId,
 })
 
-/** The API body for a unit. The caller resolves the type id and the location id (null when the unit has no server location). */
-export const draftFrom = (u: EquipmentUnit, equipmentTypeId: string, locationId: string | null): UnitDraft => ({
+/** The API body for a unit. The caller resolves the type id. */
+export const draftFrom = (u: EquipmentUnit, equipmentTypeId: string): UnitDraft => ({
   assetCode: u.assetCode.trim(),
   equipmentTypeId,
   availability: u.availability,
-  locationId,
+  projectId: u.projectId ?? null,
+  approvalRequestId: u.approvalRequestId ?? null,
   vendorId: text(u.vendorId),
   lat: u.lat,
   lng: u.lng,
@@ -194,6 +207,10 @@ export const draftFrom = (u: EquipmentUnit, equipmentTypeId: string, locationId:
   tankCapacity: text(u.tankCapacity),
   owner: text(u.owner),
   hireRef: text(u.hireRef),
+  hiredFrom: text(u.hiredFrom),
+  hireStatus: u.hireStatus ?? null,
+  // the reason belongs to the assignment: it goes when the unit has no project
+  overPlanReason: u.projectId ? text(u.overPlanReason) : null,
   warrantyReading: text(u.warrantyReading),
   invoiceNo: text(u.invoiceNo),
   insuranceNo: text(u.insuranceNo),

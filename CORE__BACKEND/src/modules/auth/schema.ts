@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { isValidTenantId } from '../../db/migrate.js';
 import { AppError } from '../../core/errors.js';
 
+/** The signed-in administrator's own name, email and mobile number (ten digits, India, as at registration). */
+export const ownDetailsBodySchema = z.object({
+  name: z.string().trim().min(1, 'Enter your name.').max(200),
+  email: z.email('Enter a valid email address.').max(254),
+  phone: z.string().regex(/^\d{10}$/, 'Enter the 10-digit mobile number.'),
+});
+
 export const loginBodySchema = z.object({
   loginId: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(256),

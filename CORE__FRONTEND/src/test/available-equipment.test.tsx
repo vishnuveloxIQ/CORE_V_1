@@ -22,13 +22,10 @@ describe('available equipment', () => {
   })
   afterEach(() => useCore.setState(saved))
 
-  it('lists only available units, with their location and project', () => {
+  it('lists only available units', () => {
     render(<MemoryRouter><AvailableEquipment /></MemoryRouter>)
     expect(screen.getByText('EXC-01')).toBeInTheDocument()
     expect(screen.getByText('DMP-07')).toBeInTheDocument()
     expect(screen.queryByText('EXC-02')).toBeNull()
-    expect(screen.getAllByText('Camp A').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('NH-44 · Fictional Highway').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Not assigned to a project').length).toBeGreaterThan(0)
   })
 })

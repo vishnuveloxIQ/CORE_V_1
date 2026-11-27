@@ -23,6 +23,8 @@ const SAMPLE_OTP = (import.meta.env.VITE_SAMPLE_OTP_CODE as string | undefined) 
 type Step = 'request' | 'verify'
 
 const MAX_TRIES = 5
+/** A code lasts 5 minutes and is used up by a correct entry or 5 wrong ones (core_auth_activity, OTP_TTL_MS). */
+const STALE_OTP_MSG = 'This code is wrong, has expired or was already used. Choose Resend OTP to get a new code.'
 
 /**
  * Password reset against the Core API: POST /auth/password-reset/request sends a 6 digit code (the server chooses the
@@ -93,6 +95,7 @@ export default function ForgotPassword() {
       const t = tries + 1
       setTries(t)
       if (t >= MAX_TRIES) setError('Too many wrong attempts. Request a new OTP.')
+      else if (err instanceof ApiError && err.code === 'AUTH_INVALID_OTP') setError(STALE_OTP_MSG)
       else fail(err)
     } finally { setBusy(false) }
   }
@@ -120,7 +123,7 @@ export default function ForgotPassword() {
               <>
                 {SAMPLE_OTP ? (
                   <Note title="Testing: no email is sent yet" icon="info" className="mt-0">
-                    Until email is set up, enter the sample OTP <b>{SAMPLE_OTP}</b> with your new password.
+                    Until email is set up, enter the sample OTP <b>{SAMPLE_OTP}</b> with your new password. The code expires a short time after it is sent.
                   </Note>
                 ) : (
                   <p className="login-sub">An OTP was sent to {sentTo}. Enter it with your new password.</p>

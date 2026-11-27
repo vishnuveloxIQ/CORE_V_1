@@ -26,6 +26,7 @@ export type MastersTable = (typeof MASTERS_TABLE)[keyof typeof MASTERS_TABLE];
 /** Rows that a master record refers to. Existence checks use only these names. */
 const REFERENCE_TABLE = {
   project: 'core_project',
+  store: 'core_store',
   material: 'core_material',
   equipmentType: 'core_equipment_type',
   position: 'core_position',
@@ -90,6 +91,7 @@ export interface PlanLineFields {
   equipmentTypeId: string | null;
   positionId: string | null;
   role: string | null;
+  department: string | null;
   materialId: string | null;
   uomId: string | null;
   storeId: string | null;
@@ -113,7 +115,10 @@ export interface Versioned {
 }
 
 export type VendorRecord = VendorFields & Versioned;
-export type MaterialRecord = MaterialFields & Versioned;
+export type MaterialRecord = MaterialFields & Versioned & {
+  /** the stores this material is available in (core_material_store) */
+  storeIds: string[];
+};
 export type EquipmentTypeRecord = EquipmentTypeFields & Versioned;
 /** The unit is read from shared.uom; the allocation table keeps no unit text of its own. */
 export type AllocationRecord = AllocationFields & Versioned & { unit: string | null };
@@ -127,7 +132,9 @@ const VENDOR_SELECT = `id, code, name, status, gstin, pan, email::text AS email,
 
 const MATERIAL_SELECT = `id, code::text AS code, name, uom_id AS "uomId", status, hsn,
   CAST(reorder_level AS double precision) AS "reorderLevel", category,
-  sub_category AS "subCategory", ${TIMESTAMPS}`;
+  sub_category AS "subCategory",
+  ARRAY(SELECT a.store_id FROM core_material_store a WHERE a.material_id = core_material.id ORDER BY a.store_id) AS "storeIds",
+  ${TIMESTAMPS}`;
 
 const EQUIPMENT_TYPE_SELECT = `id, code::text AS code, name, meter_kind AS "meterKind",
   meter_precision AS "meterPrecision", fuel_norm_unit AS "fuelNormUnit",
@@ -142,7 +149,7 @@ const ASSIGNMENT_SELECT = `id, project_id AS "projectId", equipment_type_id AS "
   assigned_at AS "assignedAt", assigned_by_user_id AS "assignedByUserId", ${TIMESTAMPS}`;
 
 const PLAN_LINE_SELECT = `id, project_id AS "projectId", resource_kind AS "resourceKind",
-  equipment_type_id AS "equipmentTypeId", position_id AS "positionId", role,
+  equipment_type_id AS "equipmentTypeId", position_id AS "positionId", role, department,
   material_id AS "materialId", uom_id AS "uomId", store_id AS "storeId",
   CAST(quantity AS double precision) AS quantity, withdrawn,
   to_char(from_date, 'YYYY-MM-DD') AS "fromDate", to_char(to_date, 'YYYY-MM-DD') AS "toDate",
@@ -205,6 +212,7 @@ const PLAN_LINE_COLUMNS: readonly Column[] = [
   { name: 'equipment_type_id' },
   { name: 'position_id' },
   { name: 'role' },
+  { name: 'department' },
   { name: 'material_id' },
   { name: 'uom_id' },
   { name: 'store_id' },
@@ -234,12 +242,12 @@ export async function referenceExists(
   return row !== null;
 }
 
-/** The project a store belongs to, through its location. Null when the store does not exist. */
+/** The project a store belongs to. Null when the store does not exist. */
 export async function storeProjectId(client: PoolClient, storeId: string): Promise<string | null> {
   const row = await one<{ projectId: string }>(
     client,
-    `SELECT l.project_id AS "projectId"
-     FROM core_store s JOIN core_location l ON l.id = s.location_id
+    `SELECT s.project_id AS "projectId"
+     FROM core_store s
      WHERE s.id = $1`,
     [storeId],
   );
@@ -537,6 +545,7 @@ function planLineValues(f: PlanLineFields): unknown[] {
     f.equipmentTypeId,
     f.positionId,
     f.role,
+    f.department,
     f.materialId,
     f.uomId,
     f.storeId,

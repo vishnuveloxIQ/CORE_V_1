@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import type { CoreApp } from '../../src/http/app.js';
+﻿import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
 import { loadEnv } from '../../src/config/env.js';
@@ -46,7 +45,6 @@ describe.skipIf(!TEST_DATABASE_URL)(
       'manager' | 'approver' | 'raiser' | 'other',
       { id: string; token: string }
     > = {} as never;
-    let locationId = '';
 
     async function user(manage: boolean) {
       const loginId = uniqueLogin('cp');
@@ -120,15 +118,9 @@ describe.skipIf(!TEST_DATABASE_URL)(
       users.approver = await user(false);
       users.raiser = await user(false);
       users.other = await user(false);
-      const project = await db.pool.query<{ id: string }>(
-        `INSERT INTO tenant_acme.core_project (code, name, status) VALUES ('CP-P1', 'Publish project', 'active') RETURNING id`,
+      await db.pool.query(
+        `INSERT INTO tenant_acme.core_project (code, name, status) VALUES ('CP-P1', 'Publish project', 'active')`,
       );
-      const location = await db.pool.query<{ id: string }>(
-        `INSERT INTO tenant_acme.core_location (code, name, status, project_id)
-       VALUES ('CP-L1', 'Publish site', 'active', $1) RETURNING id`,
-        [project.rows[0]!.id],
-      );
-      locationId = location.rows[0]!.id;
       await chainFor('Job opening');
       await chainFor('Clarify test');
     }, 60_000);
@@ -265,7 +257,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
         openings: 2,
       });
       const url = `/approval-requests/${opening.id}/publish`;
-      const body = { locationId, rowVersion: opening.rowVersion };
+      const body = { rowVersion: opening.rowVersion };
 
       expect((await call(app, 'POST', url, null, body)).statusCode).toBe(401);
       expectError(await call(app, 'POST', url, users.raiser.token, body), 403, 'ACCESS_DENIED');
@@ -282,19 +274,10 @@ describe.skipIf(!TEST_DATABASE_URL)(
 
       expectError(
         await call(app, 'POST', url, users.manager.token, {
-          locationId,
           rowVersion: opening.rowVersion,
         }),
         409,
         'VERSION_CONFLICT',
-      );
-      expectError(
-        await call(app, 'POST', url, users.manager.token, {
-          locationId: randomUUID(),
-          rowVersion: approved.rowVersion,
-        }),
-        400,
-        'APPROVAL_REFERENCE_NOT_FOUND',
       );
       expectError(
         await call(app, 'POST', url, users.manager.token, { rowVersion: approved.rowVersion }),
@@ -303,19 +286,13 @@ describe.skipIf(!TEST_DATABASE_URL)(
       );
 
       const published = await call(app, 'POST', url, users.manager.token, {
-        locationId,
         rowVersion: approved.rowVersion,
       });
       expect(published.statusCode, published.body).toBe(200);
       const row = data<Row>(published);
-      expect(row.publishedLocationId).toBe(locationId);
       expect(typeof row.publishedAt).toBe('string');
       expect(row.rowVersion).toBe(approved.rowVersion + 1);
 
-      const read = data<Row>(
-        await call(app, 'GET', `/approval-requests/${opening.id}`, users.raiser.token),
-      );
-      expect(read.publishedLocationId).toBe(locationId);
     });
 
     it('refuses to publish an approved request that is not a job opening', async () => {
@@ -323,7 +300,6 @@ describe.skipIf(!TEST_DATABASE_URL)(
       const approved = data<Row>(await act(users.approver.token, request, { action: 'approve' }));
       expectError(
         await call(app, 'POST', `/approval-requests/${request.id}/publish`, users.manager.token, {
-          locationId,
           rowVersion: approved.rowVersion,
         }),
         409,

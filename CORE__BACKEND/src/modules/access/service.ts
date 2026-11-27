@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+﻿import type { PoolClient } from 'pg';
 import { appendAuditRow } from '../../core/audit.js';
 import { AppError } from '../../core/errors.js';
 import {
@@ -36,7 +36,7 @@ import {
   type UserRecord,
 } from './repo.js';
 import { privilegesOfRole } from './roles.js';
-import type { GrantInput, UserCreateInput, UserListQuery, UserPatchInput } from './schema.js';
+import { primaryRole, rolesFrom, type GrantInput, type UserCreateInput, type UserListQuery, type UserPatchInput, type UserRole } from './schema.js';
 
 const AUDIT_MODULE = 'core';
 const ACCESS_TABLE = 'core_user_access';
@@ -83,7 +83,7 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 function scopeOf(row: AccessRecord): AccessScope {
-  return { locationId: row.locationId, projectId: row.projectId, storeId: row.storeId };
+  return { projectId: row.projectId, storeId: row.storeId };
 }
 
 function toGrantView(row: AccessRecord): GrantView {
@@ -137,9 +137,12 @@ export function heldPrivileges(rows: readonly GrantRecord[]): HeldPrivilege[] {
 export async function userMayAct(
   client: PoolClient,
   userId: string,
-  _privilege: string,
-  _requested: AccessScope,
+  privilege: string,
+  requested: AccessScope,
 ): Promise<boolean> {
+  // The guard asks per route and scope, but today every route needs the administrator privilege, whatever it names.
+  void privilege;
+  void requested;
   const rows = await listAccessRows(client, userId);
   const suspended = rows.some((row) => row.accessType === 'suspension' && row.restoredAt === null);
   if (suspended) return false;
@@ -174,7 +177,6 @@ export async function accessForUser(client: PoolClient, userId: string): Promise
 
 function newRowFor(userId: string, input: GrantInput): NewAccessRow {
   const scope = {
-    locationId: input.scope?.locationId ?? null,
     projectId: input.scope?.projectId ?? null,
     storeId: input.scope?.storeId ?? null,
   };
@@ -229,7 +231,7 @@ export async function grantAccess(
       throw new AppError(
         'ACCESS_REFERENCE_NOT_FOUND',
         400,
-        'The role, location, project or store does not exist',
+        'The role, project or store does not exist',
       );
     }
     throw err;
@@ -286,7 +288,6 @@ export async function suspendUser(
         roleId: null,
         privilege: null,
         module: null,
-        locationId: null,
         projectId: null,
         storeId: null,
         reason,
@@ -394,11 +395,12 @@ function userVersionConflict(): AppError {
  * scope names no projects and a project scope names at least one, each of which must exist.
  */
 async function checkProfile(client: PoolClient, profile: UserProfileRow): Promise<void> {
-  if (profile.role === 'module_head' && profile.modules.length === 0) {
+  const heads = profile.roles.includes('module_head');
+  if (heads && profile.modules.length === 0) {
     throw userIssue('modules', 'a module head heads at least one module');
   }
-  if (profile.role === 'approver' && profile.modules.length > 0) {
-    throw userIssue('modules', 'an approver heads no modules');
+  if (!heads && profile.modules.length > 0) {
+    throw userIssue('modules', 'only a module head heads modules');
   }
   if (profile.scopeType === 'company' && profile.scopeIds.length > 0) {
     throw userIssue('scopeIds', 'a company scope names no projects');
@@ -441,12 +443,14 @@ export async function createUser(
   actor: Actor,
   input: UserCreateInput,
 ): Promise<UserWithTemporaryPassword> {
+  const roles = rolesFrom(input, ['approver']);
   const profile: UserProfileRow = {
     name: input.name,
     email: input.email ?? null,
     phone: input.phone ?? null,
     designation: input.designation ?? null,
-    role: input.role,
+    role: primaryRole(roles),
+    roles,
     modules: input.modules,
     scopeType: input.scopeType,
     scopeIds: input.scopeIds,
@@ -479,12 +483,14 @@ export async function updateUser(
   const current = await lockUserRow(client, userId);
   if (!current) throw new AppError('USER_NOT_FOUND', 404, 'User not found');
   if (current.rowVersion !== input.rowVersion) throw userVersionConflict();
+  const roles = rolesFrom(input, current.roles as UserRole[]);
   const profile: UserProfileRow = {
     name: input.name ?? current.name ?? '',
     email: input.email !== undefined ? input.email : current.email,
     phone: input.phone !== undefined ? input.phone : current.phone,
     designation: input.designation !== undefined ? input.designation : current.designation,
-    role: input.role ?? current.role,
+    role: primaryRole(roles),
+    roles,
     modules: input.modules ?? current.modules,
     scopeType: input.scopeType ?? current.scopeType,
     scopeIds: input.scopeIds ?? current.scopeIds,

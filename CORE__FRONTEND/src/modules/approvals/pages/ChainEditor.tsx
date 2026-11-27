@@ -16,7 +16,7 @@ import { scopeText } from "@/modules/core-data";
 import { fmtDate, fmtDateTime, todayISO } from "@/shared/lib/format";
 import { notify } from "@/shared/lib/toast";
 import { useRemoteSave } from "@/shared/hooks/useRemoteSave";
-import { chainState, useCore } from "@/modules/core-data";
+import { chainState, REASON_MIN, REASON_TOO_SHORT, useCore } from "@/modules/core-data";
 import { LevelFields } from "../components/LevelFields";
 import { blankLevel, blankLevels, versionSchema, withLastLevelRules } from "../utils/schema";
 
@@ -284,6 +284,11 @@ function ChainForm({
   const { append, remove } = useFieldArray({ control, name: "levels" });
 
   const submit = handleSubmit(async ({ levels, effectiveFrom, reason }) => {
+    // changing an existing chain version needs a reason
+    if (reason.trim().length < REASON_MIN) {
+      notify(`${chain.requestType}: not saved. ${REASON_TOO_SHORT}`, 8000);
+      return;
+    }
     const clean = withLastLevelRules(
       levels.map((l) => ({
         ...l,

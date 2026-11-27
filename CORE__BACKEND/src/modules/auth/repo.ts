@@ -18,6 +18,7 @@ export interface PublicUser {
   loginId: string;
   name: string | null;
   email: string | null;
+  phone?: string | null;
 }
 
 export interface SessionRow {
@@ -125,16 +126,17 @@ export async function findPublicUser(
     login_id: string;
     name: string | null;
     email: string | null;
+    phone: string | null;
     status: string | null;
   }>(
-    `SELECT id, login_id::text AS login_id, name, email::text AS email, status
+    `SELECT id, login_id::text AS login_id, name, email::text AS email, phone, status
      FROM core_user WHERE id = $1`,
     [userId],
   );
   const row = rows[0];
   if (!row) return null;
   return {
-    user: { id: row.id, loginId: row.login_id, name: row.name, email: row.email },
+    user: { id: row.id, loginId: row.login_id, name: row.name, email: row.email, phone: row.phone },
     status: row.status,
   };
 }

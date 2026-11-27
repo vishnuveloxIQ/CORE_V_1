@@ -170,7 +170,7 @@ export function PolicyView<K extends PolicyKey>({
           </KV>
           <KV k="Routing" full>
             <span style={{ fontSize: 13.5 }}>
-              Below {money(d.amount)}: PMS pays at the location. At or above: Head
+              Below {money(d.amount)}: PCM pays at the location. At or above: Head
               Office approves and pays the payee directly.
             </span>
           </KV>

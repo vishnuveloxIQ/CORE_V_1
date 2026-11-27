@@ -188,7 +188,7 @@ describe.skipIf(!TEST_DATABASE_URL)('auth (phase 4a)', { timeout: SLOW_TEST_MS }
     expect(await eventsFor(userId)).toEqual(['login_failure']);
   });
 
-  it('rejects a missing or malformed X-Tenant-Id with 400', async () => {
+  it('finds the company from the login ID when X-Tenant-Id is missing, and rejects a malformed one with 400', async () => {
     const loginId = uniqueLogin();
     await seedUser(loginId);
 
@@ -204,8 +204,8 @@ describe.skipIf(!TEST_DATABASE_URL)('auth (phase 4a)', { timeout: SLOW_TEST_MS }
       payload: { loginId, password: PASSWORD },
     });
 
-    expect(missing.statusCode).toBe(400);
-    expect(missing.json().error.code).toBe('VALIDATION_ERROR');
+    // no header: the company is looked up from the login ID, so the answer is a sign-in answer, not a validation error
+    expect(missing.statusCode).not.toBe(400);
     expect(malformed.statusCode).toBe(400);
     expect(malformed.json().error.code).toBe('VALIDATION_ERROR');
   });

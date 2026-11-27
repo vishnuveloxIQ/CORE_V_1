@@ -27,9 +27,9 @@ html.dark[data-variant="classic"]{--chart-1:#8EAEFA;--chart-2:#DE9C90;
 .shell-classic .shell{display:block;padding-top:var(--hh)}
 .shell-classic .sidebar{position:fixed;left:0;top:var(--hh);bottom:0;height:auto;width:var(--sbw);margin:0;z-index:40;border-radius:0;border:0;border-right:1px solid var(--line);background:var(--card-solid);box-shadow:none;transition:width .28s cubic-bezier(.3,.8,.3,1),transform .28s}
 .shell-classic .sb-scroll{padding:14px 12px}
-.shell-classic .main{margin-left:var(--sbw);padding:26px 30px 0;min-height:calc(100vh - var(--hh));display:flex;flex-direction:column;transition:margin-left .28s cubic-bezier(.3,.8,.3,1)}
-.shell-classic .content{max-width:1440px;padding:0 0 32px}
-.shell-classic .footer{margin:0 -30px;padding:12px 32px;min-height:52px;box-shadow:none;font-size:11.5px}
+.shell-classic .main{margin-left:var(--sbw);padding:26px clamp(14px,1.8vw,32px) 0;min-height:calc(100vh - var(--hh));display:flex;flex-direction:column;transition:margin-left .28s cubic-bezier(.3,.8,.3,1)}
+.shell-classic .content{max-width:none;padding:0 0 32px}
+.shell-classic .footer{margin:0 calc(-1 * clamp(14px,1.8vw,32px));padding:12px clamp(14px,1.8vw,32px);min-height:52px;box-shadow:none;font-size:11.5px}
 .shell-classic .footer::before{height:2px;background:linear-gradient(90deg,transparent,var(--rose-d) 45%,var(--navy))}
 .shell-classic .nav-item{height:44px;border-radius:12px;padding:0 14px;gap:13px;font-weight:550}
 .shell-classic .nav-item .i{width:21px;height:21px}

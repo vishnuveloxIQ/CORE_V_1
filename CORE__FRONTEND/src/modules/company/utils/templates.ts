@@ -9,6 +9,8 @@ import type { PolicyData, PolicyKey } from '@/modules/core-data'
  */
 export function policyTemplate<K extends PolicyKey>(key: K, year = new Date().getFullYear()): PolicyData[K] {
   const templates: PolicyData = {
+    'equipment-rates': { fileName: '', rows: 0 },
+    'material-rates': { fileName: '', rows: 0 },
     shifts: {
       shiftsPerDay: 1,
       notes: 'One general shift. Add more shifts for sites that work in rotation.',

@@ -18,7 +18,8 @@ import { bulk } from "@/shared/lib/bulk";
 import { a11y, num, req } from "@/shared/lib/core";
 import { versionFields, WEEK_OFF_TYPES, SATURDAY_SETS } from "@/modules/core-data";
 import { money, todayISO } from "@/shared/lib/format";
-import { useCore } from "@/modules/core-data";
+import { notify } from "@/shared/lib/toast";
+import { useCore, isRemote } from "@/modules/core-data";
 
 export interface EditorProps<K extends keyof PolicyData> {
   base: PolicyData[K];
@@ -80,17 +81,6 @@ const hoursText = (s: string, e: string) => {
   const m = shiftMinutes(s, e);
   return `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} m` : ""}`;
 };
-/** Minute ranges a shift covers on a 24 h clock (a midnight-crossing shift is split in two). */
-const segments = (s: string, e: string): [number, number][] => {
-  const a = toMin(s);
-  const b = toMin(e);
-  return b > a
-    ? [[a, b]]
-    : [
-        [a, 1440],
-        [0, b],
-      ];
-};
 const DEFAULT_TIMINGS: Record<number, [string, string, string][]> = {
   1: [["General", "09:00", "18:00"]],
   2: [
@@ -146,16 +136,6 @@ const shiftSchema = z
       names.add(k);
       if (t.start && t.start === t.end) issue(i, "end", "End must differ from start.");
     });
-    const ok = d.timings.map((t) => TIME_RE.test(t.start) && TIME_RE.test(t.end) && t.start !== t.end);
-    d.timings.forEach((a, i) =>
-      d.timings.forEach((b, j) => {
-        if (j <= i || !ok[i] || !ok[j]) return;
-        const clash = segments(a.start, a.end).some(([s1, e1]) =>
-          segments(b.start, b.end).some(([s2, e2]) => s1 < e2 && s2 < e1),
-        );
-        if (clash) issue(j, "start", `Overlaps ${a.name || `shift ${i + 1}`}.`);
-      }),
-    );
     if (d.timings.length !== d.shiftsPerDay)
       ctx.addIssue({ code: "custom", path: ["shiftsPerDay"], message: "Define timings for every shift." });
   });
@@ -175,7 +155,8 @@ export function ShiftsEditor({ base, onSave }: EditorProps<"shifts">) {
     control,
     formState: { errors },
   } = useForm({
-    resolver: zodResolver(shiftSchema),
+    // the zod input and output types of the shift schema differ (weekOff); the cast keeps the build type-checking
+    resolver: zodResolver(shiftSchema) as never,
     defaultValues: initial(),
   });
   const { fields, replace } = useFieldArray({ control, name: "timings" });
@@ -368,18 +349,6 @@ const holidaySchema = z
     };
     v.holidays.forEach((h, i) => checkRange("holidays", h, i));
     v.variants.forEach((h, i) => checkRange("variants", h, i));
-    v.holidays.forEach((h, i) => {
-      const clash = v.holidays.some(
-        (o, j) =>
-          j < i && o.date <= lastDay(h) && h.date <= lastDay(o) && o.date,
-      );
-      if (clash)
-        ctx.addIssue({
-          code: "custom",
-          path: ["holidays", i, "date"],
-          message: "Another holiday covers these dates.",
-        });
-    });
   });
 export function HolidaysEditor({ base, onSave }: EditorProps<"holidays">) {
   const { projects } = useCore();
@@ -426,6 +395,14 @@ export function HolidaysEditor({ base, onSave }: EditorProps<"holidays">) {
   };
   const hol = useFieldArray({ control, name: "holidays" });
   const vars = useFieldArray({ control, name: "variants" });
+  // A variant that points at a project not saved on the server cannot be saved. Clear it so the dropdown asks for a
+  // project (the normal "Choose a project." message) instead of showing "Choose…" while the save is refused.
+  useEffect(() => {
+    const remote = new Set(projects.filter(isRemote).map((p) => p.id));
+    (getValues("variants") ?? []).forEach((v, i) => {
+      if (v.scopeId && !remote.has(v.scopeId)) setValue(`variants.${i}.scopeId`, "");
+    });
+  }, [projects, watchedVariants, getValues, setValue]);
   const [upload, setUpload] = useState(false);
   type Row = Holiday & {
     scope: "Company" | "Project";
@@ -533,6 +510,8 @@ export function HolidaysEditor({ base, onSave }: EditorProps<"holidays">) {
         reason,
       );
     },
+    // say what blocked the save: the errors are shown on fields that may be out of view
+    () => notify("Holiday policy: not saved. Fix the highlighted fields (a project variant needs a project)."),
   );
   return (
     <form noValidate onSubmit={save}>
@@ -686,7 +665,8 @@ export function HolidaysEditor({ base, onSave }: EditorProps<"holidays">) {
                         {...register(`variants.${i}.scopeId`)}
                       >
                         <option value="">Choose…</option>
-                        {projects.map((p) => (
+                        {/* only projects saved on the server: a project made on this device cannot be saved against */}
+                        {projects.filter(isRemote).map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name}
                           </option>
@@ -792,7 +772,7 @@ export function HolidaysEditor({ base, onSave }: EditorProps<"holidays">) {
             key: "applies_to",
             label: "Where it applies (optional)",
             example: "Company",
-            hint: `Company, or a project code: ${projects.map((x) => x.code).join(", ")}`,
+            hint: `Company, or a project code: ${projects.filter(isRemote).map((x) => x.code).join(", ")}`,
           },
         ]}
         examples={[
@@ -1204,7 +1184,7 @@ export function PaymentThresholdEditor({
           error={errors.amount?.message}
           helper={
             amount
-              ? `Below ${money(amount)}: PMS pays. At or above: Head Office approves and pays.`
+              ? `Below ${money(amount)}: PCM pays. At or above: Head Office approves and pays.`
               : undefined
           }
         >

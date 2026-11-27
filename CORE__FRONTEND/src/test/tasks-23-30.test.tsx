@@ -53,8 +53,8 @@ describe('event monitor', () => {
     expect(screen.getAllByText('Dead-letter').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     const details = await screen.findByRole('dialog')
-    expect(within(details).getByText('status, code')).toBeInTheDocument()
-    expect(within(details).getByText('Values are not shown here.')).toBeInTheDocument()
+    expect(within(details).getByText('Status, Code')).toBeInTheDocument()
+    expect(within(details).getByText('The values are kept private and are not shown here.')).toBeInTheDocument()
     fireEvent.click(within(details).getByRole('button', { name: 'Close' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 

@@ -101,9 +101,11 @@ export function GeoMap({ shape, center, radiusM, points, bufferM = 0, others, on
   // create the map once
   useEffect(() => {
     if (!box.current) return
-    const m = L.map(box.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: true }).setView(fallback, 13)
-    const street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' })
-    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery © Esri' })
+    // Esri returns a "Map data not yet available" tile past its last level, so the satellite layer stops at native zoom 18 and
+    // scales that tile up when zoomed further, instead of requesting a level with no imagery.
+    const m = L.map(box.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: true, maxZoom: 21 }).setView(fallback, 13)
+    const street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 21, maxNativeZoom: 19, attribution: '© OpenStreetMap contributors' })
+    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 21, maxNativeZoom: 18, attribution: 'Imagery © Esri' })
     street.addTo(m)
     L.control.layers({ Map: street, Satellite: sat }, undefined, { position: 'topright' }).addTo(m)
     L.control.scale({ imperial: false }).addTo(m)

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { idempotencyFor } from '../testing-pass/helpers.js';
@@ -169,17 +169,12 @@ describe.skipIf(!TEST_DATABASE_URL)('master data (phase 5c)', { timeout: SLOW_TE
     return createRow(token, '/projects', { code: uniq('PRJ'), name: 'Fictional Metro Phase 2' });
   }
 
-  /** A store sits on a location, which sits on a project. */
+  /** A store belongs to a project. */
   async function newStore(token: string, projectId: string): Promise<Row> {
-    const location = await createRow(token, '/locations', {
-      code: uniq('LOC'),
-      name: 'Fictional Site North',
-      projectId,
-    });
     return createRow(token, '/stores', {
       code: uniq('STO'),
       name: 'Fictional Main Store',
-      locationId: location.id,
+      projectId,
     });
   }
 

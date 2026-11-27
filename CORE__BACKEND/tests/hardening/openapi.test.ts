@@ -45,7 +45,7 @@ describe('GET /openapi.json without a database (hardening)', () => {
     expect(res.statusCode).toBe(200);
     const doc = res.json() as Doc;
     expect(doc.openapi).toBe('3.1.0');
-    expect(doc.info.version).toBe('1.10.0');
+    expect(doc.info.version).toBe('1.13.0');
     expect(doc.paths['/health']?.['get']?.security).toBeUndefined();
     expect(doc.paths['/health/ready']).toBeDefined();
     expect(doc.paths['/openapi.json']).toBeDefined();

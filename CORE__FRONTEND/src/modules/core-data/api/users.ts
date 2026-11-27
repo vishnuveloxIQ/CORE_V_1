@@ -12,7 +12,7 @@ export type ScopeTypeApi = 'company' | 'project'
 
 export interface UserRecord {
   id: string; loginId: string; email: string | null; name: string; status: string; createdAt: string; rowVersion: number
-  phone: string | null; designation: string | null; role: UserRoleApi; modules: string[]; scopeType: ScopeTypeApi; scopeIds: string[]
+  phone: string | null; designation: string | null; role: UserRoleApi; roles?: UserRoleApi[]; modules: string[]; scopeType: ScopeTypeApi; scopeIds: string[]
   suspended: boolean; mustChangePassword: boolean; lastLoginAt: string | null
 }
 
@@ -22,7 +22,7 @@ export interface UserQuery { limit?: number; offset?: number; status?: string; s
 
 /** The fields create and edit send. loginId is set at create only. */
 export interface UserDraft {
-  name: string; email: string; phone: string; designation: string; role: UserRole; modules: ModuleName[]; scopeType: ScopeType; scopeIds: string[]
+  name: string; email: string; phone: string; designation: string; roles: UserRole[]; modules: ModuleName[]; scopeType: ScopeType; scopeIds: string[]
 }
 
 /** GET /users with paging and filters. Returns the rows with the page meta. */
@@ -45,16 +45,21 @@ export const getUser = (id: string) => api<UserRecord>('GET', `/users/${encodeUR
 const MODULE_TO_API: Record<ModuleName, string> = { HRMS: 'hrms', PMS: 'pms', Stores: 'stores', 'P&M': 'pm' }
 const MODULE_FROM_API: Record<string, ModuleName> = { hrms: 'HRMS', pms: 'PMS', stores: 'Stores', pm: 'P&M' }
 
+const ROLE_TO_API: Record<UserRole, UserRoleApi> = { 'Module head': 'module_head', Approver: 'approver' }
+const ROLE_FROM_API: Record<UserRoleApi, UserRole> = { module_head: 'Module head', approver: 'Approver' }
+
 const toBody = (d: UserDraft) => {
-  const head = d.role === 'Module head'
+  const head = d.roles.includes('Module head')
   const project = d.scopeType === 'Project'
   return {
     name: d.name.trim(),
     email: d.email.trim(),
     phone: d.phone.trim(),
     designation: d.designation.trim(),
+    // roles lists every role (a module head may also be an approver); role is the primary one for older readers
+    roles: d.roles.map((r) => ROLE_TO_API[r]),
     role: (head ? 'module_head' : 'approver') as UserRoleApi,
-    // an approver heads no module; company scope has no project ids
+    // only a module head heads modules; company scope has no project ids
     modules: head ? d.modules.map((m) => MODULE_TO_API[m]) : [],
     scopeType: (project ? 'project' : 'company') as ScopeTypeApi,
     scopeIds: project ? d.scopeIds : [],
@@ -86,6 +91,7 @@ export const userFrom = (r: UserRecord, known?: CoreUser): CoreUser => ({
   phone: r.phone ?? '',
   designation: r.designation ?? '',
   role: r.role === 'module_head' ? 'Module head' : 'Approver',
+  roles: (r.roles && r.roles.length ? r.roles : [r.role]).map((x) => ROLE_FROM_API[x]),
   modules: (r.modules ?? []).map((m) => MODULE_FROM_API[m]).filter((m): m is ModuleName => !!m),
   scopeType: r.scopeType === 'project' ? 'Project' : 'Company',
   scopeIds: r.scopeIds ?? [],

@@ -9,7 +9,7 @@ import { useAuth } from '@/modules/auth'
 // is not checked here: jsdom does not lay out or paint, so that rule is checked in the browser instead.
 
 const PAGES = [
-  '/dashboard', '/company', '/policies', '/projects', '/projects/new', '/sites', '/sites/new', '/geofences', '/stores',
+  '/dashboard', '/company', '/policies', '/projects', '/projects/new', '/geofences', '/stores',
   '/materials', '/stock', '/equipment/register', '/equipment/planning', '/people-planning', '/material-planning',
   '/approvals', '/approval-matrix', '/approval-matrix/new', '/job-openings', '/grievances', '/audit', '/audit/access',
   '/users', '/users/new', '/departments', '/organogram', '/help', '/available-materials', '/vendors', '/equipment/maintenance', '/integrations/events', '/integrations/read-models', '/equipment/available',

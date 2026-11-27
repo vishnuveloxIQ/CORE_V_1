@@ -43,8 +43,10 @@ describe('integration fixes', () => {
     useAuth.setState({ user: 'ACME1234', profile: null, privileges: [], isAdmin: false, mustChangePassword: false })
     window.location.hash = '#/dashboard'
     render(<App />)
-    await vi.waitFor(() => expect(paths).toContain('/projects'))
+    // a user without access.manage gets only the module message, so the Core API is not read at all
+    await vi.waitFor(() => expect(screen.getByText(/module screens are not in this application/i)).toBeInTheDocument())
     expect(paths).not.toContain('/users')
+    expect(paths).not.toContain('/projects')
   })
 
   it('reads the user list at sign-in for an access administrator', async () => {

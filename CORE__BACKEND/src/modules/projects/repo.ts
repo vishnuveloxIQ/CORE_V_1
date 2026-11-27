@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+﻿import type { PoolClient } from 'pg';
 import {
   type Column,
   deleteRow,
@@ -16,7 +16,6 @@ export const PROJ_TABLE = {
   project: 'core_project',
   location: 'core_location',
   store: 'core_store',
-  wbsNode: 'core_wbs_node',
   marker: 'core_chainage_marker',
   zone: 'core_geo_zone',
   milestone: 'core_project_milestone',
@@ -29,6 +28,16 @@ export interface ProjectFields {
   name: string;
   status: string;
   client: string | null;
+  /** Optional consultant on the project (0050). */
+  consultantName: string | null;
+  /** Optional state the project works in (0051). */
+  state: string | null;
+  /** How the project is executed (0052). */
+  executionMode: string | null;
+  /** The owning department, as chosen or typed (0053). */
+  department: string | null;
+  /** How the project was awarded (0054). */
+  projectType: string | null;
   startDate: string | null;
   endDate: string | null;
   valueAmount: number | null;
@@ -60,7 +69,7 @@ export interface LocationFields {
 export interface StoreFields {
   code: string;
   name: string;
-  locationId: string;
+  projectId: string;
   status: string;
   locationText: string | null;
   keeper: string | null;
@@ -68,20 +77,11 @@ export interface StoreFields {
   chainageMarkerId: string | null;
 }
 
-export interface WbsNodeFields {
-  code: string;
-  name: string;
-  projectId: string;
-  parentWbsNodeId: string | null;
-  status: string;
-}
-
 export interface ChainageMarkerFields {
   code: string;
   label: string | null;
   projectId: string;
   chainageKm: number;
-  wbsNodeId: string | null;
 }
 
 export type ZonePoint = [number, number];
@@ -117,7 +117,6 @@ export interface Versioned {
 export type ProjectRecord = ProjectFields & Versioned;
 export type LocationRecord = LocationFields & Versioned;
 export type StoreRecord = StoreFields & Versioned;
-export type WbsNodeRecord = WbsNodeFields & Versioned;
 export type ChainageMarkerRecord = ChainageMarkerFields & Versioned;
 export type GeoZoneRecord = GeoZoneFields & Versioned;
 export type MilestoneRecord = MilestoneFields & Versioned;
@@ -125,7 +124,7 @@ export type MilestoneRecord = MilestoneFields & Versioned;
 /** Column lists. SQL aliases map snake_case to camelCase here, in the repo layer only. */
 const TIMESTAMPS = `row_version AS "rowVersion", created_at AS "createdAt", updated_at AS "updatedAt"`;
 
-const PROJECT_SELECT = `id, code, name, status, client,
+const PROJECT_SELECT = `id, code, name, status, client, consultant_name AS "consultantName", state, execution_mode AS "executionMode", department, project_type AS "projectType",
   to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate",
   CAST(value_amount AS double precision) AS "valueAmount", description,
   CAST(chainage_start_km AS double precision) AS "chainageStartKm",
@@ -139,15 +138,12 @@ const LOCATION_SELECT = `id, code, name, project_id AS "projectId", status,
   CAST(chainage_end_km AS double precision) AS "chainageEndKm",
   week_off_days_json AS "weekOffDays", ${TIMESTAMPS}`;
 
-const STORE_SELECT = `id, code, name, location_id AS "locationId", status,
+const STORE_SELECT = `id, code, name, project_id AS "projectId", status,
   location_text AS "locationText", keeper, phone,
   chainage_marker_id AS "chainageMarkerId", ${TIMESTAMPS}`;
 
-const WBS_NODE_SELECT = `id, code, name, project_id AS "projectId",
-  parent_wbs_node_id AS "parentWbsNodeId", status, ${TIMESTAMPS}`;
-
 const MARKER_SELECT = `id, code, label, project_id AS "projectId",
-  CAST(chainage_km AS double precision) AS "chainageKm", wbs_node_id AS "wbsNodeId", ${TIMESTAMPS}`;
+  CAST(chainage_km AS double precision) AS "chainageKm", ${TIMESTAMPS}`;
 
 const ZONE_SELECT = `id, project_id AS "projectId", label, zone_type AS "zoneType", shape,
   CAST(center_lat AS double precision) AS "centerLat", CAST(center_lng AS double precision) AS "centerLng",
@@ -163,6 +159,11 @@ const PROJECT_COLUMNS: readonly Column[] = [
   { name: 'name' },
   { name: 'status' },
   { name: 'client' },
+  { name: 'consultant_name' },
+  { name: 'state' },
+  { name: 'execution_mode' },
+  { name: 'department' },
+  { name: 'project_type' },
   { name: 'start_date' },
   { name: 'end_date' },
   { name: 'value_amount' },
@@ -193,7 +194,7 @@ const LOCATION_COLUMNS: readonly Column[] = [
 const STORE_COLUMNS: readonly Column[] = [
   { name: 'code' },
   { name: 'name' },
-  { name: 'location_id' },
+  { name: 'project_id' },
   { name: 'status' },
   { name: 'location_text' },
   { name: 'keeper' },
@@ -201,20 +202,11 @@ const STORE_COLUMNS: readonly Column[] = [
   { name: 'chainage_marker_id' },
 ];
 
-const WBS_NODE_COLUMNS: readonly Column[] = [
-  { name: 'code' },
-  { name: 'name' },
-  { name: 'project_id' },
-  { name: 'parent_wbs_node_id' },
-  { name: 'status' },
-];
-
 const MARKER_COLUMNS: readonly Column[] = [
   { name: 'code' },
   { name: 'label' },
   { name: 'project_id' },
   { name: 'chainage_km' },
-  { name: 'wbs_node_id' },
 ];
 
 const ZONE_COLUMNS: readonly Column[] = [
@@ -257,6 +249,11 @@ function projectValues(f: ProjectFields): unknown[] {
     f.name,
     f.status,
     f.client,
+    f.consultantName,
+    f.state,
+    f.executionMode,
+    f.department,
+    f.projectType,
     f.startDate,
     f.endDate,
     f.valueAmount,
@@ -363,7 +360,7 @@ function storeValues(f: StoreFields): unknown[] {
   return [
     f.code,
     f.name,
-    f.locationId,
+    f.projectId,
     f.status,
     f.locationText,
     f.keeper,
@@ -394,66 +391,6 @@ export function updateStore(
   );
 }
 
-// WBS nodes.
-
-export function listWbsNodes(
-  client: PoolClient,
-  projectId: string | null,
-): Promise<WbsNodeRecord[]> {
-  return many<WbsNodeRecord>(
-    client,
-    `SELECT ${WBS_NODE_SELECT} FROM core_wbs_node
-     WHERE ($1::uuid IS NULL OR project_id = $1) ORDER BY lower(code)`,
-    [projectId],
-  );
-}
-
-export function findWbsNode(client: PoolClient, id: string, lock = false) {
-  return findRow<WbsNodeRecord>(client, PROJ_TABLE.wbsNode, WBS_NODE_SELECT, id, lock);
-}
-
-function wbsNodeValues(f: WbsNodeFields): unknown[] {
-  return [f.code, f.name, f.projectId, f.parentWbsNodeId, f.status];
-}
-
-export function insertWbsNode(client: PoolClient, f: WbsNodeFields, actorId: string | null) {
-  return insertRow(client, PROJ_TABLE.wbsNode, WBS_NODE_COLUMNS, wbsNodeValues(f), actorId);
-}
-
-export function updateWbsNode(
-  client: PoolClient,
-  id: string,
-  rowVersion: number,
-  f: WbsNodeFields,
-  actorId: string | null,
-) {
-  return updateRow(
-    client,
-    PROJ_TABLE.wbsNode,
-    WBS_NODE_COLUMNS,
-    id,
-    rowVersion,
-    wbsNodeValues(f),
-    actorId,
-  );
-}
-
-/** WBS node ids from the given one upwards through its parents. Used to refuse a cycle. */
-export async function ancestorWbsNodes(client: PoolClient, startId: string): Promise<string[]> {
-  const rows = await many<{ id: string }>(
-    client,
-    `WITH RECURSIVE chain AS (
-       SELECT id, parent_wbs_node_id FROM core_wbs_node WHERE id = $1
-       UNION
-       SELECT w.id, w.parent_wbs_node_id FROM core_wbs_node w
-       JOIN chain c ON w.id = c.parent_wbs_node_id
-     )
-     SELECT id FROM chain`,
-    [startId],
-  );
-  return rows.map((r) => r.id);
-}
-
 // Chainage markers.
 
 export function listMarkers(
@@ -473,7 +410,7 @@ export function findMarker(client: PoolClient, id: string, lock = false) {
 }
 
 function markerValues(f: ChainageMarkerFields): unknown[] {
-  return [f.code, f.label, f.projectId, f.chainageKm, f.wbsNodeId];
+  return [f.code, f.label, f.projectId, f.chainageKm];
 }
 
 export function insertMarker(client: PoolClient, f: ChainageMarkerFields, actorId: string | null) {

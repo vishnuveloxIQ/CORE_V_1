@@ -5,7 +5,7 @@ import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/shared/ui/Button'
 import { Card } from '@/shared/ui/Card'
-import { MiniTable, Muted, Note, VersionFields } from '@/shared/ui/Extras'
+import { FirstVersion, MiniTable, Muted, Note, VersionFields } from '@/shared/ui/Extras'
 import { CheckRow, FormGroup, Select } from '@/shared/ui/Field'
 import { PageHead } from '@/modules/shell'
 import { StatusBadge } from '@/shared/ui/Status'
@@ -137,7 +137,7 @@ export default function ChainNew() {
 
             <h3 className="section-t">4. Effective date</h3>
             <p style={{ margin: '0 0 10px', fontSize: 13 }}><Muted>Choose the date from which new requests will follow this chain.</Muted></p>
-            <div className="form-grid"><VersionFields register={register} errors={errors} /></div>
+            <FirstVersion><div className="form-grid"><VersionFields register={register} errors={errors} /></div></FirstVersion>
             <div className="form-actions">
               <Button onClick={() => navigate('/approval-matrix')}>Cancel</Button>
               <Button type="submit" tone="primary" icon="check" disabled={saving}>{saving ? 'Saving…' : 'Create chain'}</Button>

@@ -128,7 +128,7 @@ export default function Departments() {
       </div>
       <TablePanel
         title="All departments"
-        subtitle="Filter by status using the chips; pick more than one to combine. Open a department on the organogram to view its roles."
+        subtitle="Filter by status using the chips; pick more than one to combine."
         rows={departments}
         rowKey={(d) => d.id}
         statusOf={(d) => d.status}

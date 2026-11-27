@@ -70,6 +70,8 @@ export interface PasswordResetDeps {
 
 export interface RequestResetDeps extends PasswordResetDeps {
   delivery: OtpDelivery;
+  /** How long the code stays usable, in ms (OTP_TTL_MINUTES). Unset means OTP_TTL_MS. */
+  otpTtlMs?: number | undefined;
 }
 
 /**
@@ -96,7 +98,7 @@ export async function requestPasswordReset(
       return null;
     }
     await repo.closeOpenOtps(client, user.id, OTP_PURPOSE_PASSWORD_RESET, now);
-    const expiresAt = new Date(now.getTime() + OTP_TTL_MS);
+    const expiresAt = new Date(now.getTime() + (deps.otpTtlMs ?? OTP_TTL_MS));
     await repo.insertOtp(client, {
       userId: user.id,
       purpose: OTP_PURPOSE_PASSWORD_RESET,

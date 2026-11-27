@@ -35,11 +35,6 @@ describe('seed ids', () => {
 describe('seed references', () => {
   const chainageIds = new Set(seed.PROJECTS.flatMap((p) => p.chainage.markers.map((m) => m.id)))
 
-  it('project location ids resolve to sites', () => {
-    const sites = ids(seed.SITES)
-    for (const p of seed.PROJECTS) for (const s of p.locationIds ?? []) expect(sites.has(s), `${p.id} -> ${s}`).toBe(true)
-  })
-
   it('store chainage ids resolve to chainage markers', () => {
     for (const s of seed.STORES) expect(chainageIds.has(s.chainageId), `${s.id} -> ${s.chainageId}`).toBe(true)
   })

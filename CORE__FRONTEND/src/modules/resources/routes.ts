@@ -8,12 +8,16 @@ export const storeRoutes: AppRoute[] = [
   { path: '/vendors', Component: page(() => import('./pages/Vendors')) },
   { path: '/stock', Component: page(() => import('./pages/LiveStock')) },
   { path: '/available-materials', Component: page(() => import('./pages/AvailableMaterials')) },
+  { path: '/quotation-approval', Component: page(() => import('./pages/QuotationApproval')) },
+  { path: '/quotation-approval/:id', sample: '/quotation-approval/QTN-ECO', Component: page(() => import('./pages/QuotationDetail')) },
 ]
 
 // 3.5 equipment
 export const equipmentRoutes: AppRoute[] = [
   { path: '/equipment/planning', Component: page(() => import('./pages/EquipmentPlanning')) },
   { path: '/equipment/register', Component: page(() => import('./pages/EquipmentRegister')) },
+  { path: '/equipment/hired', Component: page(() => import('./pages/EquipmentRegister')) },
   { path: '/equipment/maintenance', Component: page(() => import('./pages/Maintenance')) },
   { path: '/equipment/available', Component: page(() => import('./pages/AvailableEquipment')) },
+  { path: '/equipment/assigned', Component: page(() => import('./pages/AssignedEquipment')) },
 ]

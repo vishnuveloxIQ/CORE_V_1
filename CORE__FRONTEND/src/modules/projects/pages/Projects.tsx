@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+﻿import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BulkUpload, type RowCheck } from "@/shared/ui/data/BulkUpload";
 import { TablePanel } from "@/shared/ui/data/TablePanel";
@@ -84,7 +84,6 @@ export default function Projects() {
               ...value,
               id: newId(),
               milestones: [],
-              wbs: [],
               plan: {
                 startDate: "",
                 endDate: "",
@@ -94,7 +93,6 @@ export default function Projects() {
               },
               zones: [],
               chainage: { startKm: 0, endKm: 0, markers: [] },
-              locationIds: [],
             },
           };
     });
@@ -150,10 +148,16 @@ export default function Projects() {
           icon="checkc"
           tone="gold"
         />
+        <StatTile
+          label="On hold projects"
+          value={projects.filter((p) => p.status === "On hold").length}
+          icon="clock"
+          tone="rose"
+        />
       </div>
       <TablePanel
         title="All projects"
-        subtitle="Filter by status using the chips; pick more than one to combine. Search by code, name or client. Open a project to manage Project details, milestones, WBS and locations."
+        subtitle="Filter by status using the chips; pick more than one to combine. Search by code, name or client. Open a project to manage Project details, milestones and locations."
         rows={projects}
         rowKey={(p) => p.id}
         columns={[
@@ -172,15 +176,16 @@ export default function Projects() {
             csv: (p) => p.code,
           },
           {
-            header: "Project/Client",
+            header: "Project",
             kind: "c-sub",
-            cell: (p) => (
-              <>
-                <strong>{p.name}</strong>
-                <span className="sub">{p.client}</span>
-              </>
-            ),
-            csv: (p) => `${p.name} (${p.client})`,
+            cell: (p) => <strong>{p.name}</strong>,
+            csv: (p) => p.name,
+          },
+          {
+            header: "Client",
+            kind: "c-more",
+            cell: (p) => p.client,
+            csv: (p) => p.client,
           },
           {
             header: "Value",
@@ -193,12 +198,6 @@ export default function Projects() {
             kind: "c-more",
             cell: (p) => `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`,
             csv: (p) => `${p.startDate} to ${p.endDate}`,
-          },
-          {
-            header: "Locations",
-            kind: "c-more",
-            cell: (p) => `${p.locationIds.length} assigned`,
-            csv: (p) => String(p.locationIds.length),
           },
           {
             header: "Status",
@@ -271,11 +270,11 @@ export default function Projects() {
             key: "status",
             label: "Status (optional)",
             example: "Planning",
-            hint: "Active or Completed (Planning and On hold are saved as Active)",
+            hint: "Planning, Active, On hold or Completed",
           },
           {
             key: "description",
-            label: "Description (optional)",
+            label: "Description",
             example: "22 km two-lane bypass",
           },
         ]}
@@ -283,7 +282,7 @@ export default function Projects() {
         onImport={(list) => void importAll(list)}
         note={
           <p style={{ margin: 0, fontSize: 12.5, color: "var(--muted)" }}>
-            Milestones and WBS are added on each project after the upload.
+            Milestones are added on each project after the upload.
           </p>
         }
       />

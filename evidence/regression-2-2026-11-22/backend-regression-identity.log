@@ -1,0 +1,23 @@
+npm notice run velox-core-backend@1.6.0 test:regression:identity
+npm notice run vitest run tests/regression/identity-contract.test.ts tests/auth tests/access tests/audit-log tests/testing-pass/auth-edges.test.ts tests/testing-pass/tenant-isolation.test.ts tests/testing-pass/idempotency-http.test.ts tests/core/password.test.ts tests/core/rate-limit.test.ts tests/hardening/shared-rate-limit.test.ts tests/hardening/cors.test.ts --maxWorkers=4
+
+ RUN  v5.1.1 C:/VELOX_IQ/CORE/CORE__BACKEND
+
+(node:42504) ExperimentalWarning: The supports Web Crypto API method is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42504) ExperimentalWarning: The ML-DSA-44 Web Crypto API algorithm is an experimental feature and might change at any time
+(node:51992) ExperimentalWarning: The supports Web Crypto API method is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:51992) ExperimentalWarning: The ML-DSA-44 Web Crypto API algorithm is an experimental feature and might change at any time
+{"level":30,"time":1795350171784,"pid":14716,"hostname":"Vishnu","reqId":"req-1","req":{"method":"POST","url":"/auth/password-reset/request","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1795350171789,"pid":14716,"hostname":"Vishnu","reqId":"req-1","res":{"statusCode":503},"responseTime":4.9014,"msg":"request completed"}
+{"level":30,"time":1795350171791,"pid":14716,"hostname":"Vishnu","reqId":"req-1","res":{"statusCode":503},"responseTime":6.1955,"msg":"request completed"}
+(node:32520) ExperimentalWarning: The supports Web Crypto API method is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32520) ExperimentalWarning: The ML-DSA-44 Web Crypto API algorithm is an experimental feature and might change at any time
+
+ Test Files  21 passed (21)
+      Tests  242 passed (242)
+   Start at  17:52:39
+   Duration  37.36s (tests 83%, import 16%, transform 1%)
+

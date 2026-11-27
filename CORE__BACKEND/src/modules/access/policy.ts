@@ -1,6 +1,5 @@
-/** Where a privilege applies. A null dimension is not constrained by that dimension. */
+﻿/** Where a privilege applies: a project and a store. A null dimension is not constrained by that dimension. */
 export interface AccessScope {
-  locationId: string | null;
   projectId: string | null;
   storeId: string | null;
 }
@@ -15,7 +14,6 @@ export interface HeldPrivilege {
 
 /** The scope a route or caller names. Any dimension left out means "not given". */
 export interface AccessScopeInput {
-  locationId?: string | undefined;
   projectId?: string | undefined;
   storeId?: string | undefined;
 }
@@ -23,7 +21,6 @@ export interface AccessScopeInput {
 /** Fills missing dimensions with null. A route that names no scope asks for the company as a whole. */
 export function scopeFrom(input: AccessScopeInput): AccessScope {
   return {
-    locationId: input.locationId ?? null,
     projectId: input.projectId ?? null,
     storeId: input.storeId ?? null,
   };
@@ -36,7 +33,6 @@ export function scopeFrom(input: AccessScopeInput): AccessScope {
  */
 export function scopeMatches(grant: AccessScope, requested: AccessScope): boolean {
   return (
-    (grant.locationId === null || grant.locationId === requested.locationId) &&
     (grant.projectId === null || grant.projectId === requested.projectId) &&
     (grant.storeId === null || grant.storeId === requested.storeId)
   );

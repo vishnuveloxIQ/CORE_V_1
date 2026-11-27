@@ -1,5 +1,5 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+﻿import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useRef, useState } from "react";
 import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
@@ -12,10 +12,10 @@ import { FormGroup, Input, Select } from "@/shared/ui/Field";
 import { Modal } from "@/shared/ui/Modal";
 import { ActionScope, PageHead } from "@/modules/shell";
 import { StatusBadge } from "@/shared/ui/Status";
-import type { Milestone, Project, Site, WbsNode } from "@/modules/core-data";
+import type { Milestone, Project } from "@/modules/core-data";
 import { useEnter } from "@/shared/hooks/useMotion";
 import { a11y, num, req } from "@/shared/lib/core";
-import { isRemote, PROJECT_TONE } from "@/modules/core-data";
+import { EXECUTION_MODE_LABEL, isRemote, PROJECT_TONE, PROJECT_TYPE_LABEL } from "@/modules/core-data";
 import { fmtDate, money } from "@/shared/lib/format";
 import { notify } from "@/shared/lib/toast";
 import { Can, MANAGE } from "@/modules/auth";
@@ -23,17 +23,20 @@ import { useCore } from "@/modules/core-data";
 import { ProjectForm } from "../components/ProjectForm";
 import { GeoFenceTab } from "../components/GeoFenceTab";
 import { BoqTab } from "../components/BoqTab";
+import { SubContractorTab } from "../components/SubContractorTab";
 import { PeopleForm } from "../components/PeopleForm";
 import { MaterialForm } from "../components/MaterialForm";
-import { PlanForm as EquipmentPlanForm } from "@/modules/resources/pages/EquipmentPlanning";
+import { PlanForm as EquipmentPlanForm } from "@/modules/resources";
+import { ChainageEdit, ChainageView } from "../components/ChainageTab";
+import { useApprovedPeople } from "@/modules/organisation";
 
 const TABS = [
   "Details",
   "Milestones",
-  "WBS",
   "BOQ",
-  "Locations",
+  "Chainage",
   "Geo-fence",
+  "Sub-contractor registration",
   "Resource Planning",
   "Material Planning",
   "Equipment Planning",
@@ -58,7 +61,7 @@ export default function ProjectDetail() {
   const loadParts = useCore((s) => s.loadProjectParts);
   const partsLoad = useCore((s) => s.partsLoad[id]);
   const partsError = useCore((s) => s.partsError[id]);
-  // milestones, WBS, markers, zones and locations live in their own API tables; read them when the page opens
+  // milestones, markers, zones and locations live in their own API tables; read them when the page opens
   useEffect(() => {
     if (remote) void loadParts(id);
   }, [id, remote, loadParts]);
@@ -125,7 +128,12 @@ export default function ProjectDetail() {
           </Card>
         ) : (
           <Card
-            title="Project details"
+            title={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                Project details
+                <StatusBadge tone={PROJECT_TONE[project.status]}>{project.status}</StatusBadge>
+              </span>
+            }
             action={
               <Can privilege={MANAGE.projects}>
                 <Button
@@ -139,11 +147,6 @@ export default function ProjectDetail() {
             }
           >
             <div className="detail-grid">
-              <KV k="Status">
-                <StatusBadge tone={PROJECT_TONE[project.status]}>
-                  {project.status}
-                </StatusBadge>
-              </KV>
               <KV k="Client">
                 <strong>{project.client}</strong>
               </KV>
@@ -156,18 +159,32 @@ export default function ProjectDetail() {
               <KV k="End">
                 <strong>{fmtDate(project.endDate)}</strong>
               </KV>
+              <KV k="Consultant">
+                <strong>{project.consultantName || "—"}</strong>
+              </KV>
+              <KV k="State">
+                <strong>{project.state || "—"}</strong>
+              </KV>
+              <KV k="Execution mode" full>
+                <strong>{project.executionMode ? EXECUTION_MODE_LABEL[project.executionMode] : "—"}</strong>
+              </KV>
+              <KV k="Department" full>
+                <strong>{project.department || "—"}</strong>
+              </KV>
+              <KV k="Project type" full>
+                <strong>{project.projectType ? PROJECT_TYPE_LABEL[project.projectType] : "—"}</strong>
+              </KV>
               <KV k="Description" full>
                 <span style={{ fontSize: 13.5 }}>
-                  {project.description || "—"}
+                  {project.description || "â€”"}
                 </span>
               </KV>
             </div>
           </Card>
         ))}
       {tab === "Milestones" && <Milestones project={project} />}
-      {tab === "WBS" && <Wbs project={project} />}
       {tab === "BOQ" && <BoqTab project={project} />}
-      {tab === "Locations" && <ProjectLocations project={project} />}
+      {tab === "Chainage" && <ProjectChainage project={project} />}
       {tab === "Geo-fence" && (
         <GeoFenceTab
           project={project}
@@ -176,6 +193,7 @@ export default function ProjectDetail() {
           onDone={() => setGeoEdit(false)}
         />
       )}
+      {tab === "Sub-contractor registration" && <SubContractorTab project={project} />}
       {tab === "Resource Planning" && <ProjectPeoplePlan project={project} />}
       {tab === "Material Planning" && <ProjectMaterialPlan project={project} />}
       {tab === "Equipment Planning" && <ProjectEquipmentPlan project={project} />}
@@ -183,49 +201,23 @@ export default function ProjectDetail() {
   );
 }
 
-// ---------------- Locations ----------------
-function ProjectLocations({ project }: { project: Project }) {
-  const navigate = useNavigate();
-  const sites = useCore((s) => s.sites);
-  const assigned = project.locationIds
-    .map((id) => sites.find((s) => s.id === id))
-    .filter((s): s is Site => !!s);
-
-  return (
-    <Card
-      title="Assigned locations"
-      subtitle="Locations that belong to this project on the server"
+// ---------------- Chainage ----------------
+/** The chainage range and markers are attached to the project itself, and are edited here. */
+function ProjectChainage({ project }: { project: Project }) {
+  const [editing, setEditing] = useState(false);
+  return editing ? (
+    <ChainageEdit project={project} onDone={() => setEditing(false)} />
+  ) : (
+    <ChainageView
+      project={project}
       action={
         <Can privilege={MANAGE.projects}>
-          <Button
-            tone="primary"
-            icon="plus"
-            onClick={() =>
-              navigate(`/sites/new?projectId=${encodeURIComponent(project.id)}`)
-            }
-          >
-            Add location
+          <Button size="sm" icon="pencil" onClick={() => setEditing(true)}>
+            Edit chainage
           </Button>
         </Can>
       }
-    >
-      <MiniTable
-        head={["Code", "Location", "City", "In charge", "Status"]}
-        empty="No locations assigned to this project yet."
-        rows={assigned.map((s) => [
-          s.code,
-          <strong key="n">{s.name}</strong>,
-          [s.city, s.state].filter(Boolean).join(", ") || "—",
-          s.inCharge || "—",
-          <StatusBadge
-            key="st"
-            tone={s.status === "Active" ? "approved" : "draft"}
-          >
-            {s.status}
-          </StatusBadge>,
-        ])}
-      />
-    </Card>
+    />
   );
 }
 
@@ -439,240 +431,7 @@ function MilestoneForm({
           Cancel
         </Button>
         <Button type="submit" tone="primary" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : "Save milestone"}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-// ---------------- WBS ----------------
-const wbsSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .regex(/^\d+(\.\d+)*$/, "Use numbers separated by dots, e.g. 1.2.3."),
-  name: req("Name"),
-  parentId: z.string(),
-  status: z.enum(["Active", "Inactive"]),
-});
-
-function Wbs({ project }: { project: Project }) {
-  const removeNode = useCore((s) => s.removeWbsNode);
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState<WbsNode | null>(null);
-  const children = (pid: string | null) =>
-    project.wbs
-      .filter((n) => n.parentId === pid)
-      .sort((a, b) =>
-        a.code.localeCompare(b.code, undefined, { numeric: true }),
-      );
-  const remove = async (n: WbsNode) => {
-    if (project.wbs.some((x) => x.parentId === n.id))
-      return notify("Remove its child items first.");
-    try {
-      await removeNode(project.id, n.id);
-      notify(`WBS ${n.code} removed`);
-    } catch (err) {
-      notify(
-        err instanceof ApiError && err.code.endsWith("_IN_USE")
-          ? `WBS ${n.code} is used by a chainage marker or other record, so it cannot be removed.`
-          : `WBS ${n.code} not removed: ${errorText(err)}`,
-        6000,
-      );
-    }
-  };
-  const render = (pid: string | null, depth: number): ReactNode =>
-    children(pid).map((n) => (
-      <div key={n.id}>
-        <div className="wbs-node" style={{ marginLeft: depth * 22 }}>
-          <code>{n.code}</code>
-          <span style={{ flex: 1, minWidth: 0 }}>{n.name}</span>
-          <StatusBadge tone={n.status === "Inactive" ? "draft" : "approved"}>
-            {n.status ?? "Active"}
-          </StatusBadge>
-          <Can privilege={MANAGE.projects}>
-            <Button
-              size="sm"
-              icon="pencil"
-              aria-label={`Edit ${n.code}`}
-              onClick={() => setEditing(n)}
-            >
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              tone="danger"
-              icon="trash"
-              aria-label={`Remove ${n.code}`}
-              onClick={() => void remove(n)}
-            />
-          </Can>
-        </div>
-        {render(n.id, depth + 1)}
-      </div>
-    ));
-  return (
-    <Card
-      title="Work breakdown structure"
-      subtitle="Hierarchical codes for the project's work items"
-      action={
-        <Can privilege={MANAGE.projects}>
-          <Button size="sm" icon="plus" onClick={() => setAdding(true)}>
-            Add WBS item
-          </Button>
-        </Can>
-      }
-    >
-      {project.wbs.length ? (
-        render(null, 0)
-      ) : (
-        <EmptyState icon="folderTree" title="No WBS yet">
-          Add the top-level items first, e.g. 1 Earthwork.
-        </EmptyState>
-      )}
-      <Modal open={adding} onOpenChange={setAdding} title="Add WBS item">
-        {adding && (
-          <WbsForm project={project} onDone={() => setAdding(false)} />
-        )}
-      </Modal>
-      <Modal
-        open={!!editing}
-        onOpenChange={(o) => !o && setEditing(null)}
-        title="Edit WBS item"
-      >
-        {editing && (
-          <WbsForm
-            project={project}
-            node={editing}
-            onDone={() => setEditing(null)}
-          />
-        )}
-      </Modal>
-    </Card>
-  );
-}
-
-function WbsForm({
-  project,
-  node,
-  onDone,
-}: {
-  project: Project;
-  /** the item being edited; omitted when adding */
-  node?: WbsNode;
-  onDone: () => void;
-}) {
-  const addNode = useCore((s) => s.addWbsNode);
-  const editNode = useCore((s) => s.editWbsNode);
-  const [error, setFormError] = useState("");
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors: e, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(wbsSchema),
-    defaultValues: {
-      code: node?.code ?? "",
-      name: node?.name ?? "",
-      parentId: node?.parentId ?? "",
-      status: node?.status ?? ("Active" as const),
-    },
-  });
-  const submit = handleSubmit(async (v) => {
-    setFormError("");
-    if (project.wbs.some((n) => n.code === v.code && n.id !== node?.id))
-      return setError("code", { message: "This code already exists." });
-    if (node && v.parentId === node.id)
-      return setFormError("An item cannot be its own parent.");
-    const parent = project.wbs.find((n) => n.id === v.parentId);
-    if (parent && !v.code.startsWith(`${parent.code}.`))
-      return setError("code", { message: `Must start with ${parent.code}.` });
-    if (!parent && v.code.includes("."))
-      return setError("code", {
-        message: "Top-level codes have no dot. Choose a parent.",
-      });
-    try {
-      if (node) {
-        await editNode(project.id, node.id, {
-          code: v.code,
-          name: v.name,
-          parentId: v.parentId || null,
-          status: v.status,
-        });
-        notify(`WBS ${v.code} saved`);
-      } else {
-        await addNode(project.id, {
-          code: v.code,
-          name: v.name,
-          parentId: v.parentId || null,
-          status: v.status,
-        });
-        notify(`WBS ${v.code} added`);
-      }
-      onDone();
-    } catch (err) {
-      if (err instanceof ApiError && err.code.endsWith("_DUPLICATE"))
-        return setError("code", { message: "This code already exists." });
-      setFormError(errorText(err));
-    }
-  });
-  return (
-    <form noValidate onSubmit={submit}>
-      {error && (
-        <div className="login-error" role="alert" style={{ marginBottom: 14 }}>
-          <span>{error}</span>
-        </div>
-      )}
-      <ActionScope project={{ name: project.name, code: project.code }} />
-      <div className="form-grid">
-        <FormGroup label="Parent">
-          {(id) => (
-            <Select id={id} {...register("parentId")}>
-              <option value="">None (top level)</option>
-              {project.wbs
-                .filter((n) => n.id !== node?.id)
-                .map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.code} {n.name}
-                  </option>
-                ))}
-            </Select>
-          )}
-        </FormGroup>
-        <FormGroup label="Code" required error={e.code?.message}>
-          {(id, d) => (
-            <Input
-              placeholder="Enter WBS code, e.g. 1.2"
-              {...a11y(id, d, e.code?.message)}
-              {...register("code")}
-            />
-          )}
-        </FormGroup>
-        <FormGroup label="Name" required full error={e.name?.message}>
-          {(id, d) => (
-            <Input {...a11y(id, d, e.name?.message)} {...register("name")} />
-          )}
-        </FormGroup>
-        <FormGroup
-          label="Status"
-          helper="An inactive item stays in the tree for history but is not used for new work."
-        >
-          {(id, d) => (
-            <Select id={id} aria-describedby={d} {...register("status")}>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </Select>
-          )}
-        </FormGroup>
-      </div>
-      <div className="form-actions">
-        <Button onClick={onDone} disabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button type="submit" tone="primary" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : node ? "Save item" : "Add item"}
+          {isSubmitting ? "Savingâ€¦" : "Save milestone"}
         </Button>
       </div>
     </form>
@@ -687,10 +446,12 @@ function ProjectPeoplePlan({ project }: { project: Project }) {
     (l) => l.projectId === project.id,
   );
   const total = lines.reduce((n, l) => n + l.headcount, 0);
+  const allApproved = useApprovedPeople((s) => s.people);
+  const approved = allApproved.filter((p) => p.projectCode === project.code);
   return (
     <Card
       title="Resource planning"
-      subtitle={`Total headcount required: ${total}`}
+      subtitle={`Planned : ${total}`}
       action={
         <div className="row-actions">
           <Can privilege={MANAGE.masters}>
@@ -719,13 +480,32 @@ function ProjectPeoplePlan({ project }: { project: Project }) {
         )}
       </Modal>
       <MiniTable
-        head={["Role / trade", "Headcount", "Period", "Status"]}
+        head={["Department", "Role", "Headcount", "Onboarded"]}
         empty="No manpower planned yet."
         rows={lines.map((l) => [
+          l.department || "—",
           <strong key="r">{l.role}</strong>,
           l.headcount,
-          `${fmtDate(l.from)} – ${fmtDate(l.to)}`,
-          l.status,
+          // onboarded people on this project with the requirement's department and role (designation)
+          approved.filter(
+            (p) =>
+              p.status === "Onboarded" &&
+              p.department === l.department &&
+              p.designation.trim().toLowerCase() === l.role.trim().toLowerCase(),
+          ).length,
+        ])}
+      />
+      <h3 style={{ margin: "20px 0 8px", fontSize: 15 }}>Approved and onboarded people</h3>
+      <MiniTable
+        head={["Sl no", "Employee", "Designation", "Department", "Joining date", "Status"]}
+        empty="No approved people for this project yet. Add them under People and organisation, Approved list."
+        rows={approved.map((p, i) => [
+          i + 1,
+          <strong key="n">{p.name}</strong>,
+          p.designation,
+          p.department,
+          fmtDate(p.joiningDate),
+          p.status,
         ])}
       />
     </Card>
@@ -772,15 +552,17 @@ function ProjectMaterialPlan({ project }: { project: Project }) {
         )}
       </Modal>
       <MiniTable
-        head={["Material", "Quantity", "Status"]}
+        head={["Material", "HSN code", "UOM", "Quantity"]}
         empty="No materials planned yet."
-        rows={lines.map((l) => [
-          <strong key="m">
-            {materials.find((m) => m.id === l.materialId)?.name ?? l.materialId}
-          </strong>,
-          `${l.qty.toLocaleString("en-IN")} ${l.uom}`,
-          l.status,
-        ])}
+        rows={lines.map((l) => {
+          const material = materials.find((m) => m.id === l.materialId);
+          return [
+            <strong key="m">{material?.name ?? l.materialId}</strong>,
+            material?.hsn || "—",
+            l.uom,
+            l.qty.toLocaleString("en-IN"),
+          ];
+        })}
       />
     </Card>
   );
@@ -812,15 +594,14 @@ function ProjectEquipmentPlan({ project }: { project: Project }) {
         {adding && <EquipmentPlanForm defaultProjectId={project.id} lockProject onDone={() => setAdding(false)} />}
       </Modal>
       <MiniTable
-        head={["Equipment type", "Units needed", "Capacity", "Model", "Needed from", "Purpose"]}
+        head={["Equipment type", "Required units", "Capacity", "Model", "Required from"]}
         empty="No equipment planned yet."
         rows={lines.map((l) => [
           <strong key="t">{l.equipmentType}</strong>,
           l.plannedQty,
-          l.capacity || '—',
-          l.model || '—',
+          l.capacity || 'â€”',
+          l.model || 'â€”',
           fmtDate(l.from),
-          l.reason,
         ])}
       />
     </Card>

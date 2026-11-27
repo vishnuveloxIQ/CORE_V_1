@@ -1,13 +1,21 @@
-import { api } from '@/shared/lib/api'
-import type { Project, ProjectStatus } from '../types'
+﻿import { api } from '@/shared/lib/api'
+import type { ExecutionMode, Project, ProjectStatus, ProjectType } from '../types'
+
+/** core_project status as the API sends it. */
+export type ProjectApiStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'inactive'
 
 /** core_project as the API returns it (GET/POST/PATCH /projects). */
 export interface ProjectRecord {
   id: string
   code: string
   name: string
-  status: 'active' | 'inactive'
+  status: ProjectApiStatus
   client: string | null
+  consultantName?: string | null
+  state?: string | null
+  executionMode?: ExecutionMode | null
+  department?: string | null
+  projectType?: ProjectType | null
   startDate: string | null
   endDate: string | null
   valueAmount: number | null
@@ -23,6 +31,12 @@ export interface ProjectDetails {
   code: string
   name: string
   client: string
+  consultantName?: string
+  state?: string
+  executionMode?: ExecutionMode | ''
+  /** the owning department: a listed name, or the name typed for "Other" */
+  department?: string
+  projectType?: ProjectType | ''
   startDate: string
   endDate: string
   status: ProjectStatus
@@ -30,24 +44,28 @@ export interface ProjectDetails {
   description: string
 }
 
-/**
- * The backend keeps only active or inactive. Completed is stored as inactive; Planning, Active and On hold are
- * stored as active and read back as Active.
- */
-export const toApiStatus = (s: ProjectStatus): ProjectRecord['status'] => (s === 'Completed' ? 'inactive' : 'active')
-export const fromApiStatus = (s: ProjectRecord['status']): ProjectStatus => (s === 'inactive' ? 'Completed' : 'Active')
+const API_STATUS: Record<ProjectStatus, ProjectApiStatus> = {
+  Planning: 'planning',
+  Active: 'active',
+  'On hold': 'on_hold',
+  Completed: 'completed',
+  Inactive: 'inactive',
+}
+const UI_STATUS = Object.fromEntries(Object.entries(API_STATUS).map(([ui, api]) => [api, ui])) as Record<ProjectApiStatus, ProjectStatus>
+
+export const toApiStatus = (s: ProjectStatus): ProjectApiStatus => API_STATUS[s]
+/** A project with no status, or one the page does not know, is shown as Inactive. */
+export const fromApiStatus = (s: ProjectApiStatus | null | undefined): ProjectStatus => (s && UI_STATUS[s]) || 'Inactive'
 
 const emptyParts = (): Omit<Project, keyof ProjectDetails | 'id' | 'rowVersion'> => ({
   milestones: [],
-  wbs: [],
   plan: { startDate: '', endDate: '', peakWorkforce: 0, workingDays: 'Mon–Sat', notes: '' },
   zones: [],
   chainage: { startKm: 0, endKm: 0, markers: [] },
-  locationIds: [],
 })
 
 /**
- * Maps an API record onto the frontend Project. Milestones, WBS, zones, markers and locations are read separately,
+ * Maps an API record onto the frontend Project. Milestones, zones, markers and locations are read separately,
  * so they are kept from the copy already in the store (or start empty). The chainage range comes from the record.
  */
 export function fromRecord(r: ProjectRecord, local?: Project): Project {
@@ -62,6 +80,11 @@ export function fromRecord(r: ProjectRecord, local?: Project): Project {
     code: r.code,
     name: r.name,
     client: r.client ?? '',
+    consultantName: r.consultantName ?? '',
+    state: r.state ?? '',
+    executionMode: r.executionMode ?? '',
+    department: r.department ?? '',
+    projectType: r.projectType ?? '',
     startDate: r.startDate ?? '',
     endDate: r.endDate ?? '',
     status: fromApiStatus(r.status),
@@ -76,6 +99,11 @@ const toBody = (v: ProjectDetails) => ({
   name: v.name,
   status: toApiStatus(v.status),
   client: v.client || null,
+  consultantName: (v.consultantName ?? '').trim() || null,
+  state: v.state || null,
+  executionMode: v.executionMode || null,
+  department: (v.department ?? '').trim() || null,
+  projectType: v.projectType || null,
   startDate: v.startDate || null,
   endDate: v.endDate || null,
   valueAmount: v.value,

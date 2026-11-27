@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+﻿import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/shared/ui/Button'
 import { Card } from '@/shared/ui/Card'
@@ -13,7 +13,7 @@ export default function ProjectNew() {
   const navigate = useNavigate()
   return (
     <div ref={ref}>
-      <PageHead crumb="New project" title="New project" desc="Fields marked with * are required. Add milestones and WBS after saving."
+      <PageHead crumb="New project" title="New project" desc="Fields marked with * are required. Add milestones after saving."
         actions={<Button icon="chevL" onClick={() => navigate('/projects')}>Back to projects</Button>} />
       <Card className="max-w-[920px]" title="Project details">
         <ProjectForm onCancel={() => navigate('/projects')} onSaved={(id) => { notify('Project created'); navigate(`/projects/${id}`) }} />

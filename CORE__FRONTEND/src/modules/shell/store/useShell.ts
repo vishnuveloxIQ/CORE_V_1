@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { NOTIFICATIONS } from '../config/nav'
+import type { IconName } from '@/shared/ui/icons'
 import { listNotifications, markNotificationRead, type NotificationRecord } from '@/modules/core-data'
 
-export interface ShellNotification { id: string; icon: (typeof NOTIFICATIONS)[number]['icon']; title: string; description: string; at: string; to: string }
+export interface ShellNotification { id: string; icon: IconName; title: string; description: string; at: string; to: string }
 
 /** Where a notification opens, from the record it names. TODO(backend): sourceType values are not fixed by the API; unknown ones open the dashboard. */
 const target = (r: NotificationRecord) =>
@@ -12,7 +12,7 @@ const target = (r: NotificationRecord) =>
     : '/dashboard'
 
 const fromRecord = (r: NotificationRecord): ShellNotification => ({
-  id: r.id, icon: 'approvals' as ShellNotification['icon'], title: r.title, description: r.body ?? '', at: r.createdAt ?? new Date().toISOString(), to: target(r),
+  id: r.id, icon: 'approvals', title: r.title, description: r.body ?? '', at: r.createdAt ?? new Date().toISOString(), to: target(r),
 })
 
 interface ShellState {
@@ -20,8 +20,8 @@ interface ShellState {
   sidebarCollapsed: boolean
   /** ids of notifications the user has read */
   read: string[]
-  /** notifications read from GET /notifications; null until read, then the bell shows these instead of the sample list */
-  remote: ShellNotification[] | null
+  /** notifications read from GET /notifications; empty until they are read */
+  remote: ShellNotification[]
   loadNotifications: () => Promise<void>
   toggleTheme: () => void
   setSidebarCollapsed: (c: boolean) => void
@@ -41,23 +41,23 @@ export const useShell = create<ShellState>()(
       theme: 'light',
       sidebarCollapsed: false,
       read: [],
-      remote: null,
+      remote: [],
       loadNotifications: async () => {
         try {
           const rows = await listNotifications()
           set((s) => ({ remote: rows.map(fromRecord), read: [...new Set([...s.read, ...rows.filter((r) => r.readAt).map((r) => r.id)])] }))
-        } catch { /* sample notifications stay */ }
+        } catch { /* the bell stays as it was; the next load tries again */ }
       },
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       markRead: (id) => {
         set((s) => (s.read.includes(id) ? s : { read: [...s.read, id] }))
-        if (get().remote?.some((n) => n.id === id)) void markNotificationRead(id).catch(() => { /* read again on the next load */ })
+        if (get().remote.some((n) => n.id === id)) void markNotificationRead(id).catch(() => { /* read again on the next load */ })
       },
       markAllRead: () => {
-        const list = get().remote ?? NOTIFICATIONS
+        const list = get().remote
         set({ read: list.map((n) => n.id) })
-        if (get().remote) for (const n of get().remote ?? []) void markNotificationRead(n.id).catch(() => { /* read again on the next load */ })
+        for (const n of list) void markNotificationRead(n.id).catch(() => { /* read again on the next load */ })
       },
     }),
     { name: 'veloxiq-shell:v1', version: 1, storage, partialize: (s) => ({ theme: s.theme, sidebarCollapsed: s.sidebarCollapsed, read: s.read }) },

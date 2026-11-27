@@ -9,6 +9,7 @@ import { Icon } from "@/shared/ui/icons";
 import { FormGroup, Input } from "@/shared/ui/Field";
 import { PhoneField } from "@/shared/ui/PhoneField";
 import { a11y } from "@/shared/lib/core";
+import { api, errorText, setTenantId } from "@/shared/lib/api";
 import { notify } from "@/shared/lib/toast";
 import { useAuth } from "../store/useAuth";
 import { PublicNav } from "../components/PublicNav";
@@ -17,7 +18,7 @@ import { DEFAULT_COUNTRY, dialOf } from "../utils/countryCodes";
 const EMAIL = /^\S+@\S+\.\S+$/;
 const digitsOf = (s: string) => s.replace(/[\s-]/g, "");
 /** Login ID = 3 to 6 letters or digits from the company name, then 4 digits (for example ACME1234). */
-const LOGIN_ID = /^[A-Za-z0-9]{3,6}\d{4}$/;
+const LOGIN_ID = /^[A-Za-z]{3,6}\d{4}$/;
 
 const schema = z
   .object({
@@ -38,7 +39,7 @@ const schema = z
         LOGIN_ID,
         "Enter a company name with at least 3 letters or digits to generate your login ID.",
       ),
-    password: z.string().min(8, "Use at least 8 characters."),
+    password: z.string().min(12, "Use at least 12 characters."),
     confirm: z.string().min(1, "Confirm your password."),
     terms: z.literal(true, { message: "Accept the terms to continue." }),
   })
@@ -54,15 +55,10 @@ const randomDigits = (n: number) => {
   crypto.getRandomValues(r);
   return Array.from(r, (x) => String(x % 10)).join("");
 };
-const sixDigits = () => {
-  const n = new Uint32Array(1);
-  crypto.getRandomValues(n);
-  return String(n[0] % 1_000_000).padStart(6, "0");
-};
 const suggestLoginId = (company: string, suffix: string) => {
   const stem = company
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
+    .replace(/[^a-z]/g, "")
     .slice(0, 6);
   return stem.length >= 3 ? (stem + suffix).toUpperCase() : "";
 };
@@ -112,6 +108,8 @@ function VerifyRow({
   label,
   verifiedValue,
   onVerified,
+  code,
+  onCode,
 }: {
   field: ReactNode;
   current: string;
@@ -120,34 +118,39 @@ function VerifyRow({
   label: string;
   verifiedValue: string;
   onVerified: (value: string) => void;
+  code: string;
+  onCode: (value: string) => void;
 }) {
-  const sent = useRef({ code: "", to: "" });
-  const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const verified = !!verifiedValue && verifiedValue === current.trim();
 
+  // The server sends the code (and, in development, writes it to its log). The check happens when the form is submitted.
   const send = async () => {
     if (!(await valid())) return;
-    sent.current = { code: sixDigits(), to: current.trim() };
-    setCode("");
     onVerified("");
-    setMsg(`OTP sent to your ${channel}. Enter it below.`);
-    notify(
-      `Demo only, no mail or SMS service yet. ${label} OTP: ${sent.current.code}`,
-      8000,
-    );
+    onCode("");
+    try {
+      const sent = await api<{ expiresAt: string; developmentCode?: string }>("POST", "/auth/register/otp", {
+        body: { channel, target: current.trim() },
+        auth: false,
+      });
+      // Development only: the server returns the code, so it is shown here. Production returns no code.
+      setMsg(
+        sent.developmentCode
+          ? `Development code: ${sent.developmentCode}. Enter it below.`
+          : `A code was sent to your ${channel}. Enter it below.`,
+      );
+    } catch (err) {
+      setMsg(errorText(err));
+    }
   };
   const validate = () => {
-    const ok =
-      !!sent.current.code &&
-      code === sent.current.code &&
-      current.trim() === sent.current.to;
-    onVerified(ok ? current.trim() : "");
-    setMsg(
-      ok
-        ? `${label} verified.`
-        : "That OTP is not correct, or the value changed after sending.",
-    );
+    if (!/^\d{6}$/.test(code)) {
+      setMsg("Enter the six-digit code.");
+      return;
+    }
+    onVerified(current.trim());
+    setMsg(`${label} code entered. It is checked when you register.`);
   };
 
   return (
@@ -172,12 +175,12 @@ function VerifyRow({
               value={code}
               disabled={verified}
               {...a11y(id, d, verified ? undefined : (msg ?? undefined))}
-              onChange={(ev) => setCode(ev.target.value.replace(/\D/g, ""))}
+              onChange={(ev) => onCode(ev.target.value.replace(/\D/g, ""))}
             />
           )}
         </FormGroup>
         <Button type="button" onClick={validate} disabled={verified}>
-          {verified ? "Verified" : "Validate OTP"}
+          {verified ? "Verified" : "Confirm OTP"}
         </Button>
       </div>
     </>
@@ -189,6 +192,8 @@ export default function Register() {
   const user = useAuth((s) => s.user);
   const [okEmail, setOkEmail] = useState("");
   const [okMobile, setOkMobile] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [mobileCode, setMobileCode] = useState("");
   const [verifyErr, setVerifyErr] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -233,18 +238,33 @@ export default function Register() {
   const mobileFull = dialOf(country) + digitsOf(mobile.trim());
   const mobileOk = !!okMobile && okMobile === mobileFull;
 
-  const submit = handleSubmit(() => {
+  const submit = handleSubmit(async (v) => {
     if (!emailOk || !mobileOk) {
       setVerifyErr(
-        `Verify your ${!emailOk && !mobileOk ? "email and mobile number" : !emailOk ? "email" : "mobile number"} with an OTP before registering.`,
+        `Confirm the code sent to your ${!emailOk && !mobileOk ? "email and mobile number" : !emailOk ? "email" : "mobile number"} before registering.`,
       );
       return;
     }
     setVerifyErr(null);
-    notify(
-      "Registration received. Your access will be enabled after approval.",
-    );
-    navigate("/login?role=user", { replace: true });
+    try {
+      const created = await api<{ tenantId: string; loginId: string }>("POST", "/auth/register", {
+        body: {
+          company: v.company.trim(),
+          email: v.email.trim(),
+          mobile: mobileFull,
+          emailCode,
+          mobileCode,
+          loginId: v.loginId.trim(),
+          password: v.password,
+        },
+        auth: false,
+      });
+      setTenantId(created.tenantId);
+      notify(`Company registered. Sign in with login ID ${created.loginId}.`, 8000);
+      navigate("/login", { replace: true });
+    } catch (err) {
+      setVerifyErr(errorText(err));
+    }
   });
 
   return (
@@ -266,7 +286,7 @@ export default function Register() {
               style={{ gap: 16 }}
             >
               <FormGroup
-                label="Company name"
+                label="Company Name"
                 required
                 error={e.company?.message}
               >
@@ -285,6 +305,8 @@ export default function Register() {
                 current={email}
                 verifiedValue={okEmail}
                 onVerified={setOkEmail}
+                code={emailCode}
+                onCode={setEmailCode}
                 valid={() => trigger("email")}
                 field={
                   <FormGroup label="Email" required error={e.email?.message}>
@@ -306,10 +328,12 @@ export default function Register() {
                 current={mobileFull}
                 verifiedValue={okMobile}
                 onVerified={setOkMobile}
+                code={mobileCode}
+                onCode={setMobileCode}
                 valid={() => trigger("mobile")}
                 field={
                   <FormGroup
-                    label="Mobile number"
+                    label="Mobile Number"
                     required
                     error={e.mobile?.message}
                   >
@@ -346,8 +370,7 @@ export default function Register() {
                 </FormGroup>
               </div>
               <p className="reg-hint">
-                Generated for you from your company name (first 3 to 6 letters
-                or digits) plus 4 random digits, like ACME1234. It cannot be
+                Generated for you from your company name (first 3 to 6 letters) plus 4 random digits, like ACME1234. <br /> It cannot be
                 edited.
               </p>
               <div className="reg-pair">

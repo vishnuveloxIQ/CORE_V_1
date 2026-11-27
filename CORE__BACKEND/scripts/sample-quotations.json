@@ -1,0 +1,659 @@
+[
+ {
+  "ref": "Q-PSG/26-27/017",
+  "vendorName": "Poddars Stone Gallery",
+  "buyerName": "Drb Infrastructure Private Limited",
+  "projectName": null,
+  "destination": "Narsingi",
+  "quotationDate": "2026-09-19",
+  "validUntil": null,
+  "paymentTerms": "100% payment advance",
+  "amount": 204140.0,
+  "document": {
+   "vendor": {
+    "name": "Poddars Stone Gallery",
+    "address": [
+     "Survey No 662 and 663, Door No 12-6/2",
+     "Bangalore Highway, Fantoosh, Shamshabad",
+     "Hyderabad, Rangareddy, Telangana, 501218"
+    ],
+    "gstin": "36ABBFP9958Q1Z5",
+    "state": "Telangana, Code: 36",
+    "email": "poddarsstonegallery@gmail.com"
+   },
+   "consignee": {
+    "name": "Drb Infrastructure Private Limited",
+    "address": [
+     "Narsingi",
+     "Hyderabad"
+    ],
+    "state": "Telangana, Code: 36"
+   },
+   "buyer": {
+    "name": "Drb Infrastructure Private Limited",
+    "address": [
+     "Khasra No 1348/1118",
+     "1st Floor of Rooh Resort",
+     "Chhan Morian Morh, Hiranagar, Kathua"
+    ],
+    "gstin": "01AADCD7676H1ZO",
+    "state": "Jammu & Kashmir, Code: 01"
+   },
+   "placeOfSupply": "Jammu & Kashmir",
+   "refs": {
+    "reference": "Q-PSG/26-27/017 dt. 19-Sep-26",
+    "dated": "19-Sep-26",
+    "dispatchedThrough": "By Road",
+    "destination": "Narsingi"
+   },
+   "termsOfPayment": "100% payment advance",
+   "lines": [
+    {
+     "no": 1,
+     "description": "Vitrified Tile",
+     "details": [
+      "Wonder White 1,3&4",
+      "Size: 1200x600",
+      "Box: 100"
+     ],
+     "hsn": "690710",
+     "quantity": 1600,
+     "unit": "SFT",
+     "rate": 105,
+     "per": "SFT",
+     "amount": 168000,
+     "brand": "Wonder White"
+    }
+   ],
+   "charges": [
+    {
+     "label": "Labour Charges",
+     "hsn": "998519",
+     "amount": 2000
+    },
+    {
+     "label": "Transportation Charges",
+     "hsn": "996511",
+     "amount": 3000
+    }
+   ],
+   "taxLabel": "IGST",
+   "taxRate": 18,
+   "taxAmount": 31140.0,
+   "taxable": 173000,
+   "totalQty": 1600,
+   "qtyUnit": "SFT",
+   "total": 204140.0,
+   "words": "INR Two Lakh Four Thousand One Hundred Forty Only",
+   "taxWords": "INR Thirty One Thousand One Hundred Forty Only",
+   "hsnSummary": [
+    {
+     "hsn": "690710",
+     "taxable": 168000,
+     "rate": 18,
+     "tax": 30240.0
+    },
+    {
+     "hsn": "998519",
+     "taxable": 2000,
+     "rate": 18,
+     "tax": 360.0
+    },
+    {
+     "hsn": "996511",
+     "taxable": 3000,
+     "rate": 18,
+     "tax": 540.0
+    }
+   ],
+   "terms": [
+    "This is a natural stone: variation in colour, texture and design, and cracks, are natural characteristics of the stone.",
+    "Goods once sold cannot be taken back or exchanged.",
+    "Our responsibility ceases once the goods leave our premises.",
+    "Interest at 18% will be charged on bills not paid within 7 days.",
+    "Any loss because of accident during loading, transit or unloading is the buyer’s liability.",
+    "Subject to Hyderabad jurisdiction only."
+   ],
+   "declaration": "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.",
+   "bank": {
+    "holder": "Poddars Stone Gallery",
+    "bank": "ICICI Bank Limited",
+    "account": "630505034799",
+    "branchIfsc": "Himayatnagar and ICIC0006305"
+   },
+   "commercial": {
+    "deliveryPeriod": "7 days from payment",
+    "validity": "15 days"
+   }
+  }
+ },
+ {
+  "ref": "Q-FBM/26-27/044",
+  "vendorName": "Fictional Build Materials",
+  "buyerName": "Fictional Infra Private Limited",
+  "projectName": null,
+  "destination": "Narsingi",
+  "quotationDate": "2026-10-05",
+  "validUntil": null,
+  "paymentTerms": "50% advance, balance on delivery",
+  "amount": 359900.0,
+  "document": {
+   "vendor": {
+    "name": "Fictional Build Materials",
+    "address": [
+     "Plot 14, Industrial Area",
+     "Hyderabad, Telangana, 500032"
+    ],
+    "gstin": "36AAAAA0000A1Z5",
+    "state": "Telangana, Code: 36",
+    "email": "sales@fictional-build.example"
+   },
+   "consignee": {
+    "name": "Fictional Infra Private Limited",
+    "address": [
+     "Site store, Narsingi",
+     "Hyderabad"
+    ],
+    "state": "Telangana, Code: 36"
+   },
+   "buyer": {
+    "name": "Fictional Infra Private Limited",
+    "address": [
+     "Registered office",
+     "Hyderabad"
+    ],
+    "gstin": "36BBBBB1111B1Z5",
+    "state": "Telangana, Code: 36"
+   },
+   "placeOfSupply": "Telangana",
+   "refs": {
+    "reference": "Q-FBM/26-27/044 dt. 5-Oct-26",
+    "dated": "5-Oct-26",
+    "dispatchedThrough": "By Road",
+    "destination": "Narsingi"
+   },
+   "termsOfPayment": "50% advance, balance on delivery",
+   "lines": [
+    {
+     "no": 1,
+     "description": "Cement OPC 53 grade",
+     "details": [
+      "50 kg bags"
+     ],
+     "hsn": "252329",
+     "quantity": 600,
+     "unit": "Bag",
+     "rate": 410,
+     "per": "Bag",
+     "amount": 246000,
+     "standard": "IS 269"
+    },
+    {
+     "no": 2,
+     "description": "River sand",
+     "details": [
+      "Washed, for plastering"
+     ],
+     "hsn": "250590",
+     "quantity": 40,
+     "unit": "Bag",
+     "rate": 1150,
+     "per": "Bag",
+     "amount": 46000
+    }
+   ],
+   "charges": [
+    {
+     "label": "Loading and unloading",
+     "hsn": "996511",
+     "amount": 4000
+    },
+    {
+     "label": "Transportation Charges",
+     "hsn": "996511",
+     "amount": 9000
+    }
+   ],
+   "taxLabel": "CGST + SGST",
+   "taxRate": 18,
+   "taxAmount": 54900.0,
+   "taxable": 305000,
+   "totalQty": 640,
+   "qtyUnit": "Bag",
+   "total": 359900.0,
+   "words": "INR Three Lakh Fifty Nine Thousand Nine Hundred Only",
+   "taxWords": "INR Fifty Four Thousand Nine Hundred Only",
+   "hsnSummary": [
+    {
+     "hsn": "252329",
+     "taxable": 246000,
+     "rate": 18,
+     "tax": 44280.0
+    },
+    {
+     "hsn": "250590",
+     "taxable": 46000,
+     "rate": 18,
+     "tax": 8280.0
+    },
+    {
+     "hsn": "996511",
+     "taxable": 13000,
+     "rate": 18,
+     "tax": 2340.0
+    }
+   ],
+   "terms": [
+    "Prices are for the quantity quoted. A change in quantity may change the rate.",
+    "Goods once sold cannot be taken back or exchanged.",
+    "Our responsibility ceases once the goods leave our premises.",
+    "Interest at 18% will be charged on bills not paid within 7 days.",
+    "Subject to the vendor’s city jurisdiction only."
+   ],
+   "declaration": "We declare that this quotation shows the actual price of the goods described and that all particulars are true and correct.",
+   "bank": {
+    "holder": "Fictional Build Materials",
+    "bank": "Sample Bank Limited",
+    "account": "000000000001",
+    "branchIfsc": "Sample branch and SMPL0000001"
+   },
+   "commercial": {
+    "deliveryPeriod": "5 days from order",
+    "validity": "30 days"
+   }
+  }
+ },
+ {
+  "ref": "Q-SRT/26-27/009",
+  "vendorName": "Fictional Steel Traders",
+  "buyerName": "Fictional Infra Private Limited",
+  "projectName": null,
+  "destination": "Vijayawada",
+  "quotationDate": "2026-11-12",
+  "validUntil": null,
+  "paymentTerms": "100% payment advance",
+  "amount": 968780.0,
+  "document": {
+   "vendor": {
+    "name": "Fictional Steel Traders",
+    "address": [
+     "Door 3-4-22, Steel Market",
+     "Vijayawada, Andhra Pradesh, 520001"
+    ],
+    "gstin": "37CCCCC2222C1Z5",
+    "state": "Andhra Pradesh, Code: 37",
+    "email": "orders@fictional-steel.example"
+   },
+   "consignee": {
+    "name": "Fictional Infra Private Limited",
+    "address": [
+     "Project store",
+     "Vijayawada"
+    ],
+    "state": "Andhra Pradesh, Code: 37"
+   },
+   "buyer": {
+    "name": "Fictional Infra Private Limited",
+    "address": [
+     "Registered office",
+     "Hyderabad"
+    ],
+    "gstin": "36BBBBB1111B1Z5",
+    "state": "Telangana, Code: 36"
+   },
+   "placeOfSupply": "Andhra Pradesh",
+   "refs": {
+    "reference": "Q-SRT/26-27/009 dt. 12-Nov-26",
+    "dated": "12-Nov-26",
+    "dispatchedThrough": "By Road",
+    "destination": "Vijayawada"
+   },
+   "termsOfPayment": "100% payment advance",
+   "lines": [
+    {
+     "no": 1,
+     "description": "TMT bars Fe 500D",
+     "details": [
+      "12 mm"
+     ],
+     "hsn": "721420",
+     "quantity": 8,
+     "unit": "MT",
+     "rate": 58000,
+     "per": "MT",
+     "amount": 464000
+    },
+    {
+     "no": 2,
+     "description": "TMT bars Fe 500D",
+     "details": [
+      "16 mm"
+     ],
+     "hsn": "721420",
+     "quantity": 6,
+     "unit": "MT",
+     "rate": 57500,
+     "per": "MT",
+     "amount": 345000
+    }
+   ],
+   "charges": [
+    {
+     "label": "Transportation Charges",
+     "hsn": "996511",
+     "amount": 12000
+    }
+   ],
+   "taxLabel": "IGST",
+   "taxRate": 18,
+   "taxAmount": 147780.0,
+   "taxable": 821000,
+   "totalQty": 14,
+   "qtyUnit": "MT",
+   "total": 968780.0,
+   "words": "INR Nine Lakh Sixty Eight Thousand Seven Hundred Eighty Only",
+   "taxWords": "INR One Lakh Forty Seven Thousand Seven Hundred Eighty Only",
+   "hsnSummary": [
+    {
+     "hsn": "721420",
+     "taxable": 809000,
+     "rate": 18,
+     "tax": 145620.0
+    },
+    {
+     "hsn": "996511",
+     "taxable": 12000,
+     "rate": 18,
+     "tax": 2160.0
+    }
+   ],
+   "terms": [
+    "Prices are for the quantity quoted. A change in quantity may change the rate.",
+    "Goods once sold cannot be taken back or exchanged.",
+    "Our responsibility ceases once the goods leave our premises.",
+    "Interest at 18% will be charged on bills not paid within 7 days.",
+    "Subject to the vendor’s city jurisdiction only."
+   ],
+   "declaration": "We declare that this quotation shows the actual price of the goods described and that all particulars are true and correct.",
+   "bank": {
+    "holder": "Fictional Steel Traders",
+    "bank": "Sample Bank Limited",
+    "account": "000000000002",
+    "branchIfsc": "Sample branch and SMPL0000002"
+   },
+   "commercial": {},
+   "comparison": {
+    "key": "RFQ-STEEL-2026-11",
+    "title": "TMT bars Fe 500D: 8 MT of 12 mm and 6 MT of 16 mm for Vijayawada"
+   }
+  }
+ },
+ {
+  "ref": "Q-SMD/26-27/021",
+  "vendorName": "Sample Mills Dealer",
+  "buyerName": "Fictional Infra Private Limited",
+  "projectName": null,
+  "destination": "Vijayawada",
+  "quotationDate": "2026-11-13",
+  "validUntil": null,
+  "paymentTerms": "30% advance, balance within 15 days of delivery",
+  "amount": 949900.0,
+  "document": {
+   "vendor": {
+    "name": "Sample Mills Dealer",
+    "address": [
+     "Plot 8, Steel Yard",
+     "Vijayawada, Andhra Pradesh, 520002"
+    ],
+    "gstin": "37DDDDD3333D1Z5",
+    "state": "Andhra Pradesh, Code: 37",
+    "email": "sales@sample-mills.example"
+   },
+   "consignee": {
+    "name": "Fictional Infra Private Limited",
+    "address": [
+     "Project store",
+     "Vijayawada"
+    ],
+    "state": "Andhra Pradesh, Code: 37"
+   },
+   "buyer": {
+    "name": "Fictional Infra Private Limited",
+    "address": [
+     "Registered office",
+     "Hyderabad"
+    ],
+    "gstin": "36BBBBB1111B1Z5",
+    "state": "Telangana, Code: 36"
+   },
+   "placeOfSupply": "Andhra Pradesh",
+   "refs": {
+    "reference": "Q-SMD/26-27/021 dt. 2026-11-13",
+    "dated": "2026-11-13",
+    "dispatchedThrough": "By Road",
+    "destination": "Vijayawada"
+   },
+   "termsOfPayment": "30% advance, balance within 15 days of delivery",
+   "lines": [
+    {
+     "no": 1,
+     "description": "TMT bars Fe 500D",
+     "details": [
+      "12 mm"
+     ],
+     "hsn": "721420",
+     "quantity": 8,
+     "unit": "MT",
+     "rate": 57000,
+     "per": "MT",
+     "amount": 456000,
+     "brand": "Sample Mills Fe 500D",
+     "standard": "IS 1786:2008"
+    },
+    {
+     "no": 2,
+     "description": "TMT bars Fe 500D",
+     "details": [
+      "16 mm"
+     ],
+     "hsn": "721420",
+     "quantity": 6,
+     "unit": "MT",
+     "rate": 56500,
+     "per": "MT",
+     "amount": 339000,
+     "brand": "Sample Mills Fe 500D",
+     "standard": "IS 1786:2008"
+    }
+   ],
+   "charges": [
+    {
+     "label": "Transportation Charges",
+     "hsn": "996511",
+     "amount": 10000
+    }
+   ],
+   "taxLabel": "CGST + SGST",
+   "taxRate": 18,
+   "taxAmount": 144900.0,
+   "taxable": 805000,
+   "totalQty": 14,
+   "qtyUnit": "MT",
+   "total": 949900.0,
+   "words": "INR Nine Lakh Forty Nine Thousand Nine Hundred Only",
+   "taxWords": "INR One Lakh Forty Four Thousand Nine Hundred Only",
+   "hsnSummary": [
+    {
+     "hsn": "721420",
+     "taxable": 795000,
+     "rate": 18,
+     "tax": 143100.0
+    },
+    {
+     "hsn": "996511",
+     "taxable": 10000,
+     "rate": 18,
+     "tax": 1800.0
+    }
+   ],
+   "terms": [
+    "Prices are for the quantity quoted. A change in quantity may change the rate.",
+    "Goods once sold cannot be taken back or exchanged.",
+    "Our responsibility ceases once the goods leave our premises.",
+    "Interest at 18% will be charged on bills not paid within 7 days.",
+    "Subject to the vendor’s city jurisdiction only."
+   ],
+   "declaration": "We declare that this quotation shows the actual price of the goods described and that all particulars are true and correct.",
+   "bank": {
+    "holder": "Sample Mills Dealer",
+    "bank": "Sample Bank Limited",
+    "account": "000000000003",
+    "branchIfsc": "Sample branch and SMPL0000003"
+   },
+   "commercial": {
+    "deliveryPeriod": "10 days from order",
+    "validity": "15 days",
+    "weightBasis": "Actual weighbridge",
+    "testCertificate": "Mill test certificate with supply"
+   },
+   "comparison": {
+    "key": "RFQ-STEEL-2026-11",
+    "title": "TMT bars Fe 500D: 8 MT of 12 mm and 6 MT of 16 mm for Vijayawada"
+   }
+  }
+ },
+ {
+  "ref": "Q-FIS/26-27/015",
+  "vendorName": "Fictional Iron and Steel Co",
+  "buyerName": "Fictional Infra Private Limited",
+  "projectName": null,
+  "destination": "Vijayawada",
+  "quotationDate": "2026-11-14",
+  "validUntil": null,
+  "paymentTerms": "Credit, payable within 30 days of delivery",
+  "amount": 981760.0,
+  "document": {
+   "vendor": {
+    "name": "Fictional Iron and Steel Co",
+    "address": [
+     "Unit 5, Industrial Estate",
+     "Hyderabad, Telangana, 500018"
+    ],
+    "gstin": "36EEEEE4444E1Z5",
+    "state": "Telangana, Code: 36",
+    "email": "quotes@fictional-iron.example"
+   },
+   "consignee": {
+    "name": "Fictional Infra Private Limited",
+    "address": [
+     "Project store",
+     "Vijayawada"
+    ],
+    "state": "Andhra Pradesh, Code: 37"
+   },
+   "buyer": {
+    "name": "Fictional Infra Private Limited",
+    "address": [
+     "Registered office",
+     "Hyderabad"
+    ],
+    "gstin": "36BBBBB1111B1Z5",
+    "state": "Telangana, Code: 36"
+   },
+   "placeOfSupply": "Andhra Pradesh",
+   "refs": {
+    "reference": "Q-FIS/26-27/015 dt. 2026-11-14",
+    "dated": "2026-11-14",
+    "dispatchedThrough": "By Road",
+    "destination": "Vijayawada"
+   },
+   "termsOfPayment": "Credit, payable within 30 days of delivery",
+   "lines": [
+    {
+     "no": 1,
+     "description": "TMT bars Fe 500D",
+     "details": [
+      "12 mm"
+     ],
+     "hsn": "721420",
+     "quantity": 8,
+     "unit": "MT",
+     "rate": 59000,
+     "per": "MT",
+     "amount": 472000,
+     "brand": "Fictional TMT",
+     "standard": "IS 1786:2008"
+    },
+    {
+     "no": 2,
+     "description": "TMT bars Fe 500D",
+     "details": [
+      "16 mm"
+     ],
+     "hsn": "721420",
+     "quantity": 6,
+     "unit": "MT",
+     "rate": 58500,
+     "per": "MT",
+     "amount": 351000,
+     "brand": "Fictional TMT",
+     "standard": "IS 1786:2008"
+    }
+   ],
+   "charges": [
+    {
+     "label": "Transportation Charges",
+     "hsn": "996511",
+     "amount": 9000
+    }
+   ],
+   "taxLabel": "IGST",
+   "taxRate": 18,
+   "taxAmount": 149760.0,
+   "taxable": 832000,
+   "totalQty": 14,
+   "qtyUnit": "MT",
+   "total": 981760.0,
+   "words": "INR Nine Lakh Eighty One Thousand Seven Hundred Sixty Only",
+   "taxWords": "INR One Lakh Forty Nine Thousand Seven Hundred Sixty Only",
+   "hsnSummary": [
+    {
+     "hsn": "721420",
+     "taxable": 823000,
+     "rate": 18,
+     "tax": 148140.0
+    },
+    {
+     "hsn": "996511",
+     "taxable": 9000,
+     "rate": 18,
+     "tax": 1620.0
+    }
+   ],
+   "terms": [
+    "Prices are for the quantity quoted. A change in quantity may change the rate.",
+    "Goods once sold cannot be taken back or exchanged.",
+    "Our responsibility ceases once the goods leave our premises.",
+    "Interest at 18% will be charged on bills not paid within 7 days.",
+    "Subject to the vendor’s city jurisdiction only."
+   ],
+   "declaration": "We declare that this quotation shows the actual price of the goods described and that all particulars are true and correct.",
+   "bank": {
+    "holder": "Fictional Iron and Steel Co",
+    "bank": "Sample Bank Limited",
+    "account": "000000000004",
+    "branchIfsc": "Sample branch and SMPL0000004"
+   },
+   "commercial": {
+    "deliveryPeriod": "7 days from order",
+    "validity": "10 days",
+    "weightBasis": "Theoretical weight",
+    "testCertificate": "Mill test certificate with supply"
+   },
+   "comparison": {
+    "key": "RFQ-STEEL-2026-11",
+    "title": "TMT bars Fe 500D: 8 MT of 12 mm and 6 MT of 16 mm for Vijayawada"
+   }
+  }
+ }
+]

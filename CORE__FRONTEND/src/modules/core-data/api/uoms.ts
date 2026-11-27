@@ -1,8 +1,8 @@
 import { api, ApiError } from '@/shared/lib/api'
 
 /**
- * Units of measure (GET /uoms, any signed-in user, sorted by name). Read only: the API has no create route, so a unit
- * that is not on this list cannot be picked. A material or plan line holds the code as its unit text and sends uomId.
+ * Units of measure (GET /uoms, any signed-in user, sorted by name). POST /uoms adds a unit typed for a material (masters.manage);
+ * a unit that is not on this list cannot be picked. A material or plan line holds the code as its unit text and sends uomId.
  */
 export interface UomRecord {
   id: string
@@ -34,3 +34,7 @@ export const requireUomId = (uoms: UomRecord[], text: string) => {
 
 /** The option label for a unit: the name, with the code when it differs. */
 export const uomLabel = (u: UomRecord) => (u.code.toLowerCase() === u.name.toLowerCase() ? u.name : `${u.name} (${u.code})`)
+
+/** POST /uoms: adds a unit typed for a material. Throws ApiError (CONFLICT when the code exists). */
+export const createUom = (code: string, name: string, idempotencyKey?: string) =>
+  api<UomRecord>('POST', '/uoms', { body: { code, name }, idempotencyKey })

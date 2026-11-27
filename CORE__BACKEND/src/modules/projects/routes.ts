@@ -1,4 +1,4 @@
-import type { CoreApp, CoreRequest } from '../../http/app.js';
+﻿import type { CoreApp, CoreRequest } from '../../http/app.js';
 import type { Pool } from 'pg';
 import { inTenant } from '../../core/resource.js';
 import { requireStepUp } from '../auth/step-up.js';
@@ -12,25 +12,21 @@ import {
   createMilestone,
   createProject,
   createStore,
-  createWbsNode,
   createZone,
   deleteMarker,
   deleteMilestone,
-  deleteWbsNode,
   deleteZone,
   listLocationRecords,
   listMarkerRecords,
   listMilestoneRecords,
   listProjectRecords,
   listStoreRecords,
-  listWbsNodeRecords,
   listZoneRecords,
   updateLocationRecord,
   updateMarkerRecord,
   updateMilestoneRecord,
   updateProjectRecord,
   updateStoreRecord,
-  updateWbsNodeRecord,
   updateZoneRecord,
 } from './service.js';
 import {
@@ -48,8 +44,6 @@ import {
   projectPatchBody,
   storeCreateBody,
   storePatchBody,
-  wbsNodeCreateBody,
-  wbsNodePatchBody,
 } from './schema.js';
 
 /** The privilege for every write under the projects and sites routes. Reads need only a signed-in user. */
@@ -93,11 +87,6 @@ export function registerProjectsRoutes(app: CoreApp, options: ProjectsRouteOptio
     const { id } = parseInput(idParamsSchema, request.params);
     const rows = await inTenant(options, request, (client) => listStoreRecords(client));
     return ok(rowById(rows, id, 'Store'));
-  });
-  app.get('/wbs-nodes/:id', read, async (request) => {
-    const { id } = parseInput(idParamsSchema, request.params);
-    const rows = await inTenant(options, request, (client) => listWbsNodeRecords(client, null));
-    return ok(rowById(rows, id, 'WBS node'));
   });
   app.get('/chainage-markers/:id', read, async (request) => {
     const { id } = parseInput(idParamsSchema, request.params);
@@ -183,36 +172,6 @@ export function registerProjectsRoutes(app: CoreApp, options: ProjectsRouteOptio
       updateStoreRecord(client, actor, id, patch),
     );
     return ok(updated);
-  });
-
-  // WBS nodes. Deleted only when nothing refers to them (design point e).
-
-  app.get('/wbs-nodes', { ...read, config: { openapi: { summary: 'GET /wbs-nodes', query: projectFilterQuery } } }, async (request) => {
-    const projectId = projectFilterOf(request);
-    return ok(await inTenant(options, request, (client) => listWbsNodeRecords(client, projectId)));
-  });
-
-  app.post('/wbs-nodes', { ...write, config: { openapi: { summary: 'POST /wbs-nodes', body: wbsNodeCreateBody } } }, async (request, reply) => {
-    const body = parseInput(wbsNodeCreateBody, request.body);
-    const created = await inTenant(options, request, (client, actor) =>
-      createWbsNode(client, actor, body),
-    );
-    return reply.code(201).send(ok(created));
-  });
-
-  app.patch('/wbs-nodes/:id', { ...write, config: { openapi: { summary: 'PATCH /wbs-nodes/:id', body: wbsNodePatchBody } } }, async (request) => {
-    const { id } = parseInput(idParamsSchema, request.params);
-    const patch = parseInput(wbsNodePatchBody, request.body);
-    const updated = await inTenant(options, request, (client, actor) =>
-      updateWbsNodeRecord(client, actor, id, patch),
-    );
-    return ok(updated);
-  });
-
-  app.delete('/wbs-nodes/:id', { ...write, config: { openapi: { summary: 'DELETE /wbs-nodes/:id' } } }, async (request) => {
-    const { id } = parseInput(idParamsSchema, request.params);
-    await inTenant(options, request, (client, actor) => deleteWbsNode(client, actor, id));
-    return ok({ deleted: true });
   });
 
   // Chainage markers. Deleted only when nothing refers to them (design point f).

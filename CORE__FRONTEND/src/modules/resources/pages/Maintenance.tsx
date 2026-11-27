@@ -39,6 +39,9 @@ export default function Maintenance() {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'maintenance')
   const units = useCore((s) => s.units)
+  const projects = useCore((s) => s.projects)
+  // the project filter on top: '' shows every project
+  const [projectId, setProjectId] = useState('')
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [loadError, setLoadError] = useState('')
@@ -59,7 +62,9 @@ export default function Maintenance() {
   }, [tick])
 
   const serverUnits = units.filter((u) => u.rowVersion !== undefined)
-  const rows: Row[] = schedules.map((s) => ({ s, unit: units.find((u) => u.id === s.equipmentUnitId) }))
+  const allRows: Row[] = schedules.map((s) => ({ s, unit: units.find((u) => u.id === s.equipmentUnitId) }))
+  const rows = projectId ? allRows.filter((r) => r.unit?.projectId === projectId) : allRows
+  const projectName = (u: EquipmentUnit | undefined) => projects.find((p) => p.id === u?.projectId)?.name ?? ''
   const dueOf = (r: Row) => maintenanceApi.nextDue(r.s, today, maintenanceApi.meterHours(r.unit?.meterReading))
   const count = (st: DueState) => rows.filter((r) => dueOf(r).state === st).length
   const unscheduled = serverUnits.filter((u) => !schedules.some((s) => s.equipmentUnitId === u.id)).length
@@ -88,6 +93,16 @@ export default function Maintenance() {
         desc="How often each machine is serviced, by months or running hours, and when it is next due."
         actions={<Can privilege={MANAGE.masters}><Button tone="primary" icon="plus" disabled={state !== 'ready' || !serverUnits.length} onClick={() => setEdit('new')}>Add schedule</Button></Can>}
       />
+      <div style={{ marginBottom: 16, maxWidth: 320 }}>
+        <FormGroup label="Show project">
+          {(id) => (
+            <Select id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">All projects</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </Select>
+          )}
+        </FormGroup>
+      </div>
       <div className="grid stats">
         <StatTile label="Overdue" value={count('overdue')} icon="alert" tone="rose" />
         <StatTile label="Due soon" value={count('due-soon')} icon="clock" tone="gold" />
@@ -107,7 +122,8 @@ export default function Maintenance() {
         statusOf={(r) => DUE_LABEL[dueOf(r).state]}
         chipNoun="statuses"
         columns={[
-          { header: 'Equipment', kind: 'c-sub', cell: (r) => <span><strong>{unitLabel(r.unit)}</strong><span className="sub">{r.unit?.type ?? ''}</span></span>, csv: (r) => unitLabel(r.unit) },
+          { header: 'Company code', kind: 'c-id', cell: (r) => r.unit?.assetCode ?? 'Unit not loaded', csv: (r) => r.unit?.assetCode ?? '' },
+          { header: 'Equipment', kind: 'c-sub', cell: (r) => <span><strong>{r.unit?.name || r.unit?.type || '—'}</strong>{r.unit?.name && r.unit.type && r.unit.name !== r.unit.type && <span className="sub">{r.unit.type}</span>}</span>, csv: (r) => r.unit?.name ?? r.unit?.type ?? '' },
           { header: 'Task', kind: 'c-more', cell: (r) => <span style={{ whiteSpace: 'normal' }}><strong>{r.s.task}</strong><span className="sub">{intervalText(r.s)}</span></span>, csv: (r) => `${r.s.task}: ${intervalText(r.s)}` },
           {
             header: 'Last service', kind: 'c-more',
@@ -129,7 +145,7 @@ export default function Maintenance() {
             </span>
           </Can>
         )}
-        searchText={(r) => `${unitLabel(r.unit)} ${r.unit?.type ?? ''} ${r.s.task}`}
+        searchText={(r) => `${unitLabel(r.unit)} ${r.unit?.type ?? ''} ${projectName(r.unit)} ${r.s.task}`}
         searchPlaceholder="Search by machine, type or task…"
         exportName="core-maintenance-schedules"
       />
@@ -163,15 +179,12 @@ export default function Maintenance() {
   )
 }
 
-/** A number field: blank means not set. */
-const optionalInt = (label: string, max: number) =>
-  z.union([z.nan(), z.number().int(`${label} is a whole number.`).min(1, `${label} must be at least 1.`).max(max, `${label} is at most ${max}.`)])
 
 const schema = z.object({
   equipmentUnitId: z.string().min(1, 'Choose a machine.'),
   task: z.string().trim().min(1, 'Task is required.').max(100, 'Keep it to 100 characters.'),
-  intervalMonths: optionalInt('Months', 120),
-  intervalHours: optionalInt('Hours', 100_000),
+  intervalMonths: z.union([z.nan(), z.number().int('Months is a whole number.').min(1, 'Months must be at least 1.').max(120, 'Months is at most 120.')]).refine((n) => !Number.isNaN(n), 'Months is required.'),
+  intervalHours: z.union([z.nan(), z.number().int('Running hours is a whole number.').min(1, 'Running hours must be at least 1.').max(100_000, 'Running hours is at most 100,000.')]).refine((n) => !Number.isNaN(n), 'Running hours is required.'),
   lastServiceDate: z.string(),
   lastServiceHours: z.union([z.nan(), z.number().min(0, 'Hours cannot be negative.')]),
   notes: z.string().max(1000, 'Keep notes to 1,000 characters.'),
@@ -243,10 +256,10 @@ function ScheduleForm({ schedule, units, onSaved, onConflict, onCancel }: {
         <FormGroup label="Task" required full error={e.task?.message}>
           {(id, d) => <Input placeholder="e.g. General service, Oil change" {...a11y(id, d, e.task?.message)} {...register('task')} />}
         </FormGroup>
-        <FormGroup label="Every (months)" error={e.intervalMonths?.message} helper="For example 3 for a quarterly service.">
+        <FormGroup label="Every (months)" required error={e.intervalMonths?.message} helper="For example 3 for a quarterly service.">
           {(id, d) => <Input type="number" min={1} step={1} {...a11y(id, d, e.intervalMonths?.message)} {...register('intervalMonths', n)} />}
         </FormGroup>
-        <FormGroup label="Every (running hours)" error={e.intervalHours?.message} helper="For example 500. Whichever comes first applies.">
+        <FormGroup label="Every (running hours)" required error={e.intervalHours?.message} helper="For example 500. Whichever comes first applies.">
           {(id, d) => <Input type="number" min={1} step={1} {...a11y(id, d, e.intervalHours?.message)} {...register('intervalHours', n)} />}
         </FormGroup>
         <FormGroup label="Last serviced on">

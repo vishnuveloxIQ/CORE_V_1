@@ -23,6 +23,18 @@ const envSchema = z
       .string()
       .regex(/^postgres(ql)?:\/\//, 'must start with postgres:// or postgresql://')
       .optional(),
+    // Used only by self-service registration to create a new company's schema (it needs schema-creation rights, which
+    // the application login does not have). Optional: without it, registration is refused. Never log this value.
+    PROVISION_DATABASE_URL: z
+      .string()
+      .regex(/^postgres(ql)?:\/\//, 'must start with postgres:// or postgresql://')
+      .optional(),
+    // How long a locked account stays locked, and the length of the sign-in rate-limit window, in seconds. The default
+    // is 15 minutes (production). Set it to 5 in development to stop waiting out a lock.
+    AUTH_LOCK_SECONDS: z.coerce.number().int().min(1).max(86_400).default(900),
+    // How long a password-reset code stays usable, in minutes. The default is 5 (production). Development sets 60
+    // so a tester is not caught out by a code that expired while they were typing.
+    OTP_TTL_MINUTES: z.coerce.number().int().min(1).max(1440).default(5),
     // Signs access tokens (HS256). Never log this value. Required in production.
     JWT_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
     // WebAuthn relying party (Phase 4c). RP ID is the bare domain. Origins are comma-separated full URLs.

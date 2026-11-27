@@ -38,7 +38,7 @@ describe('sign-in history', () => {
     useAuth.setState({ user: 'admin.user', isAdmin: false, privileges: ['access.manage'], lockedUntil: 0, mustChangePassword: false })
     window.location.hash = '#/audit'
     render(<App />)
-    const tab = await screen.findByRole('button', { name: 'Sign-in history' }, { timeout: 5000 })
+    const tab = await screen.findByRole('button', { name: 'Sign-ins' }, { timeout: 5000 })
     expect(queries).toHaveLength(0)
     fireEvent.click(tab)
     expect(tab).toHaveAttribute('aria-pressed', 'true')
@@ -49,7 +49,7 @@ describe('sign-in history', () => {
     useAuth.setState({ user: 'admin.user', isAdmin: false, privileges: ['access.manage'], lockedUntil: 0, mustChangePassword: false })
     window.location.hash = '#/audit/access'
     render(<App />)
-    expect(await screen.findByRole('button', { name: 'Sign-in history' }, { timeout: 5000 })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByRole('button', { name: 'Sign-ins' }, { timeout: 5000 })).toHaveAttribute('aria-pressed', 'true')
     await screen.findByText('Showing 1–2 of 2')
     const badge = (label: string) => [...document.querySelectorAll('.status')].find((b) => b.textContent === label)
     expect(badge('Signed in')).toHaveClass('s-approved')
@@ -61,7 +61,7 @@ describe('sign-in history', () => {
     useAuth.setState({ user: 'admin.user', isAdmin: false, privileges: ['access.manage'], lockedUntil: 0, mustChangePassword: false })
     window.location.hash = '#/audit?view=sign-in'
     render(<App />)
-    expect(await screen.findByRole('button', { name: 'Sign-in history' }, { timeout: 5000 })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByRole('button', { name: 'Sign-ins' }, { timeout: 5000 })).toHaveAttribute('aria-pressed', 'true')
     await waitFor(() => expect(document.querySelector('select[name="eventType"]')).not.toBeNull())
     fireEvent.change(document.querySelector('select[name="eventType"]')!, { target: { value: 'access_denied' } })
     fireEvent.change(document.querySelector('input[name="actor"]')!, { target: { value: 'Asha' } })
@@ -73,7 +73,7 @@ describe('sign-in history', () => {
     useAuth.setState({ user: 'module.user', isAdmin: false, privileges: [], lockedUntil: 0, mustChangePassword: false })
     window.location.hash = '#/audit/access'
     render(<App />)
-    expect(await screen.findByText(/do not have access to this page/i, {}, { timeout: 5000 })).toBeInTheDocument()
+    expect(await screen.findByText(/module screens are not in this application/i, {}, { timeout: 5000 })).toBeInTheDocument()
     expect(queries).toHaveLength(0)
   })
 })

@@ -1,0 +1,3 @@
+npm notice run velox-core-backend@1.0.0 npx
+npm notice run tsc --noEmit
+exit=0

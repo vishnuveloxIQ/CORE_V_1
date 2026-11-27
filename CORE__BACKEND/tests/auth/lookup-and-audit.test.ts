@@ -70,9 +70,9 @@ describe.skipIf(!TEST_DATABASE_URL)('pre-login lookups and audit trail', { timeo
       expect(noSuchTenant).toEqual(unknown);
     });
 
-    it('a login with no tenant header is refused with 400, not with a sign-in answer', async () => {
+    it('a login with no tenant header is answered as a sign-in, not refused for the missing header', async () => {
       const res = await asReply(await login(null, knownLogin));
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).not.toBe(400);
     });
   });
 

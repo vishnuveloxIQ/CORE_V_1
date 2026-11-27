@@ -1,4 +1,4 @@
-import { zodResolver } from '@hookform/resolvers/zod'
+﻿import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useWatch } from 'react-hook-form';
 import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
@@ -75,7 +75,6 @@ export function BoqTab({ project }: { project: Project }) {
   }
 
   const unitOf = (id: string) => uoms.find((u) => u.id === id)?.code ?? '—'
-  const wbsOf = (id: string | null) => (id ? project.wbs.find((w) => w.id === id)?.code ?? '—' : '—')
   const total = boqApi.boqTotal(items)
 
   const remove = async () => {
@@ -122,11 +121,10 @@ export function BoqTab({ project }: { project: Project }) {
         ) : (
           <MiniTable
             label="Bill of Quantities items"
-            head={['Item code', 'Description', 'WBS', 'Unit', 'Quantity', 'Rate', 'Amount', 'Status', '']}
+            head={['Item code', 'Description', 'Unit', 'Quantity', 'Rate', 'Amount', 'Status', '']}
             rows={items.map((i) => [
               <code key="c">{i.itemCode}</code>,
               <strong key="d">{i.description}</strong>,
-              wbsOf(i.wbsNodeId),
               unitOf(i.uomId),
               <span key="q" className="amount">{qty.format(i.quantity)}</span>,
               <span key="r" className="amount">{rupees.format(i.rate)}</span>,
@@ -187,7 +185,6 @@ export function BoqTab({ project }: { project: Project }) {
 const boqSchema = z.object({
   itemCode: req('Item code').max(40, 'Keep it to 40 characters.'),
   description: req('Description').max(500, 'Keep it to 500 characters.'),
-  wbsNodeId: z.string(),
   uomId: z.string().min(1, 'Choose a unit.'),
   quantity: num('Quantity').max(99_999_999_999, 'The quantity is too large.'),
   rate: num('Rate').max(999_999_999_999, 'The rate is too large.'),
@@ -221,15 +218,15 @@ function BoqForm({
   } = useForm({
     resolver: zodResolver(boqSchema),
     defaultValues: item
-      ? { itemCode: item.itemCode, description: item.description, wbsNodeId: item.wbsNodeId ?? '', uomId: item.uomId, quantity: item.quantity, rate: item.rate, status: item.status }
-      : { itemCode: '', description: '', wbsNodeId: '', uomId: '', quantity: 0, rate: 0, status: 'draft' as const },
+      ? { itemCode: item.itemCode, description: item.description, uomId: item.uomId, quantity: item.quantity, rate: item.rate, status: item.status }
+      : { itemCode: '', description: '', uomId: '', quantity: 0, rate: 0, status: 'draft' as const },
   })
   const [quantity, rate] = useWatch({ control, name: ['quantity', 'rate'] })
   const preview = Number.isFinite(quantity) && Number.isFinite(rate) ? Math.round(quantity * rate * 100) / 100 : 0
 
   const submit = handleSubmit(async (v) => {
     setFormError('')
-    const draft = { ...v, wbsNodeId: v.wbsNodeId || null }
+    const draft = { ...v }
     try {
       const saved = item ? await boqApi.updateBoqItem(item.id, item.rowVersion, draft) : await boqApi.createBoqItem(project.id, draft)
       notify(item ? `BOQ item ${saved.itemCode} saved` : `BOQ item ${saved.itemCode} added`)
@@ -262,18 +259,7 @@ function BoqForm({
         <FormGroup label="Item code" required error={e.itemCode?.message}>
           {(id, d) => <Input placeholder="Enter item code, e.g. 2.01" {...a11y(id, d, e.itemCode?.message)} {...register('itemCode')} />}
         </FormGroup>
-        <FormGroup label="WBS item">
-          {(id) => (
-            <Select id={id} {...register('wbsNodeId')}>
-              <option value="">None</option>
-              {project.wbs.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.code} {n.name}
-                </option>
-              ))}
-            </Select>
-          )}
-        </FormGroup>
+
         <FormGroup label="Description" required full error={e.description?.message}>
           {(id, d) => <Input {...a11y(id, d, e.description?.message)} {...register('description')} />}
         </FormGroup>

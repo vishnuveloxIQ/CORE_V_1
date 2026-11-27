@@ -1,6 +1,6 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { useState } from 'react'
-import { Link, matchPath, useLocation, useMatch } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { navFor, type NavItem as Item } from '../config/nav'
 import { useAuth } from '@/modules/auth'
 import { useIsMobile } from '@/shared/hooks/useMedia'
@@ -31,11 +31,14 @@ export function Sidebar({ drawerOpen, onCloseDrawer }: Props) {
   // re-render when the lists behind the nav badges change (they load from the API)
   useCore((s) => s.requests)
   useCore((s) => s.grievances)
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   // pages the user's privileges cannot open are left out of the menu
   const privileges = useAuth((s) => s.privileges)
   const NAV = navFor(privileges)
-  const activeGroup = NAV.find((g) => g.items.some((i) => matchPath({ path: i.to, end: false }, pathname)))?.label ?? null
+  // only the most specific entry is highlighted, so /approvals does not stay lit on /approvals/petty-cash
+  const activeTo = bestNavMatch(NAV.flatMap((g) => g.items), pathname, search)
+  // the group of the highlighted entry opens by itself (so the petty cash page opens its own group, not Projects)
+  const activeGroup = NAV.find((g) => g.items.some((i) => i.to === activeTo))?.label ?? null
   // Groups start closed; the group of the current page opens by itself, and a click opens or closes one.
   const [picked, setPicked] = useState<{ path: string; label: string | null }>({ path: pathname, label: activeGroup })
   const openLabel = picked.path === pathname ? picked.label : activeGroup
@@ -60,7 +63,7 @@ export function Sidebar({ drawerOpen, onCloseDrawer }: Props) {
                     <span>{g.label}</span><Icon name={open ? 'chevD' : 'chevR'} />
                   </button>
                 </div>
-                {open && g.items.map((item) => <NavLinkItem key={item.to} item={item} rail={rail} onNavigate={() => { if (mobile) onCloseDrawer() }} />)}
+                {open && g.items.map((item) => <NavLinkItem key={item.to} item={item} active={item.to === activeTo} rail={rail} onNavigate={() => { if (mobile) onCloseDrawer() }} />)}
               </div>
               )
             })}
@@ -75,9 +78,7 @@ export function Sidebar({ drawerOpen, onCloseDrawer }: Props) {
   )
 }
 
-function NavLinkItem({ item, rail, onNavigate }: { item: Item; rail: boolean; onNavigate: () => void }) {
-  // stays highlighted on detail pages below it, e.g. /projects/P-101
-  const active = !!useMatch({ path: item.to, end: false })
+function NavLinkItem({ item, active, rail, onNavigate }: { item: Item; active: boolean; rail: boolean; onNavigate: () => void }) {
   const link = (
     <Link to={item.to} className={cn('nav-item', active && 'active', !!item.badge && 'has-count')} aria-current={active ? 'page' : undefined}
       aria-label={rail ? (item.badge ? `${item.label}, ${item.badge}` : item.label) : undefined} onClick={onNavigate}>
@@ -95,4 +96,24 @@ function NavLinkItem({ item, rail, onNavigate }: { item: Item; rail: boolean; on
       </Tooltip.Portal>
     </Tooltip.Root>
   )
+}
+
+/** The entry that best matches the page: the longest path, and a query (e.g. ?tab=reports) must match too. */
+function bestNavMatch(items: Item[], pathname: string, search: string): string | null {
+  const wanted = new URLSearchParams(search)
+  let best: { to: string; score: number } | null = null
+  for (const item of items) {
+    const [path, query] = item.to.split('?')
+    if (!(pathname === path || pathname.startsWith(`${path}/`))) continue
+    let score = path.length
+    if (query) {
+      const tab = new URLSearchParams(query).get('tab')
+      // a missing tab means the first tab, pending
+      const current = wanted.get('tab') ?? 'pending'
+      if (tab !== current) continue
+      score += 1000
+    }
+    if (!best || score > best.score) best = { to: item.to, score }
+  }
+  return best?.to ?? null
 }

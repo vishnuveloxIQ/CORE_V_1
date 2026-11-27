@@ -4,7 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCore } from '@/modules/core-data'
 import * as seed from '@/modules/core-data/data/seed'
 import CompanyProfile from '@/modules/company/pages/CompanyProfile'
-import { gstinCheckChar, suggestGstin } from '@/modules/company/utils/taxIds'
+import { gstinCheckChar, suggestGstin, taxIdErrors, taxIdWarnings } from '@/modules/company/utils/taxIds'
+
+// the page reads the signed-in administrator's details from /auth/me; the test gives it an administrator
+vi.mock('@/shared/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/lib/api')>()),
+  api: vi.fn(async (_method: string, path: string) =>
+    path === '/auth/me' ? { user: { name: 'Test Admin', email: 'admin@example.test', phone: '9999999999' } } : [],
+  ),
+}))
 
 // Company profile form: the GSTIN is pre-filled from the PAN and state, GSTIN, CIN and TAN are typed in, and a GSTIN
 // that cannot belong to the PAN blocks the save. Example data is fictional.
@@ -35,7 +43,6 @@ describe('company profile tax numbers', () => {
   it('fills an empty GSTIN from the PAN and state, follows a PAN change, and the three numbers can be typed in', async () => {
     await openForm()
     await waitFor(() => expect(input('gstin').value).toBe('36AAHCV1234K1Z8'))
-    expect(screen.getByText(/Filled in from the PAN and the state/)).toBeInTheDocument()
     for (const name of ['gstin', 'cin', 'tan']) expect(input(name).readOnly).toBe(false)
 
     type('pan', 'AAHCV5678K')
@@ -65,10 +72,10 @@ describe('company profile tax numbers', () => {
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1))
   })
 
-  it('warns, without blocking, when the PAN is not a company PAN', async () => {
-    useCore.setState({ company: { ...seed.COMPANY } })
-    await openForm()
-    type('pan', 'AAHFV1234K')
-    expect(await screen.findByText(/a firm or LLP, not a company/)).toBeInTheDocument()
+  // the form no longer shows this warning, so the rule itself is checked: it is a warning, not an error
+  it('warns, without blocking, when the PAN is not a company PAN', () => {
+    const warnings = taxIdWarnings({ legalName: 'Test Works Pvt Ltd', pan: 'AAHFV1234K', gstin: '', cin: '', tan: '', state: 'Telangana' })
+    expect(warnings.pan).toMatch(/a firm or LLP, not a company/)
+    expect(taxIdErrors({ legalName: 'Test Works Pvt Ltd', pan: 'AAHFV1234K', gstin: '', cin: '', tan: '', state: 'Telangana' })).toEqual({})
   })
 })

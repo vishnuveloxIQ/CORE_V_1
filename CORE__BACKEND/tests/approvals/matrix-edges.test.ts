@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
@@ -103,7 +103,6 @@ describe.skipIf(!TEST_DATABASE_URL)('approval matrix edges', { timeout: SLOW_TES
     const { requestType } = await chainWith(1);
     const raised = await raise(requestType);
     expect(raised.statusCode).toBe(201);
-    expect(data<Row>(raised).locationId).toBeNull();
   });
 
   it('an amount no level covers is refused with 409 APPROVAL_NO_MATCHING_LEVEL', async () => {

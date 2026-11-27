@@ -29,6 +29,16 @@ export function tenantId(): string | null {
   }
 }
 
+/** Forgets the company for this tab, so a sign-in finds the company from the login ID itself. */
+export function clearTenantId(): void {
+  chosenTenant = null
+  try {
+    sessionStorage.removeItem(TENANT_KEY)
+  } catch {
+    /* blocked storage: nothing to clear */
+  }
+}
+
 /** Sets the company for this tab. */
 export function setTenantId(id: string): void {
   chosenTenant = id
@@ -40,7 +50,7 @@ export function setTenantId(id: string): void {
 }
 
 /** Routes that run before anyone is signed in. The server needs the company from the header to find the login. */
-const PRE_LOGIN_ROUTE = /^\/auth\/(login|refresh|password-reset\/|passkeys\/login\/)/
+const PRE_LOGIN_ROUTE = /^\/auth\/(refresh|password-reset\/)/
 
 const REFRESH_KEY = 'veloxiq-core-refresh:v1'
 

@@ -178,7 +178,7 @@ export default function Organogram() {
         actions={
           <>
             <Button icon="download" onClick={() => void exportCsv()}>
-              Export
+              Download
             </Button>
             <Button icon="role" onClick={() => navigate("/users")}>
               Users and roles

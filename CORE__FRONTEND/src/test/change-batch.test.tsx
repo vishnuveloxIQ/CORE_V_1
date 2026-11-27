@@ -43,8 +43,8 @@ describe('maintenance: when a service is next due', () => {
 
 describe('where an employee works', () => {
   const projects = [
-    { ...seed.PROJECTS[0]!, id: 'p1', code: 'NH-44', name: 'Highway', locationIds: [] },
-    { ...seed.PROJECTS[0]!, id: 'p2', code: 'BR-02', name: 'Bridge', locationIds: [] },
+    { ...seed.PROJECTS[0]!, id: 'p1', code: 'NH-44', name: 'Highway' },
+    { ...seed.PROJECTS[0]!, id: 'p2', code: 'BR-02', name: 'Bridge' },
   ]
   const sites = [
     { ...seed.SITES[0]!, id: 's1', code: 'CAMP-A', name: 'Camp A', projectId: 'p1' },
@@ -90,8 +90,8 @@ describe('screens', () => {
         { ...seed.MATERIALS[0]!, id: 'm2', code: 'STL', name: 'Steel', uom: 'MT' },
       ],
       stores: [
-        { ...seed.STORES[0]!, id: 'st1', name: 'Main store', locationId: 's1' },
-        { ...seed.STORES[0]!, id: 'st2', name: 'Camp store', locationId: 's2' },
+        { ...seed.STORES[0]!, id: 'st1', name: 'Main store', projectId: 'p1', location: 'Camp A' },
+        { ...seed.STORES[0]!, id: 'st2', name: 'Camp store', projectId: 'p2' },
       ],
       sites: [{ ...seed.SITES[0]!, id: 's1', name: 'Camp A' }, { ...seed.SITES[0]!, id: 's2', name: 'Camp B' }],
       stock: [

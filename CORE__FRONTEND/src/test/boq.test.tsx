@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuth } from '@/modules/auth'
 import { useCore, type BoqItem, type Project } from '@/modules/core-data'
@@ -12,12 +12,10 @@ const reply = (status: number, body: unknown) =>
 
 const PROJECT = '11111111-1111-4111-8111-111111111111'
 const UOM = '00000000-0000-4000-8000-000000000010'
-const WBS = '33333333-3333-4333-8333-333333333333'
 
-const project: Project = { ...seed.PROJECTS[0]!, id: PROJECT, rowVersion: 1, wbs: [{ id: WBS, code: '1', name: 'Earthwork', parentId: null, rowVersion: 1 }] }
+const project: Project = { ...seed.PROJECTS[0]!, id: PROJECT, rowVersion: 1 }
 const item = (over: Partial<BoqItem>): BoqItem => ({
-  id: '44444444-4444-4444-8444-444444444444', projectId: PROJECT, itemCode: '1.01', description: 'Excavation in ordinary soil',
-  wbsNodeId: WBS, uomId: UOM, quantity: 12.5, rate: 340.25, amount: 4253.13, status: 'draft', rowVersion: 1, ...over,
+  id: '44444444-4444-4444-8444-444444444444', projectId: PROJECT, itemCode: '1.01', description: 'Excavation in ordinary soil', uomId: UOM, quantity: 12.5, rate: 340.25, amount: 4253.13, status: 'draft', rowVersion: 1, ...over,
 })
 
 const type = (name: string, value: string) => {
@@ -39,8 +37,8 @@ describe('Bill of Quantities tab', () => {
     vi.unstubAllGlobals()
   })
 
-  it('lists the items with their unit, WBS code and the server amounts, and totals them', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => reply(200, { data: [item({}), item({ id: '55555555-5555-4555-8555-555555555555', itemCode: '1.02', description: 'Disposal of surplus earth', amount: 1000.5, wbsNodeId: null })] })))
+  it('lists the items with their unit and the server amounts, and totals them', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => reply(200, { data: [item({}), item({ id: '55555555-5555-4555-8555-555555555555', itemCode: '1.02', description: 'Disposal of surplus earth', amount: 1000.5 })] })))
     render(<BoqTab project={project} />)
     expect(await screen.findByText('Excavation in ordinary soil')).toBeInTheDocument()
     expect(screen.getByText(/2 items, total ₹5,253\.63/)).toBeInTheDocument()
@@ -54,7 +52,7 @@ describe('Bill of Quantities tab', () => {
       if (init.method === 'POST') {
         const body = JSON.parse(String(init.body)) as Record<string, unknown>
         posts.push(body)
-        return reply(201, { data: item({ itemCode: '2.01', description: 'Granular sub-base', quantity: 40, rate: 1250, amount: 50000, wbsNodeId: null }) })
+        return reply(201, { data: item({ itemCode: '2.01', description: 'Granular sub-base', quantity: 40, rate: 1250, amount: 50000 }) })
       }
       expect(url).toContain(`/boq-items?projectId=${PROJECT}`)
       return reply(200, { data: [] })
@@ -70,7 +68,7 @@ describe('Bill of Quantities tab', () => {
     fireEvent.click(screen.getByRole('button', { name: /^add item$/i }))
 
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0]).toEqual({ projectId: PROJECT, itemCode: '2.01', description: 'Granular sub-base', wbsNodeId: null, uomId: UOM, quantity: 40, rate: 1250, status: 'draft' })
+    expect(posts[0]).toEqual({ projectId: PROJECT, itemCode: '2.01', description: 'Granular sub-base', uomId: UOM, quantity: 40, rate: 1250, status: 'draft' })
     expect(await screen.findByText('Granular sub-base')).toBeInTheDocument()
   })
 

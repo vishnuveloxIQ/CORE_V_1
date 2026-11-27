@@ -34,21 +34,20 @@ export default function Home() {
   }, []);
   if (user) return <Navigate to="/dashboard" replace />;
   return (
-    <div className="pub-page shell-classic">
+    <div className="pub-page pub-home shell-classic">
       <PublicNav />
       <main className="pub-main">
         <section className="pub-hero">
           <div className="pub-copy">
-            <h1>Run your construction business from one place</h1>
+            <h1>Driving Growth. <br />Streamlining Projects. <br /> Connecting Teams.</h1>
             <p>
-              VeloxIQ centralizes projects, staff coordination, and policy
-              frameworks to ensures that every location and team remains fully
-              synchronized.
+              VeloxIQ centralizes project management, workforce coordination, and organizational governance within one intelligent platform(VELOXIQ), ensuring seamless connectivity, operational transparency, and consistent execution across every project and team.
             </p>
             <div className="pub-cta">
               <Link to="/register" className="btn primary">
                 Register
               </Link>
+              <br /> <br />
               <Link to="/login" className="btn secondary">
                 Login
               </Link>

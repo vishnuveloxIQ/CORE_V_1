@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/shared/ui/Button'
 import { Card } from '@/shared/ui/Card'
-import { Note } from '@/shared/ui/Extras'
+import { FirstVersion, Note } from '@/shared/ui/Extras'
 import type { PolicyData, PolicyKey } from '@/modules/core-data'
 import { useCore } from '@/modules/core-data'
 import { errorText } from '@/shared/lib/api'
@@ -48,12 +48,14 @@ export function PolicySetup({ policyKey }: { policyKey: PolicyKey }) {
           <Button size="sm" onClick={() => navigate('/company')}>Set up the company profile</Button>
         </Note>
       )}
-      {policyKey === 'shifts' && <ShiftsEditor base={base('shifts')} onSave={save('shifts')} />}
-      {policyKey === 'holidays' && <HolidaysEditor base={base('holidays')} onSave={save('holidays')} />}
-      {policyKey === 'overtime' && <OvertimeEditor base={base('overtime')} onSave={save('overtime')} />}
-      {policyKey === 'leave' && <LeaveEditor base={base('leave')} onSave={save('leave')} />}
-      {policyKey === 'payment-threshold' && <PaymentThresholdEditor base={base('payment-threshold')} onSave={save('payment-threshold')} />}
-      {policyKey === 'rules' && <RulesEditor base={base('rules')} onSave={save('rules')} />}
+      <FirstVersion>
+        {policyKey === 'shifts' && <ShiftsEditor base={base('shifts')} onSave={save('shifts')} />}
+        {policyKey === 'holidays' && <HolidaysEditor base={base('holidays')} onSave={save('holidays')} />}
+        {policyKey === 'overtime' && <OvertimeEditor base={base('overtime')} onSave={save('overtime')} />}
+        {policyKey === 'leave' && <LeaveEditor base={base('leave')} onSave={save('leave')} />}
+        {policyKey === 'payment-threshold' && <PaymentThresholdEditor base={base('payment-threshold')} onSave={save('payment-threshold')} />}
+        {policyKey === 'rules' && <RulesEditor base={base('rules')} onSave={save('rules')} />}
+      </FirstVersion>
     </Card>
   )
 }

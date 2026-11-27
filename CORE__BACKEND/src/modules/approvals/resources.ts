@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+﻿import type { PoolClient } from 'pg';
 import { AppError } from '../../core/errors.js';
 import { one } from '../../core/rows.js';
 import {
@@ -159,7 +159,6 @@ export const requestSpec: ResourceSpec = {
     field('status', 'text'),
     field('emergency', 'bool'),
     field('neededBy', 'date'),
-    field('locationId', 'uuid'),
     field('chainageMarkerId', 'uuid'),
     field('sourceRecordId', 'uuid'),
     field('raisedById', 'uuid'),
@@ -175,8 +174,7 @@ export const requestSpec: ResourceSpec = {
     field('currentLevel', 'int'),
     field('assignedActorId', 'uuid'),
     field('decidedAt', 'ts'),
-    // Job openings only (0025): where and when the approved opening was published.
-    field('publishedLocationId', 'uuid'),
+    // Job openings only (0025): when the approved opening was published.
     field('publishedAt', 'ts'),
   ],
   create: raiseBody,

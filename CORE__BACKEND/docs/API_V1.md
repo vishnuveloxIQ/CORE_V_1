@@ -1,8 +1,8 @@
 # API v1: locked contract
 
-Locked on 2026-11-21 at version 1.0.0, covering the scope that exists today. Current version: **1.10.0** (see the changelog below).
+Locked on 2026-11-21 at version 1.0.0, covering the scope that exists today. Current version: **1.23.0** (see the changelog below).
 
-- **Contract:** `docs/api/openapi-v1.json`, 279 operations. 10 are public; every other operation needs a bearer token.
+- **Contract:** `docs/api/openapi-v1.json`, 282 operations. 10 are public; every other operation needs a bearer token.
 - **SHA-256 of the snapshot:** 1.0.0 `74db7f9a16115bba32b1b14efdd68bdad976a19e00751722ebf10d55f906129f`; 1.1.0 `b61b613b9b0c6663f0c34470d39d17f570863a58c3454d8352030fb4a501891c`; 1.2.0 `2cfce5b5ef8d34dfa1737d8764fd4b79ab722a20074e1e534e78b9b347d867e9`; 1.3.0 `2bd0dad04d96d1aec08821819a5c2026ef6c07b67f64291fb4b9388ef52963fb`; 1.4.0 `e0a7e20f6d079955f4a37a07e233ab8e3ca08a3b827a77f026154200e562ee8a`; 1.5.0 `f3291c2ba96661f9a3858d194039299afea24e2fc732b8dab17821774b6360b0`; 1.6.0 `61ab4dbe43647be6b35f987f3422c06b8eeb06be23c105194d89c42405e7e35d`; 1.7.0 `65f405e8dff07bcc84da01577a53ffc8340750d85b70b3653964574b36db1f15`; 1.8.0 `076d52104b09255f1f1ccb57590379883f53548ee9cf4b1e421ff4474d438d5f`; 1.9.0 `cda1a3a93f5c47f559fa67aa82f19672c30cc877dc1799f7c8402b4a01b7ca66`; 1.10.0 `b52b3772d0c425091bf56144fb5a03eb403295c8cdc48992f1031cdafd0419e2`
 - **Guard:** `tests/regression/api-v1-lock.test.ts`, run by `npm run test:regression:api` and `npm run test:regression`.
 
@@ -12,16 +12,16 @@ The lock covers each operation's method and path, parameters, request body schem
 
 | Area | Operations |
 |---|---|
-| Identity: `auth`, `users`, `access`, `audit-log` | 33 |
+| Identity: `auth`, `users`, `access`, `audit-log` | 35 |
 | Projects and locations: `projects`, `locations`, `stores`, `wbs-nodes`, `chainage-markers`, `geo-zones`, `milestones`, `boq-items` | 37 |
-| Master data: `vendors`, `materials`, `equipment-types`, `equipment-units`, `equipment-assignments`, `major-material-allocations`, `plan-lines`, `stock-levels`, `uoms`, `maintenance-schedules` | 41 |
+| Master data: `vendors`, `materials`, `equipment-types`, `equipment-units`, `equipment-assignments`, `major-material-allocations`, `plan-lines`, `stock-levels`, `uoms`, `maintenance-schedules` | 42 |
 | Organisation: company profile, holidays, shifts, number series, departments, positions; `offer-letter` | 28 |
 | Policies: `policies`, `policy-versions`, `policy-rules`, `leave-*`, `ot-*`, `custom-policy*`, `cash-limit-rows` (and `pms-limit-rows`) | 68 |
 | Approvals: `approval-chains`, `approval-requests`, `matrix-versions`, `matrix-levels` | 22 |
 | Records: `files`, `grievances`, `tickets`, `notifications`, `document-templates`, `import-batches`, `import-rows`, `record-timeline`, `usage-counters` | 38 |
 | Platform: `health`, `openapi.json`, `offline-operations`, `search` | 5 |
 | Integration: `integration-events`, `ref-records` | 7 |
-| **Total** | **279** |
+| **Total** | **282** |
 
 The snapshot file is the authority. This table is a summary of it by area.
 
@@ -50,6 +50,90 @@ npm run api:snapshot
 This builds the app with the database pool from `.env`, so every module route registers, and writes `docs/api/openapi-v1.json` with sorted keys, so the file diffs cleanly. Then run `npm run test:regression:api`.
 
 ## Changelog
+
+### 1.23.0 (2026-11-27)
+
+Compared with 1.22.0: nothing removed or changed; additions only (migration 0078).
+
+- **Added, approved people:** `GET /approved-people` (filters `projectId`, `status`), `GET /approved-people/{id}`, `POST`, `PATCH` and `DELETE`. Reads need a signed-in user; writes need `organisation.manage`. A person has a project, department, name, designation, joining date, a status (`Approved`, `With HRMS`, `Onboarded`), and an optional reason and `reasonRequestedAt`. A person is added as `Approved` and only moves forward one step with `PATCH status`.
+- **Added, billing (read-only):** `GET /subscriptions` (the tenant's subscription), `GET /invoices` and `GET /billing-plans`, each with `GET /{id}`. Any signed-in user can read. There are no writes.
+
+### 1.22.0 (2026-11-27)
+
+Compared with 1.21.0: nothing removed or changed; additions only.
+
+- **Added, hire status of an equipment unit:** an optional `hireStatus` (`Active` or `Inactive`) on `POST` and `PATCH /equipment-units`, and in every unit read. It says whether a hired unit is still on hire. The registration sets `Active`; the status is changed afterwards with `PATCH` (migration 0077).
+
+### 1.21.0 (2026-11-27)
+
+Compared with 1.20.0: nothing removed or changed; additions only.
+
+- **Added, quotation approval (approvals.manage to write):** `GET /quotations` (filter `status`), `GET /quotations/{id}`, `POST /quotations` and `PATCH /quotations/{id}`. A quotation is a vendor's supply quotation (reference, `vendorName`, `buyerName`, optional `projectName`, `destination`, `quotationDate`, `validUntil`, `paymentTerms`, `amount` and the full quotation `document`: parties, goods with HSN codes, charges, tax, terms and bank details) and is sent for approval and starts `PENDING`. `PATCH` records the decision once: `status` `APPROVED` (with an optional `reason`, kept as the approval note), or `REJECTED` with a required `reason`. A decided quotation cannot change again. There is no `DELETE` (migration 0075).
+
+### 1.20.0 (2026-11-27)
+
+Compared with 1.19.0: nothing removed; additions only.
+
+- **Added, optional:** `storeIds` on `materials` (create and patch; the list of stores the material is available in, replaced when sent) and on the read of a material. Stored in `core_material_store`. A store that does not exist is refused with 400.
+
+### 1.19.0 (2026-11-26)
+
+Compared with 1.18.0: nothing removed or changed; additions only.
+
+- **Added, workforce adverts (projects.manage to write):** `/workforce-adverts` (drafts, publish and close by status), `/workforce-advert-requirements` (worker lines, draft only), `/advert-mail` (read-only: the messages queued for registered sub-contractors on publish), `/contractor-interests` (a sub-contractor's response, with status and reason) and `/interest-steps` (discussion steps).
+
+### 1.18.0 (2026-11-26)
+
+Compared with 1.17.0: nothing removed or changed; additions only.
+
+- **Added, optional:** `status` on `sub-contractors` (`active` or `inactive`; new registrations are `active`). Filter and read on the same routes.
+
+### 1.17.0 (2026-11-26)
+
+Compared with 1.16.0: nothing removed or changed; additions only.
+
+- **Added, project management (projects.manage to write):** `GET`, `POST`, `PATCH` and `DELETE` on `/sub-contractors`: the sub-contract details of a project's sub-contractor (firm, owner, contact, GST and PAN, work order date and title, scope and conditions) and the agreement / work order document (`agreementFileId`, a PDF or Word file uploaded through `/files`). Filter `projectId`.
+
+### 1.16.0 (2026-11-26)
+
+Compared with 1.15.0: nothing removed; additions only.
+
+- **Added, optional:** `overPlanReason` on `equipment-units` (create, update and read): why the unit was assigned to a project beyond the units its equipment planning allows. Cleared when the unit leaves the project.
+
+### 1.15.0 (2026-11-26)
+
+Compared with 1.14.0: nothing removed; additions only.
+
+- **Added, optional:** `approvalRequestId` (the approved equipment request a hired unit is registered against) and `hiredFrom` (who hired it: `HO hiring`, or `Site hiring` when the P&M head registered it) on `equipment-units` (create, update and read).
+
+### 1.14.0 (2026-11-26)
+
+Compared with 1.13.0: nothing removed or changed; additions only.
+
+- **Added, policies (policies.manage to write):** `GET`, `POST`, `PATCH` and `DELETE` on `/equipment-rates` and `/material-rates`: the rate rows of the Fleet and Equipment and the Material management policies, per project (`projectId`), with the policy version they came from (`policyVersionId`). Filters `projectId` and `policyVersionId`.
+- **Added, optional:** `projectId` on `policy-versions` (create, read and filter). A version with no project is the company-wide default; a version with a project applies to that project only.
+
+### 1.13.0 (2026-11-25)
+
+Compared with 1.12.0: nothing removed; `role` still works as before; additions only.
+
+- **Added (access.manage):** `roles` on `POST /users` and `PATCH /users/:id`: a list of `module_head` and `approver`, one or both. A user may now be both a module head (with modules) and an approver (placed on levels). When `roles` is sent it wins over `role`; when neither is sent the user is an approver. Responses carry `roles` next to `role`. `role` is the primary role: `module_head` when the user holds it, else `approver`.
+- **Changed rule:** an approver may now head modules when `module_head` is in `roles`; a user without `module_head` may not head modules (the old "an approver heads no modules" rule is replaced by this one). Migration 0047 adds `core_user.user_roles` and backfills it from `user_role`.
+
+### 1.12.0 (2026-11-25)
+
+Compared with 1.11.0: nothing removed or changed; one operation added.
+
+- **Added (masters.manage):** `POST /uoms` creates a unit of measure with `code` (up to 20 characters) and `name` (up to 60), for a material whose unit is not on the list. Answers 201 with the unit, 409 when the code exists (compared without regard to case), 400 for a bad code. The unit is added to the company's shared unit list (`shared.uom`), which the application role may now insert into, and nothing else in it (migration 0045).
+
+### 1.11.0 (2026-11-25)
+
+Compared with 1.10.0: nothing removed; two operations added; the company header on sign-in is now optional; one response field added.
+
+- **Added, public (no sign-in):** `POST /auth/register/otp` sends a six-digit code to an email address or a mobile number (`channel` `email` or `mobile`, `target`). Development only: outside production the answer includes `developmentCode` so the registration page can show it; production answers 503 until a delivery provider is chosen (decision D10). At most five codes per address or number in 15 minutes.
+- **Added, public:** `POST /auth/register` creates a company: its own tenant, its first administrator (login ID with a 3 to 6 letter prefix and 4 digits, for example ACME1234, holding `access.manage`), and its company profile. It needs the company name, email, mobile, both codes, the login ID and a password of at least 12 characters. Answers 201 with `{ tenantId, loginId }`. Answers 409 when the prefix is already taken, 400 when a code is wrong or expired. Requires the server to have a provisioning connection (`PROVISION_DATABASE_URL`), otherwise 503.
+- **Changed, additive:** `POST /auth/login`, `POST /auth/passkeys/login/options` and `POST /auth/passkeys/login/verify` no longer need the `X-Tenant-Id` header. Without it, the company is found from the login ID's prefix (the company directory, migration 0043, with 0044 for the Acme prefixes). With it, behaviour is unchanged.
+- **Added to the response:** `tenantId` on `POST /auth/login` and `POST /auth/passkeys/login/verify`, the company the session belongs to.
 
 ### 1.10.0 (2026-11-24)
 

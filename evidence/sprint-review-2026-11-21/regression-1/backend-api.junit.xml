@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="9" failures="0" errors="0" time="9.8648927">
+    <testsuite name="tests/hardening/openapi.test.ts" timestamp="2026-11-21T14:53:03.083Z" hostname="Vishnu" tests="5" failures="0" errors="0" skipped="0" time="4.9433845">
+        <testcase classname="tests/hardening/openapi.test.ts" name="path and operation helpers (hardening) &gt; turns Fastify parameters into OpenAPI parameters" time="0.0020646">
+        </testcase>
+        <testcase classname="tests/hardening/openapi.test.ts" name="path and operation helpers (hardening) &gt; marks public operations without a security requirement and protected ones with bearerAuth" time="0.001287">
+        </testcase>
+        <testcase classname="tests/hardening/openapi.test.ts" name="GET /openapi.json without a database (hardening) &gt; lists the routes the app registers and the version from package.json" time="0.0197267">
+        </testcase>
+        <testcase classname="tests/hardening/openapi.test.ts" name="GET /openapi.json without a database (hardening) &gt; gives every operation an operationId and the standard responses" time="0.0013281">
+        </testcase>
+        <testcase classname="tests/hardening/openapi.test.ts" name="GET /openapi.json with the modules registered (hardening) &gt; documents the protected module routes with bearerAuth and the auth routes as public" time="0.0280592">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/regression/api-v1-lock.test.ts" timestamp="2026-11-21T14:53:03.087Z" hostname="Vishnu" tests="4" failures="0" errors="0" skipped="0" time="4.9215082">
+        <testcase classname="tests/regression/api-v1-lock.test.ts" name="API v1 contract is locked &gt; the locked snapshot is a v1 document with the whole API in it" time="0.0035797">
+        </testcase>
+        <testcase classname="tests/regression/api-v1-lock.test.ts" name="API v1 contract is locked &gt; ignores wording but sees a changed parameter (self-check of the comparison)" time="0.0020778">
+        </testcase>
+        <testcase classname="tests/regression/api-v1-lock.test.ts" name="API v1 contract matches the code &gt; keeps the major version at 1" time="0.0004045">
+        </testcase>
+        <testcase classname="tests/regression/api-v1-lock.test.ts" name="API v1 contract matches the code &gt; removes, changes and adds no operation compared with the locked v1 contract" time="0.0083868">
+        </testcase>
+    </testsuite>
+</testsuites>

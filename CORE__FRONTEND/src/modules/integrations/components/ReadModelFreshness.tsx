@@ -28,7 +28,7 @@ export function ReadModelFreshness() {
       {failed
         ? ' The sync status could not be read, so figures from other modules may be out of date.'
         : latest.size === 0
-          ? ' No records have reached Core from HRMS, P&M, PMS or Stores yet.'
+          ? ' No records have reached Core from HRMS, P&M, PCM or Stores yet.'
           : <> Core's copies were last updated: {[...latest].map(([m, at], i) => (
               <span key={m}>{i ? '; ' : ' '}{integrationApi.MODULE_LABEL[m] ?? m} <span title={fmtDateTime(at)}>{ago(at)}</span></span>
             ))}. The threshold for calling them stale is not set yet.</>}

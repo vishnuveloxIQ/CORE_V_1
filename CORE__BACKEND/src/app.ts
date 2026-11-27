@@ -9,7 +9,13 @@ import { loggerRedactPaths, REDACTED } from './core/redaction.js';
 import { registerAccessRoutes } from './modules/access/routes.js';
 import { registerAuditLogRoutes } from './modules/audit-log/routes.js';
 import { registerBoqRoutes } from './modules/boq/routes.js';
+import { registerSubContractorRoutes } from './modules/sub-contractors/routes.js';
+import { registerQuotationRoutes } from './modules/quotations/routes.js';
+import { registerApprovedPeopleRoutes } from './modules/approved-people/routes.js';
+import { registerBillingRoutes } from './modules/billing/routes.js';
+import { registerWorkforceAdvertRoutes } from './modules/workforce-adverts/routes.js';
 import { registerEquipmentUnitRoutes } from './modules/equipment-units/routes.js';
+import { registerRateRoutes } from './modules/rates/routes.js';
 import { registerMaintenanceRoutes } from './modules/maintenance/routes.js';
 import { registerIntegrationRoutes } from './modules/integration/routes.js';
 import { registerSearchRoutes } from './modules/search/routes.js';
@@ -17,6 +23,7 @@ import { registerOfferLetterRoutes } from './modules/offer-letter/routes.js';
 import { webauthnConfigFrom } from './modules/auth/passkey.js';
 import { createSampleOtpDelivery, type OtpDelivery } from './modules/auth/password-reset.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
+import { registerRegistrationRoutes } from './modules/registration/routes.js';
 import { signingKeyFrom } from './modules/auth/tokens.js';
 import { registerMastersRoutes } from './modules/masters/routes.js';
 import { registerApprovalsRoutes } from './modules/approvals/routes.js';
@@ -41,6 +48,8 @@ export interface BuildAppOptions {
   logStream?: { write(line: string): void };
   /** Enables the auth routes. Without a pool the app has no login and no database access. */
   pool?: Pool | undefined;
+  /** Creates a new company's schema for self-service registration (PROVISION_DATABASE_URL). Optional. */
+  provisionPool?: Pool | undefined;
   /** Sends password reset codes. Without it, the sample code is used outside production; otherwise reset answers 503. */
   otpDelivery?: OtpDelivery | undefined;
   /** Overrides the global per-IP limit. Tests use it to make the limit reachable. */
@@ -53,6 +62,7 @@ export function buildApp({
   readinessChecks = [],
   logStream,
   pool,
+  provisionPool,
   otpDelivery,
   globalRateLimit,
 }: BuildAppOptions): CoreApp {
@@ -93,17 +103,26 @@ export function buildApp({
       otpDelivery: delivery,
       webauthn: webauthnConfigFrom(env),
       deviceLimit: env.SESSION_DEVICE_LIMIT,
+      lockSeconds: env.AUTH_LOCK_SECONDS,
+      otpTtlMs: env.OTP_TTL_MINUTES * 60 * 1000,
     });
+    registerRegistrationRoutes(app, { pool, provisionPool, environment: env.NODE_ENV });
     registerAccessRoutes(app, { pool, signingKey });
     registerOrganisationRoutes(app, { pool, signingKey });
     registerProjectsRoutes(app, { pool, signingKey });
     registerBoqRoutes(app, { pool, signingKey });
+    registerSubContractorRoutes(app, { pool, signingKey });
+    registerQuotationRoutes(app, { pool, signingKey });
+    registerApprovedPeopleRoutes(app, { pool, signingKey });
+    registerBillingRoutes(app, { pool, signingKey });
+    registerWorkforceAdvertRoutes(app, { pool, signingKey });
     registerMastersRoutes(app, { pool, signingKey });
     registerPoliciesRoutes(app, { pool, signingKey });
     registerApprovalsRoutes(app, { pool, signingKey });
     registerRecordsRoutes(app, { pool, signingKey });
     registerAuditLogRoutes(app, { pool, signingKey });
     registerEquipmentUnitRoutes(app, { pool, signingKey });
+    registerRateRoutes(app, { pool, signingKey });
     registerMaintenanceRoutes(app, { pool, signingKey });
     registerIntegrationRoutes(app, { pool, signingKey });
     registerSearchRoutes(app, { pool, signingKey });

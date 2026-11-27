@@ -16,7 +16,7 @@ export type PlanStatus = 'draft' | 'approved' | 'cancelled'
 /** Progress of a line: people planned/confirmed/fulfilled, material planned/requested/ordered/received, equipment planned. */
 export type PlanStage = 'planned' | 'confirmed' | 'fulfilled' | 'requested' | 'ordered' | 'received'
 export interface PlanLineRecord {
-  id: string; projectId: string; resourceKind: PlanKind; equipmentTypeId: string | null; positionId: string | null; role: string | null
+  id: string; projectId: string; resourceKind: PlanKind; equipmentTypeId: string | null; positionId: string | null; role: string | null; department?: string | null
   materialId: string | null; uomId: string | null; storeId: string | null; quantity: number | null; withdrawn: boolean
   fromDate: string | null; toDate: string | null; requiredBy: string | null; status: PlanStatus; reason: string | null; rowVersion: number
   /** equipment lines: the capacity or size and the model needed, as text (API 1.9.0) */
@@ -64,11 +64,11 @@ export const planLineBody = (l: Omit<PlanLine, 'id' | 'rowVersion'>, types: Equi
 
 // ---------- people ----------
 export const peopleFrom = (r: PlanLineRecord): PeoplePlanLine => ({
-  id: r.id, projectId: r.projectId, role: r.role ?? '', headcount: r.quantity ?? 0, from: r.fromDate ?? '', to: r.toDate ?? '',
+  id: r.id, projectId: r.projectId, department: r.department ?? '', role: r.role ?? '', headcount: r.quantity ?? 0, from: r.fromDate ?? '', to: r.toDate ?? '',
   status: peopleStatusOf(r.stage), rowVersion: r.rowVersion, positionId: r.positionId ?? undefined,
 })
 export const peopleBody = (l: Omit<PeoplePlanLine, 'id' | 'rowVersion'>) =>
-  ({ positionId: l.positionId ?? null, role: l.role, quantity: l.headcount, fromDate: l.from || null, toDate: l.to || null, stage: PEOPLE_TO_STAGE[l.status] })
+  ({ positionId: l.positionId ?? null, role: l.role, department: l.department || null, quantity: l.headcount, fromDate: l.from || null, toDate: l.to || null, stage: PEOPLE_TO_STAGE[l.status] })
 
 // ---------- material ----------
 export const materialPlanFrom = (r: PlanLineRecord, uoms: UomRecord[]): MaterialPlanLine => ({

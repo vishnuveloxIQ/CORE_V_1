@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+﻿import type { ReactNode } from 'react'
 import { useAuth } from './store/useAuth'
 
 /**
@@ -6,7 +6,7 @@ import { useAuth } from './store/useAuth'
  * only when the signed-in user holds the privilege; the server still refuses the request if they do not (403).
  */
 export const MANAGE = {
-  /** projects, locations, stores, geo-fence zones, milestones and WBS */
+  /** projects, locations, stores, geo-fence zones, milestones */
   projects: 'projects.manage',
   /** materials, vendors, equipment types, equipment units and plan lines */
   masters: 'masters.manage',
@@ -19,8 +19,12 @@ export const MANAGE = {
 } as const
 
 /** True when the signed-in user holds the privilege. Reads the list kept at sign-in. */
+/**
+ * True when the user may act on a privilege. The server lets a holder of access.manage act on every route (see
+ * userMayAct in the backend), so the screens show the same actions to that holder.
+ */
 export function useCanManage(privilege: string): boolean {
-  return useAuth((s) => s.privileges.includes(privilege))
+  return useAuth((s) => s.privileges.includes(privilege) || s.privileges.includes(MANAGE.access))
 }
 
 /** Renders its children only when the signed-in user holds the privilege. */

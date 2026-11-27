@@ -11,7 +11,7 @@ export const searchRecords = (q: string, limit = 5) =>
 export const searchTarget = (h: Pick<SearchHit, 'type' | 'id'>): string => {
   switch (h.type) {
     case 'project': return `/projects/${h.id}`
-    case 'location': return `/sites/${h.id}`
+    case 'location': return '/projects'
     case 'store': return '/stores'
     case 'material': return '/materials'
     case 'vendor': return '/vendors'

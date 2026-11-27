@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '@/app/App'
 import { useAuth } from '@/modules/auth'
 import { useCore } from '@/modules/core-data'
-import { POLICY_KEYS } from '@/modules/company/utils/meta'
+import { TEMPLATE_POLICY_KEYS as POLICY_KEYS } from '@/modules/company/utils/meta'
 import { saveFirstVersion, type SetupActions } from '@/modules/company/utils/setup'
 import { policyTemplate } from '@/modules/company/utils/templates'
 import { setTenantId } from '@/shared/lib/api'
@@ -12,7 +12,7 @@ import { setTenantId } from '@/shared/lib/api'
 // version 1. Holidays and shift timings also write their company rows, before the version.
 
 describe('policy templates', () => {
-  it('there is a template for each of the six built-in policies', () => {
+  it('there is a template for each of the six template-based policies (the rate sheets are uploaded)', () => {
     expect(POLICY_KEYS).toHaveLength(6)
     for (const key of POLICY_KEYS) expect(policyTemplate(key), key).toBeTruthy()
   })
@@ -71,7 +71,7 @@ describe('an unset policy page', () => {
   beforeEach(() => {
     sessionStorage.clear()
     setTenantId('gamma')
-    useAuth.setState({ user: 'GAMMA9999', profile: null, privileges: [], isAdmin: true, mustChangePassword: false })
+    useAuth.setState({ user: 'GAMMA9999', profile: null, privileges: ['access.manage'], isAdmin: true, mustChangePassword: false })
     useCore.setState({ policies: [] })
   })
 

@@ -5,9 +5,11 @@ import { startReminderSchedule } from './modules/approvals/reminders.js';
 
 const env = loadEnv();
 const pool = env.DATABASE_URL ? createPool(env.DATABASE_URL) : undefined;
+const provisionPool = env.PROVISION_DATABASE_URL ? createPool(env.PROVISION_DATABASE_URL, 1) : undefined;
 const app = buildApp({
   env,
   pool,
+  provisionPool,
   readinessChecks: pool
     ? [{ name: 'database', run: () => pool.query('SELECT 1').then(() => undefined) }]
     : [],

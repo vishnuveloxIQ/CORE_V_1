@@ -8,6 +8,8 @@ export type TicketStatusApi = 'open' | 'in_progress' | 'resolved' | 'closed'
 export interface TicketRecord {
   id: string; code: string; subject: string; category: string; priority: TicketPriorityApi | null; description: string | null
   status: TicketStatusApi; raisedByUserId: string | null; createdAt?: string; rowVersion: number
+  /** the answer written by the company administrator; null until answered */
+  answer?: string | null
 }
 
 const PRIORITY_FROM: Record<TicketPriorityApi, Ticket['priority']> = { low: 'Low', medium: 'Medium', high: 'High', critical: 'High' }
@@ -18,7 +20,12 @@ export const toApiStatus = (s: Ticket['status']): TicketStatusApi => (s === 'Ope
 export const ticketFrom = (r: TicketRecord): Ticket => ({
   id: r.id, code: r.code, subject: r.subject, category: r.category, priority: PRIORITY_FROM[r.priority ?? 'medium'],
   description: r.description ?? '', status: STATUS_FROM[r.status], createdAt: r.createdAt ?? '', raisedById: r.raisedByUserId ?? '', rowVersion: r.rowVersion,
+  answer: r.answer ?? '',
 })
+
+/** Writes the answer and marks the ticket answered (in_progress). Throws ApiError (VERSION_CONFLICT when stale). */
+export const answerTicket = (id: string, rowVersion: number, answer: string, idempotencyKey?: string) =>
+  api<TicketRecord>('PATCH', `/tickets/${encodeURIComponent(id)}`, { body: { answer, status: 'in_progress', rowVersion }, idempotencyKey })
 
 export const listTickets = () => api<TicketRecord[]>('GET', '/tickets')
 export const getTicket = (id: string) => api<TicketRecord>('GET', `/tickets/${encodeURIComponent(id)}`)

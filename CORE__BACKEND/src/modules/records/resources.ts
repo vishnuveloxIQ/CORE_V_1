@@ -143,6 +143,7 @@ export const ticketSpec: ResourceSpec = {
     field('description', 'text'),
     field('status', 'text'),
     field('raisedByUserId', 'uuid'),
+    field('answer', 'text'),
   ],
   create: ticketCreateBody,
   patch: ticketPatchBody,

@@ -24,6 +24,7 @@ import {
 import { confirmPasswordReset, type OtpDelivery, requestPasswordReset } from './password-reset.js';
 import {
   changePasswordBodySchema,
+  ownDetailsBodySchema,
   loginBodySchema,
   passkeyIdParamsSchema,
   passkeyLoginOptionsBodySchema,
@@ -34,8 +35,9 @@ import {
   refreshBodySchema,
   tenantFromHeader,
 } from './schema.js';
-import { changePassword, currentUser, login, logout, refresh } from './service.js';
+import { changePassword, currentUser, login, logout, refresh, updateOwnDetails } from './service.js';
 import type { AccessClaims } from './tokens.js';
+import { resolveTenantForLogin } from '../registration/directory.js';
 
 export interface AuthRouteOptions {
   pool: Pool;
@@ -46,20 +48,30 @@ export interface AuthRouteOptions {
   webauthn: WebAuthnConfig;
   /** Most devices per user (SESSION_DEVICE_LIMIT). Unset means no limit. */
   deviceLimit?: number | undefined;
+  /** Lock length and rate-limit window in seconds (AUTH_LOCK_SECONDS). Unset means 15 minutes. */
+  lockSeconds?: number | undefined;
+  /** How long a password-reset code stays usable, in ms (OTP_TTL_MINUTES). Unset means 5 minutes. */
+  otpTtlMs?: number | undefined;
 }
 
-const WINDOW_MS = 15 * 60 * 1000;
+const DEFAULT_WINDOW_MS = 15 * 60 * 1000;
 
-/** Fixed-window limits (Phase 4b design defaults). Per process until a shared store exists. */
-export const RATE_LIMITS = {
-  loginPerIp: { limit: 100, windowMs: WINDOW_MS },
-  loginPerLoginId: { limit: 10, windowMs: WINDOW_MS },
-  resetRequestPerIp: { limit: 20, windowMs: WINDOW_MS },
-  resetRequestPerLoginId: { limit: 3, windowMs: WINDOW_MS },
-  resetConfirmPerLoginId: { limit: 10, windowMs: WINDOW_MS },
-  changePasswordPerUser: { limit: 10, windowMs: WINDOW_MS },
-  stepUpPasswordPerUser: { limit: 10, windowMs: WINDOW_MS },
-} as const satisfies Record<string, RateLimitRule>;
+/** The rate limits, with every window set to the given number of seconds (default 15 minutes). */
+function limitsFor(lockSeconds?: number | undefined) {
+  const windowMs = lockSeconds === undefined ? DEFAULT_WINDOW_MS : lockSeconds * 1000;
+  return {
+    loginPerIp: { limit: 100, windowMs },
+    loginPerLoginId: { limit: 10, windowMs },
+    resetRequestPerIp: { limit: 20, windowMs },
+    resetRequestPerLoginId: { limit: 3, windowMs },
+    resetConfirmPerLoginId: { limit: 10, windowMs },
+    changePasswordPerUser: { limit: 10, windowMs },
+    stepUpPasswordPerUser: { limit: 10, windowMs },
+  } as const satisfies Record<string, RateLimitRule>;
+}
+
+/** Fixed-window limits at the default 15 minutes (Phase 4b design defaults). Routes use limitsFor(lockSeconds). */
+export const RATE_LIMITS = limitsFor();
 
 function authOf(request: CoreRequest): AccessClaims {
   if (!request.auth) {
@@ -72,6 +84,16 @@ function authOf(request: CoreRequest): AccessClaims {
  * Counts every check, then refuses if any is over its limit. All checks are counted, so one blocked key
  * does not stop the others from counting. The 429 does not show whether the login id exists.
  */
+/**
+ * The company for a sign-in: the X-Tenant-Id header when the client sends it, otherwise the company the login ID's prefix
+ * belongs to (the directory). An unknown prefix gets the placeholder 'none', which no company has, so the caller answers
+ * with the same 401 as a wrong password.
+ */
+async function signInTenant(pool: Pool, header: string | string[] | undefined, loginId: string): Promise<string> {
+  if (header !== undefined) return tenantFromHeader(header);
+  return (await resolveTenantForLogin(pool, loginId)) ?? 'none';
+}
+
 async function enforceLimits(
   limiter: RateLimiter,
   reply: CoreReply,
@@ -102,13 +124,14 @@ export function registerAuthRoutes(app: CoreApp, options: AuthRouteOptions): voi
   const requireAuthPending = createRequireAuth(options, { allowPasswordChangePending: true });
   // Shared through PostgreSQL, so the login and reset limits hold across instances (Phase N decision 3).
   const limiter = new PostgresRateLimiter(options.pool);
+  const limits = limitsFor(options.lockSeconds);
 
   app.post('/auth/login', { config: { openapi: { summary: 'POST /auth/login', body: loginBodySchema } } }, async (request, reply) => {
-    const tenantId = tenantFromHeader(request.headers['x-tenant-id']);
     const body = parseInput(loginBodySchema, request.body);
+    const tenantId = await signInTenant(options.pool, request.headers['x-tenant-id'], body.loginId);
     await enforceLimits(limiter, reply, [
-      [`login:ip:${request.ip}`, RATE_LIMITS.loginPerIp],
-      [`login:id:${tenantId}:${body.loginId.toLowerCase()}`, RATE_LIMITS.loginPerLoginId],
+      [`login:ip:${request.ip}`, limits.loginPerIp],
+      [`login:id:${tenantId}:${body.loginId.toLowerCase()}`, limits.loginPerLoginId],
     ]);
     const agent = request.headers['user-agent'];
     const result = await login(options, {
@@ -118,7 +141,8 @@ export function registerAuthRoutes(app: CoreApp, options: AuthRouteOptions): voi
       deviceLabel: body.deviceLabel,
       userAgent: typeof agent === 'string' ? agent : undefined,
     });
-    return ok(result);
+    // tenantId tells the client which company the session belongs to (added in API 1.11.0).
+    return ok({ ...result, tenantId });
   });
 
   app.post('/auth/refresh', { config: { openapi: { summary: 'POST /auth/refresh', body: refreshBodySchema } } }, async (request) => {
@@ -143,13 +167,21 @@ export function registerAuthRoutes(app: CoreApp, options: AuthRouteOptions): voi
     return ok({ user });
   });
 
+  // The signed-in administrator's own name, email and mobile number (the Admin details card on the company profile).
+  app.put('/auth/me/details', { config: { openapi: { summary: 'PUT /auth/me/details', body: ownDetailsBodySchema } }, preHandler: requireAuthPending }, async (request) => {
+    const auth = authOf(request);
+    const body = parseInput(ownDetailsBodySchema, request.body);
+    const user = await updateOwnDetails(options, { tenantId: auth.tenantId, userId: auth.userId }, body);
+    return ok({ user });
+  });
+
   // Changes the signed-in user's password; also how a temporary password is replaced. Limited per user, so a stolen
   // access token cannot be used to guess the current password.
   app.post('/auth/change-password', { config: { openapi: { summary: 'POST /auth/change-password', body: changePasswordBodySchema } }, preHandler: requireAuthPending }, async (request, reply) => {
     const auth = authOf(request);
     const body = parseInput(changePasswordBodySchema, request.body);
     await enforceLimits(limiter, reply, [
-      [`change-password:id:${auth.tenantId}:${auth.userId}`, RATE_LIMITS.changePasswordPerUser],
+      [`change-password:id:${auth.tenantId}:${auth.userId}`, limits.changePasswordPerUser],
     ]);
     await changePassword(options, {
       tenantId: auth.tenantId,
@@ -170,11 +202,11 @@ export function registerAuthRoutes(app: CoreApp, options: AuthRouteOptions): voi
     }
     const loginKey = body.loginId.toLowerCase();
     await enforceLimits(limiter, reply, [
-      [`reset-request:ip:${request.ip}`, RATE_LIMITS.resetRequestPerIp],
-      [`reset-request:id:${tenantId}:${loginKey}`, RATE_LIMITS.resetRequestPerLoginId],
+      [`reset-request:ip:${request.ip}`, limits.resetRequestPerIp],
+      [`reset-request:id:${tenantId}:${loginKey}`, limits.resetRequestPerLoginId],
     ]);
     await requestPasswordReset(
-      { pool: options.pool, delivery },
+      { pool: options.pool, delivery, otpTtlMs: options.otpTtlMs },
       { tenantId, loginId: body.loginId },
     );
     reply.code(202);
@@ -187,7 +219,7 @@ export function registerAuthRoutes(app: CoreApp, options: AuthRouteOptions): voi
     await enforceLimits(limiter, reply, [
       [
         `reset-confirm:id:${tenantId}:${body.loginId.toLowerCase()}`,
-        RATE_LIMITS.resetConfirmPerLoginId,
+        limits.resetConfirmPerLoginId,
       ],
     ]);
     await confirmPasswordReset(
@@ -316,7 +348,7 @@ export function registerAuthRoutes(app: CoreApp, options: AuthRouteOptions): voi
       const auth = authOf(request);
       const body = parseInput(stepUpPasswordBody, request.body);
       await enforceLimits(limiter, reply, [
-        [`step-up-password:id:${auth.tenantId}:${auth.userId}`, RATE_LIMITS.stepUpPasswordPerUser],
+        [`step-up-password:id:${auth.tenantId}:${auth.userId}`, limits.stepUpPasswordPerUser],
       ]);
       const result = await stepUpPassword(options, {
         tenantId: auth.tenantId,
@@ -340,19 +372,19 @@ export function registerAuthRoutes(app: CoreApp, options: AuthRouteOptions): voi
   });
 
   app.post('/auth/passkeys/login/options', { config: { openapi: { summary: 'POST /auth/passkeys/login/options', body: passkeyLoginOptionsBodySchema } } }, async (request, reply) => {
-    const tenantId = tenantFromHeader(request.headers['x-tenant-id']);
     const body = parseInput(passkeyLoginOptionsBodySchema, request.body);
+    const tenantId = await signInTenant(options.pool, request.headers['x-tenant-id'], body.loginId);
     await enforceLimits(limiter, reply, [
-      [`login:ip:${request.ip}`, RATE_LIMITS.loginPerIp],
-      [`login:id:${tenantId}:${body.loginId.toLowerCase()}`, RATE_LIMITS.loginPerLoginId],
+      [`login:ip:${request.ip}`, limits.loginPerIp],
+      [`login:id:${tenantId}:${body.loginId.toLowerCase()}`, limits.loginPerLoginId],
     ]);
     const challenge = await passkeyLoginOptions(passkeys, { tenantId, loginId: body.loginId });
     return ok(challenge);
   });
 
   app.post('/auth/passkeys/login/verify', { config: { openapi: { summary: 'POST /auth/passkeys/login/verify', body: passkeyLoginVerifyBodySchema } } }, async (request) => {
-    const tenantId = tenantFromHeader(request.headers['x-tenant-id']);
     const body = parseInput(passkeyLoginVerifyBodySchema, request.body);
+    const tenantId = await signInTenant(options.pool, request.headers['x-tenant-id'], body.loginId);
     const agent = request.headers['user-agent'];
     const result = await passkeyLogin(passkeys, {
       tenantId,
@@ -361,6 +393,6 @@ export function registerAuthRoutes(app: CoreApp, options: AuthRouteOptions): voi
       deviceLabel: body.deviceLabel,
       userAgent: typeof agent === 'string' ? agent : undefined,
     });
-    return ok(result);
+    return ok({ ...result, tenantId });
   });
 }

@@ -23,13 +23,15 @@ const baseUrl = process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
 // Expected shape of the Core tenant schema (handoff sections 3, 4 and 9).
 // 58 after the handoff tables and core_file_content (0015); core_stock_level (0020) makes 59; core_equipment_unit (0022) makes 60;
 // core_offer_letter_revision (0023) makes 61, core_boq_item (0035) makes 62, core_maintenance_schedule (0037) makes 63, and ref_record (0040) makes 64.
-const DOMAIN_TABLES = 64;
+// The rate tables (0063) and core_sub_contractor (0068) make 66; the five workforce advert tables (0070) make 71, and core_material_store (0074) makes 72; core_quotation (0075) makes 73. Migrations 0041-0062 and 0064-0067 add no table beyond these.
+const DOMAIN_TABLES = 73;
 // 76 handoff foreign keys, plus 3 provisional shared.uom references (migration 0005), plus 1 for core_file_content (0015),
 // plus 2 for core_stock_level (0020: store and material), plus 3 for core_equipment_unit (0022: equipment type, location, vendor),
 // plus 1 for core_offer_letter_revision (0023: file), plus 1 for core_approval_request (0025: published location).
 // plus 1 for core_equipment_unit (0028: photo file), plus 3 for core_boq_item (0035: project, WBS node, shared.uom), plus 1 for core_maintenance_schedule (0037: unit).
-// 0024, 0026, 0027, 0029 and 0030 add columns and CHECKs only, so they add no tables.
-const FOREIGN_KEYS = 92;
+// 0024, 0026, 0027, 0029 and 0030 add columns and CHECKs only, so they add no tables. Core_sub_contractor (0068) adds 2 (project, agreement file).
+// 93 is the count after 0068. The workforce advert tables (0070) add 7: project, advert (x4), sub-contractor (x2), interest (x1), and step to interest (x1) make 100.
+const FOREIGN_KEYS = 102;
 
 describe('tenant schema names', () => {
   it('builds tenant_<id> from a valid id', () => {
@@ -85,6 +87,9 @@ describe.skipIf(!baseUrl)('migrations on an empty database', () => {
       '0000_extensions.sql',
       '0001_shared_uom.sql',
       '0002_rate_limit.sql',
+      '0043_registration_global.sql',
+      '0044_registration_directory_prefixes.sql',
+      '0045_uom_insert_for_core.sql',
     ]);
   });
 
@@ -143,6 +148,41 @@ describe.skipIf(!baseUrl)('migrations on an empty database', () => {
       '0038_approval_reminders.sql',
       '0039_event_relay.sql',
       '0040_ref_records.sql',
+      '0041_plan_line_equipment_details.sql',
+      '0042_plan_line_capacity_text.sql',
+      '0046_ticket_answer.sql',
+      '0047_user_roles.sql',
+      '0048_company_type.sql',
+      '0049_project_status.sql',
+      '0050_project_consultant.sql',
+      '0051_project_state.sql',
+      '0052_project_execution_mode.sql',
+      '0053_project_department.sql',
+      '0054_project_type.sql',
+      '0055_store_project.sql',
+      '0056_plan_line_department.sql',
+      '0057_remove_wbs.sql',
+      '0058_access_drop_location.sql',
+      '0059_approvals_drop_location.sql',
+      '0060_equipment_offline_drop_location.sql',
+      '0061_equipment_unit_project.sql',
+      '0062_policy_version_project.sql',
+      '0063_rate_tables.sql',
+      '0064_equipment_unit_more_documents.sql',
+      '0065_equipment_unit_approval.sql',
+      '0066_equipment_unit_hired_from.sql',
+      '0067_equipment_unit_over_plan_reason.sql',
+      '0068_sub_contractors.sql',
+      '0069_sub_contractor_status.sql',
+      '0070_workforce_adverts.sql',
+      '0071_workforce_advert_state.sql',
+      '0072_interest_status_four.sql',
+      '0073_interest_unregistered_contractor.sql',
+      '0074_material_store_availability.sql',
+      '0075_quotations.sql',
+      '0076_quotation_vendor_format.sql',
+      '0077_equipment_unit_hire_status.sql',
+      '0078_approved_people_and_billing.sql',
     ]);
 
     await expect(

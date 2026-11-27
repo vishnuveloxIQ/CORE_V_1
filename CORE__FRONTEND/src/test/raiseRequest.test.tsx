@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+﻿import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCore } from '@/modules/core-data'
 import * as seed from '@/modules/core-data/data/seed'
@@ -19,8 +19,8 @@ function serverLists() {
   const material = { ...seed.MATERIALS[0], id: MATERIAL, name: 'Cement OPC 53', code: 'CEM-53', uom: 'MT', status: 'Active' as const, rowVersion: 1 }
   useCore.setState({
     projects: [{
-      ...seed.PROJECTS[0], id: PROJECT, name: 'Server project', rowVersion: 1, locationIds: [SITE],
-      chainage: { startKm: 0, endKm: 10, markers: [{ id: MARKER, km: 2.5, label: 'CH-1', wbsCode: '' }] },
+      ...seed.PROJECTS[0], id: PROJECT, name: 'Server project', rowVersion: 1,
+      chainage: { startKm: 0, endKm: 10, markers: [{ id: MARKER, km: 2.5, label: 'CH-1' }] },
     }],
     sites: [
       { ...seed.SITES[0], id: SITE, name: 'Camp A', status: 'Active', rowVersion: 1 },
@@ -55,7 +55,7 @@ describe('raising a request', () => {
   })
   afterEach(() => useCore.setState(saved))
 
-  it('sends the material payload, location and chainage in the POST body', async () => {
+  it('sends the material payload and chainage in the POST body', async () => {
     const posts: Record<string, unknown>[] = []
     vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => {
       const path = new URL(url, 'http://x').pathname.replace(/^\/api/, '')
@@ -74,8 +74,6 @@ describe('raising a request', () => {
     type('amount', '250000')
     pick('projectId', PROJECT)
     // only the project's own location is offered
-    expect([...document.querySelectorAll<HTMLOptionElement>('select[name="locationId"] option')].map((o) => o.value)).toEqual(['', SITE])
-    pick('locationId', SITE)
     pick('chainageMarkerId', MARKER)
     pick('materialId', MATERIAL)
     type('qty', '300')
@@ -89,7 +87,7 @@ describe('raising a request', () => {
     expect(posts).toHaveLength(1)
     expect(posts[0]).toMatchObject({
       requestType: 'Material', module: 'Stores', title: 'Cement for pier P1', amount: 250000,
-      projectId: PROJECT, locationId: SITE, chainageMarkerId: MARKER, emergency: false,
+      projectId: PROJECT, chainageMarkerId: MARKER, emergency: false,
       payload: { kind: 'material', materialId: MATERIAL, qty: 300, uom: 'MT', storeId: STORE },
     })
     expect((posts[0].payload as { neededBy: string }).neededBy).toMatch(/^\d{4}-\d{2}-\d{2}$/)

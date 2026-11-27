@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
@@ -17,7 +17,6 @@ interface Item {
   id: string;
   projectId: string;
   itemCode: string;
-  wbsNodeId: string | null;
   quantity: number;
   rate: number;
   amount: number;
@@ -41,8 +40,6 @@ describe.skipIf(!TEST_DATABASE_URL)('Bill of Quantities', { timeout: SLOW_TEST_M
   let uomId: string;
   let projectA: string;
   let projectB: string;
-  let wbsA: string;
-  let wbsB: string;
   const env = loadEnv({ NODE_ENV: 'test', LOG_LEVEL: 'silent', JWT_SECRET });
 
   beforeAll(async () => {
@@ -67,8 +64,6 @@ describe.skipIf(!TEST_DATABASE_URL)('Bill of Quantities', { timeout: SLOW_TEST_M
     };
     projectA = await make('/projects', { code: code('PA'), name: 'Fictional Highway' });
     projectB = await make('/projects', { code: code('PB'), name: 'Fictional Bridge' });
-    wbsA = await make('/wbs-nodes', { code: code('WA'), name: 'Earthwork', projectId: projectA });
-    wbsB = await make('/wbs-nodes', { code: code('WB'), name: 'Piling', projectId: projectB });
   }, SLOW_TEST_MS);
 
   afterAll(async () => {
@@ -104,20 +99,6 @@ describe.skipIf(!TEST_DATABASE_URL)('Bill of Quantities', { timeout: SLOW_TEST_M
     const item = dataOf<Item>(await create({}));
     const move = await call(app, 'PATCH', `/boq-items/${item.id}`, manager, { projectId: projectB, rowVersion: 1 });
     expect(move.statusCode).toBe(400);
-  });
-
-  it('links a WBS node of the same project, and refuses one of another project on wbsNodeId', async () => {
-    const own = await create({ wbsNodeId: wbsA });
-    expect(own.statusCode, own.body).toBe(201);
-    expect(dataOf<Item>(own).wbsNodeId).toBe(wbsA);
-
-    const foreign = await create({ wbsNodeId: wbsB });
-    expect(foreign.statusCode).toBe(400);
-    expect(errorOf(foreign)?.code).toBe('VALIDATION_ERROR');
-    expect(errorOf(foreign)?.details?.issues?.[0]?.path).toBe('wbsNodeId');
-
-    const moved = await call(app, 'PATCH', `/boq-items/${dataOf<Item>(own).id}`, manager, { wbsNodeId: wbsB, rowVersion: 1 });
-    expect(moved.statusCode).toBe(400);
   });
 
   it('answers 400 BOQ_ITEM_REFERENCE_NOT_FOUND for an unknown unit or project', async () => {

@@ -1,10 +1,10 @@
-import { api } from '@/shared/lib/api'
+﻿import { api } from '@/shared/lib/api'
 
 /** /access: a user's grants, role and privilege grants, suspensions and restores (admin only; access.manage). */
 
 const enc = encodeURIComponent
 
-export type AccessScope = { locationId: string | null; projectId: string | null; storeId: string | null }
+export type AccessScope = { projectId: string | null; storeId: string | null }
 export interface GrantView {
   id: string; accessType: 'role' | 'privilege' | 'module_head'; roleId: string | null; privilege: string | null; module: string | null
   scope: AccessScope; reason: string | null; createdAt: string
@@ -18,7 +18,7 @@ export interface AccessView {
 export const ACCESS_MODULES = ['core', 'hrms', 'pm', 'pms', 'stores'] as const
 export type AccessModule = (typeof ACCESS_MODULES)[number]
 
-type Scope = Partial<{ locationId: string; projectId: string; storeId: string }>
+type Scope = Partial<{ projectId: string; storeId: string }>
 export type GrantBody =
   | { accessType: 'role'; roleId: string; scope?: Scope; reason?: string }
   | { accessType: 'privilege'; privilege: string; scope?: Scope; reason?: string }

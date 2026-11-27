@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { idempotencyFor } from '../testing-pass/helpers.js';
@@ -329,7 +329,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       const mismatch = await call('POST', '/stores', manager.token, {
         code: uniq('ST'),
         name: 'Cross-project store',
-        locationId: locationA.id,
+        projectId: locationA.projectId,
         chainageMarkerId: markerB.id,
       });
       expect(mismatch.statusCode).toBe(400);
@@ -338,7 +338,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       const unknownLocation = await call('POST', '/stores', manager.token, {
         code: uniq('ST'),
         name: 'No such location',
-        locationId: randomUUID(),
+        projectId: randomUUID(),
       });
       expect(unknownLocation.statusCode).toBe(400);
       expect(unknownLocation.json().error.code).toBe('PROJECTS_REFERENCE_NOT_FOUND');
@@ -346,7 +346,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       const store = await createRow(manager.token, '/stores', {
         code: uniq('ST'),
         name: 'Main store',
-        locationId: locationA.id,
+        projectId: locationA.projectId,
         chainageMarkerId: markerA.id,
       });
       expect(store).toMatchObject({ status: 'active', rowVersion: 1 });
@@ -364,85 +364,6 @@ describe.skipIf(!TEST_DATABASE_URL)(
       });
       expect(deactivated.statusCode).toBe(200);
       expect(deactivated.json().data).toMatchObject({ status: 'inactive', rowVersion: 2 });
-    });
-
-    it('WBS nodes: parents in the same project, no cycles, codes per project, delete only when unused', async () => {
-      const manager = await managerUser();
-      const project = await newProject(manager.token);
-      const other = await newProject(manager.token);
-
-      const root = await createRow(manager.token, '/wbs-nodes', {
-        code: uniq('W'),
-        name: 'Civil works',
-        projectId: project.id,
-      });
-      const child = await createRow(manager.token, '/wbs-nodes', {
-        code: uniq('W'),
-        name: 'Earthwork',
-        projectId: project.id,
-        parentWbsNodeId: root.id,
-      });
-      // The same code may repeat in another project (design point e).
-      const foreign = await createRow(manager.token, '/wbs-nodes', {
-        code: root.code,
-        name: 'Civil works, other project',
-        projectId: other.id,
-      });
-
-      const crossParent = await call('POST', '/wbs-nodes', manager.token, {
-        code: uniq('W'),
-        name: 'Parent elsewhere',
-        projectId: project.id,
-        parentWbsNodeId: foreign.id,
-      });
-      expect(crossParent.statusCode).toBe(400);
-      expect(crossParent.json().error.code).toBe('PROJECTS_REFERENCE_MISMATCH');
-
-      const sameCode = await call('POST', '/wbs-nodes', manager.token, {
-        code: root.code.toLowerCase(),
-        name: 'Same code in one project',
-        projectId: project.id,
-      });
-      expect(sameCode.statusCode).toBe(409);
-      expect(sameCode.json().error.code).toBe('PROJECTS_DUPLICATE');
-
-      // root -> child already exists, so making child the parent of root would close a loop.
-      const cycle = await call('PATCH', `/wbs-nodes/${root.id}`, manager.token, {
-        parentWbsNodeId: child.id,
-        rowVersion: 1,
-      });
-      expect(cycle.statusCode).toBe(400);
-      expect(cycle.json().error.code).toBe('PROJECTS_CYCLE');
-
-      const selfParent = await call('PATCH', `/wbs-nodes/${root.id}`, manager.token, {
-        parentWbsNodeId: root.id,
-        rowVersion: 1,
-      });
-      expect(selfParent.statusCode).toBe(400);
-      expect(selfParent.json().error.code).toBe('PROJECTS_CYCLE');
-
-      // A marker on the foreign node holds it, so the node cannot be deleted.
-      await createRow(manager.token, '/chainage-markers', {
-        code: uniq('CH'),
-        projectId: other.id,
-        chainageKm: 5,
-        wbsNodeId: foreign.id,
-      });
-      const markerInUse = await call('DELETE', `/wbs-nodes/${foreign.id}`, manager.token);
-      expect(markerInUse.statusCode).toBe(409);
-      expect(markerInUse.json().error.code).toBe('PROJECTS_IN_USE');
-
-      // A node with a child cannot be deleted until the child goes.
-      const parentInUse = await call('DELETE', `/wbs-nodes/${root.id}`, manager.token);
-      expect(parentInUse.statusCode).toBe(409);
-      expect(parentInUse.json().error.code).toBe('PROJECTS_IN_USE');
-
-      const leaf = await call('DELETE', `/wbs-nodes/${child.id}`, manager.token);
-      expect(leaf.statusCode).toBe(200);
-      expect(leaf.json().data).toEqual({ deleted: true });
-
-      const freed = await call('DELETE', `/wbs-nodes/${root.id}`, manager.token);
-      expect(freed.statusCode).toBe(200);
     });
 
     it('chainage markers: codes per project, km zero or more, delete only when unused, audit the delete', async () => {
@@ -484,7 +405,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       const store = await call('POST', '/stores', manager.token, {
         code: uniq('ST'),
         name: 'Store at the bridge',
-        locationId: locationA.id,
+        projectId: locationA.projectId,
         chainageMarkerId: markerA.id,
       });
       expect(store.statusCode).toBe(201);
@@ -721,19 +642,6 @@ describe.skipIf(!TEST_DATABASE_URL)(
         ),
       ).rejects.toMatchObject({ code: '23514', constraint: 'core_location_chainage_order_check' });
 
-      const { rows } = await db.pool.query<{ id: string }>(
-        `INSERT INTO tenant_acme.core_wbs_node (code, name, project_id)
-       VALUES ($1, 'Self-parent check', $2)
-       RETURNING id`,
-        [uniq('DB'), project.id],
-      );
-      await expect(
-        db.pool.query(
-          `UPDATE tenant_acme.core_wbs_node SET parent_wbs_node_id = id WHERE id = $1`,
-          [rows[0]!.id],
-        ),
-      ).rejects.toMatchObject({ code: '23514', constraint: 'core_wbs_node_parent_check' });
-
       await expect(
         db.pool.query(
           `INSERT INTO tenant_acme.core_chainage_marker (code, project_id, chainage_km)
@@ -769,9 +677,6 @@ describe.skipIf(!TEST_DATABASE_URL)(
         { method: 'PATCH', url: `/locations/${target}` },
         { method: 'POST', url: '/stores' },
         { method: 'PATCH', url: `/stores/${target}` },
-        { method: 'POST', url: '/wbs-nodes' },
-        { method: 'PATCH', url: `/wbs-nodes/${target}` },
-        { method: 'DELETE', url: `/wbs-nodes/${target}` },
         { method: 'POST', url: '/chainage-markers' },
         { method: 'PATCH', url: `/chainage-markers/${target}` },
         { method: 'DELETE', url: `/chainage-markers/${target}` },
@@ -794,7 +699,6 @@ describe.skipIf(!TEST_DATABASE_URL)(
         '/projects',
         '/locations',
         '/stores',
-        '/wbs-nodes',
         '/chainage-markers',
         '/geo-zones',
         '/milestones',

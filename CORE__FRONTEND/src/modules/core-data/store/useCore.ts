@@ -1,4 +1,4 @@
-import { format } from 'date-fns'
+﻿import { format } from 'date-fns'
 import { create } from 'zustand'
 import { useAuth } from '@/modules/auth'
 import { ApiError, errorText } from '@/shared/lib/api'
@@ -12,9 +12,12 @@ import * as unitApi from '../api/units'
 import * as uomApi from '../api/uoms'
 import * as plans from '../api/planLines'
 import * as pol from '../api/policies'
+import * as rates from '../api/rates'
 import { mirrorOvertime } from '../api/otPolicies'
 import { mirrorLeave } from '../api/leavePolicies'
-import type { SiteDetails, StoreDetails } from '../api/masters'
+import type { StoreDetails } from '../api/masters'
+import type { EquipmentRateDraft, MaterialRateDraft } from '../api/rates'
+import type { EquipmentRate, MaterialRate } from '../types'
 import * as org from '../api/organisation'
 import * as files from '../api/files'
 import * as offer from '../api/offerLetter'
@@ -69,7 +72,19 @@ interface CoreState {
   /** reads /policies and /policy-versions; a key the API has no versions for has none */
   loadPolicies: () => Promise<void>
   /** saves a new version to the API (POST, then publish). Refused (ApiError NOT_SAVED) until policies were read from the API. */
-  savePolicyVersion: <K extends PolicyKey>(key: K, effectiveFrom: string, reason: string, data: PolicyData[K]) => Promise<void>
+  /** saves a new version. Scope: null or missing is the whole company (one version); a list of project ids saves the same version once for each project. */
+  savePolicyVersion: <K extends PolicyKey>(key: K, effectiveFrom: string, reason: string, data: PolicyData[K], scopeProjectIds?: string[] | null) => Promise<void>
+  /** equipment and material rates per project, read from GET /equipment-rates and /material-rates */
+  equipmentRates: EquipmentRate[]
+  materialRates: MaterialRate[]
+  /** reads both rate lists (for one project, or all) */
+  loadRates: (projectId?: string) => Promise<void>
+  /** records a rate sheet as a published policy version for the project; returns the version id the rows point to */
+  recordRateSheet: (key: 'equipment-rates' | 'material-rates', projectId: string, fileName: string, effectiveFrom: string, rowCount: number) => Promise<string>
+  /** records an uploaded equipment rate sheet: a policy version for the project, then one rate row per line */
+  saveEquipmentRateSheet: (projectId: string, fileName: string, effectiveFrom: string, rows: Omit<EquipmentRateDraft, 'projectId' | 'policyVersionId'>[]) => Promise<void>
+  /** records an uploaded material rate sheet, the same way */
+  saveMaterialRateSheet: (projectId: string, fileName: string, effectiveFrom: string, rows: Omit<MaterialRateDraft, 'projectId' | 'policyVersionId'>[]) => Promise<void>
   customSource: 'none' | 'api'
   /** reads /custom-policies, their fields and versions */
   loadCustomPolicies: () => Promise<void>
@@ -90,7 +105,7 @@ interface CoreState {
   updateProjectRemote: (id: string, v: ProjectDetails, idempotencyKey?: string) => Promise<Project>
   /** PATCH /projects/{id} with chainageStartKm and chainageEndKm and the row version; VERSION_CONFLICT re-reads the projects. Throws ApiError. */
   saveChainageRangeRemote: (id: string, startKm: number, endKm: number, idempotencyKey?: string) => Promise<void>
-  /** per project: whether its milestones, WBS, markers, zones and locations were read from the API */
+  /** per project: whether its milestones, markers, zones and locations were read from the API */
   partsLoad: Record<string, 'loading' | 'ready' | 'error'>
   partsError: Record<string, string>
   /** reads the project's parts from the API (no-op for a project not read from the API) */
@@ -100,15 +115,11 @@ interface CoreState {
   /** The actions below write to the API, for a project read from it only (else ApiError NOT_SAVED). They throw ApiError. */
   saveMilestone: (projectId: string, m: Omit<Milestone, 'id' | 'rowVersion'>, id?: string) => Promise<void>
   removeMilestone: (projectId: string, id: string) => Promise<void>
-  addWbsNode: (projectId: string, n: parts.WbsDraft) => Promise<void>
-  removeWbsNode: (projectId: string, id: string) => Promise<void>
-  /** PATCH /wbs-nodes/{id} for a server item (needs its row version); renames follow the markers that use the code */
-  editWbsNode: (projectId: string, id: string, n: parts.WbsDraft) => Promise<void>
   /** returns the markers that could not be saved, with the reason */
-  addMarkers: (projectId: string, list: { km: number; label: string; wbsCode: string }[]) => Promise<string[]>
+  addMarkers: (projectId: string, list: { km: number; label: string }[]) => Promise<string[]>
   removeMarker: (projectId: string, id: string) => Promise<void>
   /** PATCH /chainage-markers/{id} for a server marker (needs its row version) */
-  editMarker: (projectId: string, id: string, m: { km: number; label: string; wbsCode: string }) => Promise<void>
+  editMarker: (projectId: string, id: string, m: { km: number; label: string }) => Promise<void>
   saveZoneDraft: (projectId: string, z: ZoneDraft & { type: GeoZoneType }, zoneId?: string, idempotencyKey?: string) => Promise<GeoZone>
   removeZone: (projectId: string, zoneId: string) => Promise<void>
   /** locations and stores read from the API */
@@ -116,12 +127,10 @@ interface CoreState {
   sitesError: string
   storesLoad: 'idle' | 'loading' | 'ready' | 'error'
   storesError: string
-  /** GET /locations: replaces the locations and sets each API project's locationIds */
+  /** GET /locations: replaces the locations */
   loadSites: () => Promise<void>
   /** GET /stores and GET /chainage-markers: replaces the stores and fills every API project's markers */
   loadStores: () => Promise<void>
-  createSiteRemote: (projectId: string, v: SiteDetails, idempotencyKey?: string) => Promise<Site>
-  updateSiteRemote: (id: string, v: SiteDetails, idempotencyKey?: string) => Promise<Site>
   createStoreRemote: (v: StoreDetails, idempotencyKey?: string) => Promise<Store>
   updateStoreRemote: (id: string, v: StoreDetails, idempotencyKey?: string) => Promise<Store>
   /** materials, equipment types, assignments and plan lines read from the API */
@@ -161,6 +170,8 @@ interface CoreState {
    * owner equipment_unit), then PATCHes photoFileId and documents. A file that fails is named in `failed`; the unit stays.
    */
   attachUnitFiles: (u: EquipmentUnit, chosen: unitApi.UnitUploads) => Promise<{ unit: EquipmentUnit; failed: string[] }>
+  /** finds the server equipment type with this name, creating it when it is new. Throws ApiError. */
+  ensureEquipmentTypeRemote: (typeName: string) => Promise<eq.EquipmentTypeRecord>
   saveEquipmentPlanRemote: (l: PlanLine, idempotencyKey?: string) => Promise<PlanLine>
   savePeoplePlanRemote: (l: PeoplePlanLine, idempotencyKey?: string) => Promise<PeoplePlanLine>
   saveMaterialPlanRemote: (l: MaterialPlanLine, idempotencyKey?: string) => Promise<MaterialPlanLine>
@@ -204,7 +215,7 @@ interface CoreState {
   loadOrganisation: (force?: boolean) => Promise<void>
   /** PUT /organisation/company-profile; throws ApiError */
   /** saves the profile; a logo change (new file or removal) is applied in the same save, never before it */
-  updateCompanyRemote: (c: Omit<CompanyProfile, 'logo' | 'offerLetter' | 'id' | 'code' | 'rowVersion'>, idempotencyKey?: string, logo?: LogoChange) => Promise<void>
+  updateCompanyRemote: (c: Omit<CompanyProfile, 'logo' | 'offerLetter' | 'id' | 'code' | 'rowVersion'> & { mobileCode?: string }, idempotencyKey?: string, logo?: LogoChange) => Promise<void>
   /** POST /files and /document-templates (PATCH when a format exists); throws ApiError */
   setOfferLetterRemote: (f: Pick<OfferLetterFile, 'fileName' | 'mimeType' | 'size' | 'dataUrl'>, idempotencyKey?: string) => Promise<void>
   /** POST or PATCH /organisation/departments; throws ApiError */
@@ -267,7 +278,7 @@ interface CoreState {
   /** POST /approval-requests/{id}/actions with 'clarify' (approver asks the raiser) or 'respond' (raiser answers); comment required. Throws ApiError. */
   clarifyRemote: (id: string, action: 'clarify' | 'respond', comment: string, idempotencyKey?: string) => Promise<void>
   /** POST /approval-requests/{id}/publish: an approved job opening, published to a server location. Throws ApiError. */
-  publishJobRemote: (id: string, locationId: string, idempotencyKey?: string) => Promise<void>
+  publishJobRemote: (id: string, idempotencyKey?: string) => Promise<void>
   /** PATCH /grievances/{id} with the status, visit date and optional note (max 2000); VERSION_CONFLICT re-reads the grievances. Throws ApiError. */
   updateVisit: (id: string, to: GrievanceStatus, visitDate?: string, idempotencyKey?: string, note?: string) => Promise<void>
   /** POST /tickets; the saved ticket is added to the list and its code returned. Throws ApiError. */
@@ -278,7 +289,7 @@ interface CoreState {
 const me = () => useAuth.getState().user || 'You'
 /** An empty company profile: the fields are filled from GET /organisation/company-profile. */
 const EMPTY_COMPANY: CompanyProfile = {
-  legalName: '', tradeName: '', cin: '', gstin: '', pan: '', tan: '', addressLine1: '', addressLine2: '', city: '', state: '', pin: '', country: '',
+  legalName: '', tradeName: '', companyType: '', cin: '', gstin: '', pan: '', tan: '', addressLine1: '', addressLine2: '', city: '', state: '', pin: '', country: '',
   contactName: '', contactEmail: '', contactPhone: '', website: '', logo: '', offerLetter: null,
 }
 /** Local date-time without zone, e.g. "2026-11-06T09:15:00". */
@@ -401,6 +412,8 @@ export const useCore = create<CoreState>()((set, get) => {
   return {
     company: EMPTY_COMPANY,
     policies: [],
+    equipmentRates: [],
+    materialRates: [],
     customPolicies: [],
     customVersions: [],
     policiesSource: 'none',
@@ -459,21 +472,61 @@ export const useCore = create<CoreState>()((set, get) => {
       }
     },
 
-    savePolicyVersion: async (key, effectiveFrom, reason, data) => {
+    recordRateSheet: async (key, projectId, fileName, effectiveFrom, rowCount) => {
       needSource(get().policiesSource, 'Policies')
-      const push = async (v: { effectiveFrom: string; reason: string; data: unknown }) => {
+      let policyId = get().policyIds[key]
+      if (!policyId) {
+        policyId = (await pol.createPolicy(key)).id
+        const id = policyId
+        set((s) => ({ policyIds: { ...s.policyIds, [key]: id } }))
+      }
+      const data = { fileName, rows: rowCount }
+      const draft = await pol.createPolicyVersion(policyId, { data, effectiveFrom, reason: `Rate sheet ${fileName}`, projectId })
+      await pol.publishPolicyVersion(draft.id, draft.rowVersion)
+      await get().loadPolicies()
+      return draft.id
+    },
+
+    loadRates: async (projectId) => {
+      try {
+        const [eqRows, matRows] = await Promise.all([rates.listEquipmentRates(projectId), rates.listMaterialRates(projectId)])
+        set({ equipmentRates: eqRows.map(rates.equipmentRateFrom), materialRates: matRows.map(rates.materialRateFrom) })
+      } catch (err) {
+        notify(`Rates were not read from the server: ${errorText(err)}`, 6000)
+      }
+    },
+
+    saveEquipmentRateSheet: async (projectId, fileName, effectiveFrom, rows) => {
+      const versionId = await get().recordRateSheet('equipment-rates', projectId, fileName, effectiveFrom, rows.length)
+      const saved: EquipmentRate[] = []
+      for (const r of rows) saved.push(rates.equipmentRateFrom(await rates.createEquipmentRate({ ...r, projectId, policyVersionId: versionId })))
+      set((s) => ({ equipmentRates: [...s.equipmentRates.filter((x) => x.policyVersionId !== versionId), ...saved] }))
+    },
+
+    saveMaterialRateSheet: async (projectId, fileName, effectiveFrom, rows) => {
+      const versionId = await get().recordRateSheet('material-rates', projectId, fileName, effectiveFrom, rows.length)
+      const saved: MaterialRate[] = []
+      for (const r of rows) saved.push(rates.materialRateFrom(await rates.createMaterialRate({ ...r, projectId, policyVersionId: versionId })))
+      set((s) => ({ materialRates: [...s.materialRates.filter((x) => x.policyVersionId !== versionId), ...saved] }))
+    },
+
+    savePolicyVersion: async (key, effectiveFrom, reason, data, scopeProjectIds) => {
+      needSource(get().policiesSource, 'Policies')
+      const push = async (v: { effectiveFrom: string; reason: string; data: unknown }, projectId: string | null) => {
         let policyId = get().policyIds[key]
         if (!policyId) {
           policyId = (await pol.createPolicy(key)).id
           const id = policyId
           set((s) => ({ policyIds: { ...s.policyIds, [key]: id } }))
         }
-        const draft = await pol.createPolicyVersion(policyId, v)
+        const draft = await pol.createPolicyVersion(policyId, { ...v, projectId: projectId ?? null })
         // the rules of a version are rows of their own and can only be written before it is published
         if (key === 'rules') for (const rule of (v.data as PolicyData['rules']).rules) await pol.createPolicyRule(draft.id, rule)
         await pol.publishPolicyVersion(draft.id, draft.rowVersion)
       }
-      await push({ effectiveFrom, reason, data })
+      // one version per target: the whole company, or each chosen project (the same content, saved for each)
+      const targets: (string | null)[] = scopeProjectIds && scopeProjectIds.length ? scopeProjectIds : [null]
+      for (const target of targets) await push({ effectiveFrom, reason, data }, target)
       await get().loadPolicies()
       if (effectiveFrom <= nowISO().slice(0, 10)) {
         // the flat OT and leave rows follow the version in force; a failure here must not undo the saved version
@@ -573,19 +626,16 @@ export const useCore = create<CoreState>()((set, get) => {
       if (!isRemote(get().projects.find((p) => p.id === projectId))) return
       set((s) => ({ partsLoad: { ...s.partsLoad, [projectId]: 'loading' }, partsError: { ...s.partsError, [projectId]: '' } }))
       try {
-        const [wbsRows, msRows, markerRows, zoneRows, locRows] = await Promise.all([
-          parts.listWbs(projectId), parts.listMilestones(projectId), parts.listMarkers(projectId), parts.listZones(projectId), parts.listLocations(projectId),
+        const [msRows, markerRows, zoneRows, locRows] = await Promise.all([
+          parts.listMilestones(projectId), parts.listMarkers(projectId), parts.listZones(projectId), parts.listLocations(projectId),
         ])
-        const wbs = wbsRows.map(parts.wbsFrom)
-        const markers = markerRows.map((r) => parts.markerFrom(r, wbs)).sort((a, b) => a.km - b.km)
+        const markers = markerRows.map(parts.markerFrom).sort((a, b) => a.km - b.km)
         const sites = locRows.map(parts.siteFrom)
         patchProject(projectId, (p) => ({
           ...p,
-          wbs,
           milestones: msRows.map(parts.milestoneFrom),
           zones: zoneRows.map(parts.zoneFrom),
           chainage: { ...rangeFor(p.chainage, markers), markers },
-          locationIds: sites.map((x) => x.id),
         }))
         set((s) => ({ sites: sites.reduce(upsert, s.sites), partsLoad: { ...s.partsLoad, [projectId]: 'ready' } }))
       } catch (err) {
@@ -618,41 +668,13 @@ export const useCore = create<CoreState>()((set, get) => {
       patchProject(projectId, (p) => ({ ...p, milestones: p.milestones.filter((x) => x.id !== id) }))
     },
 
-    addWbsNode: async (projectId, n) => {
-      need(projectId)
-      const node = parts.wbsFrom(await parts.createWbs(projectId, n))
-      patchProject(projectId, (p) => ({ ...p, wbs: [...p.wbs, node] }))
-    },
-
-    removeWbsNode: async (projectId, id) => {
-      const project = need(projectId)
-      const prev = project.wbs.find((x) => x.id === id)
-      if (!prev) return
-      await parts.deleteWbs(id)
-      patchProject(projectId, (p) => ({ ...p, wbs: p.wbs.filter((x) => x.id !== id) }))
-    },
-
-    editWbsNode: async (projectId, id, n) => {
-      const project = need(projectId)
-      const prev = project.wbs.find((x) => x.id === id)
-      if (!prev) return
-      if (prev.rowVersion === undefined) throw notSaved('This WBS item is not stored on the server')
-      const next: Project['wbs'][number] = parts.wbsFrom(await parts.updateWbs(id, prev.rowVersion, n))
-      // markers point at a WBS item by code, so a renamed code follows them
-      patchProject(projectId, (p) => ({
-        ...p,
-        wbs: p.wbs.map((x) => (x.id === id ? next : x)),
-        chainage: { ...p.chainage, markers: p.chainage.markers.map((m) => (m.wbsCode === prev.code ? { ...m, wbsCode: next.code } : m)) },
-      }))
-    },
-
     addMarkers: async (projectId, list) => {
-      const project = need(projectId)
+      need(projectId)
       const added: ChainageMarker[] = []
       const failed: string[] = []
       for (const m of list) {
         try {
-          added.push(parts.markerFrom(await parts.createMarker(projectId, m, project.wbs), project.wbs))
+          added.push(parts.markerFrom(await parts.createMarker(projectId, m)))
         } catch (err) {
           if (list.length === 1) throw err
           failed.push(`${m.km} km: ${errorText(err)}`)
@@ -677,7 +699,7 @@ export const useCore = create<CoreState>()((set, get) => {
       const prev = project.chainage.markers.find((x) => x.id === id)
       if (!prev) return
       if (prev.rowVersion === undefined) throw notSaved('This marker is not stored on the server')
-      const next: ChainageMarker = parts.markerFrom(await parts.updateMarker(id, prev.rowVersion, m, project.wbs), project.wbs)
+      const next: ChainageMarker = parts.markerFrom(await parts.updateMarker(id, prev.rowVersion, m))
       patchProject(projectId, (p) => ({
         ...p,
         chainage: { ...p.chainage, markers: p.chainage.markers.map((x) => (x.id === id ? next : x)).sort((a, b) => a.km - b.km) },
@@ -710,12 +732,7 @@ export const useCore = create<CoreState>()((set, get) => {
       set({ sitesLoad: 'loading', sitesError: '' })
       try {
         const sites = (await masters.listAllLocations()).map(parts.siteFrom)
-        set((s) => ({
-          sites,
-          sitesLoad: 'ready',
-          // a location names its one project, so each API project's list comes from the locations
-          projects: s.projects.map((p) => (isRemote(p) ? { ...p, locationIds: sites.filter((x) => x.projectId === p.id).map((x) => x.id) } : p)),
-        }))
+        set({ sites, sitesLoad: 'ready' })
       } catch (err) {
         set({ sitesLoad: 'error', sitesError: errorText(err) })
       }
@@ -732,7 +749,7 @@ export const useCore = create<CoreState>()((set, get) => {
             if (!isRemote(p)) return p
             const markers = markerRows
               .filter((r) => r.projectId === p.id)
-              .map((r) => masters.mergeMarker(r, p.chainage.markers.find((m) => m.id === r.id)))
+              .map((r) => masters.mergeMarker(r))
               .sort((a, b) => a.km - b.km)
             return { ...p, chainage: { ...rangeFor(p.chainage, markers), markers } }
           }),
@@ -740,24 +757,6 @@ export const useCore = create<CoreState>()((set, get) => {
       } catch (err) {
         set({ storesLoad: 'error', storesError: errorText(err) })
       }
-    },
-
-    createSiteRemote: async (projectId, v, key) => {
-      need(projectId)
-      const site = parts.siteFrom(await masters.createLocation(projectId, v, key))
-      set((s) => ({
-        sites: upsert(s.sites, site),
-        projects: s.projects.map((p) => (p.id === projectId ? { ...p, locationIds: [...p.locationIds, site.id] } : p)),
-      }))
-      return site
-    },
-
-    updateSiteRemote: async (id, v, key) => {
-      const prev = get().sites.find((x) => x.id === id)
-      if (prev?.rowVersion === undefined) throw new ApiError(409, 'NOT_SAVED', 'This location is not stored on the server. Reload and try again.')
-      const site = parts.siteFrom(await masters.updateLocation(id, prev.rowVersion, v, key))
-      set((s) => ({ sites: upsert(s.sites, site) }))
-      return site
     },
 
     createStoreRemote: async (v, key) => {
@@ -798,7 +797,7 @@ export const useCore = create<CoreState>()((set, get) => {
       try {
         const rows = await mat.listMaterials()
         set((s) => ({
-          materials: rows.map((r) => mat.materialFrom(r, s.uoms, s.materialsSource === 'api' ? s.materials.find((x) => x.id === r.id) : undefined)),
+          materials: rows.map((r) => mat.materialFrom(r, s.uoms)),
           materialsSource: 'api',
           materialsLoad: 'ready',
         }))
@@ -857,16 +856,10 @@ export const useCore = create<CoreState>()((set, get) => {
     },
 
     saveUnitRemote: async (u, key) => {
-      const existing = get().equipmentTypes.find((t) => t.code === eq.COMPANY_EQUIPMENT_TYPE.code)
-      const type = existing ?? await (async () => {
-        const rec = await eq.createEquipmentType({ code: eq.COMPANY_EQUIPMENT_TYPE.code, name: eq.COMPANY_EQUIPMENT_TYPE.name, active: true })
-        set((s) => ({ equipmentTypes: upsert(s.equipmentTypes, rec) }))
-        return rec
-      })()
+      // the unit's type is its category; a unit without one stays under the company's default type
+      const type = await get().ensureEquipmentTypeRemote(u.type?.trim() || eq.COMPANY_EQUIPMENT_TYPE.name)
       const typeId = type.id
-      // a chainage marker is not a location: the link is sent only when a server location has that id, else the unit is unassigned (null)
-      const locationId = get().sites.some((s) => s.id === u.chainageId) ? u.chainageId : null
-      const draft = unitApi.draftFrom(u, typeId, locationId)
+      const draft = unitApi.draftFrom(u, typeId)
       const rec = u.rowVersion !== undefined
         ? await unitApi.updateUnit(u.id, u.rowVersion, draft, key)
         : await unitApi.createUnit(draft, key)
@@ -922,23 +915,29 @@ export const useCore = create<CoreState>()((set, get) => {
       const rec = prev?.rowVersion !== undefined
         ? await mat.updateMaterial(id, prev.rowVersion, details, uomId, key)
         : await mat.createMaterial(details, uomId, key)
-      const saved = mat.materialFrom(rec, get().uoms, m)
+      const saved = mat.materialFrom(rec, get().uoms)
       set((s) => ({ materials: prev ? s.materials.map((x) => (x.id === id ? saved : x)) : upsert(s.materials, saved) }))
       return saved
+    },
+
+    ensureEquipmentTypeRemote: async (typeName) => {
+      const name = typeName.trim()
+      const found = eq.typeIdByName(get().equipmentTypes, name)
+      if (found) return get().equipmentTypes.find((t) => t.id === found)!
+      // a type the company has not used before ("Other") is created on the server from its name
+      const taken = new Set(get().equipmentTypes.map((t) => t.code.toUpperCase()))
+      const base = (name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'EQUIPMENT').replace(/^[^A-Z]/, 'T$&').slice(0, 30)
+      let code = base
+      for (let n = 2; taken.has(code); n += 1) code = `${base}_${n}`
+      const created = await eq.createEquipmentType({ code, name, active: true })
+      set((s) => ({ equipmentTypes: upsert(s.equipmentTypes, created) }))
+      return created
     },
 
     saveEquipmentPlanRemote: async (l, key) => {
       needSource(get().planSource, 'Plan lines')
       // a planner can name a type the company has not used before ("Other"): it is created on the server from its name
-      if (!eq.typeIdByName(get().equipmentTypes, l.equipmentType) && l.equipmentType.trim()) {
-        const name = l.equipmentType.trim()
-        const taken = new Set(get().equipmentTypes.map((t) => t.code.toUpperCase()))
-        const base = (name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'EQUIPMENT').replace(/^[^A-Z]/, 'T$&').slice(0, 30)
-        let code = base
-        for (let n = 2; taken.has(code); n += 1) code = `${base}_${n}`
-        const created = await eq.createEquipmentType({ code, name, active: true })
-        set((s) => ({ equipmentTypes: upsert(s.equipmentTypes, created) }))
-      }
+      if (!eq.typeIdByName(get().equipmentTypes, l.equipmentType) && l.equipmentType.trim()) await get().ensureEquipmentTypeRemote(l.equipmentType)
       const body = plans.planLineBody(l, get().equipmentTypes)
       if (!body) throw new ApiError(400, 'TYPE_UNKNOWN', `"${l.equipmentType}" is not an equipment type on the server yet.`)
       const prev = get().planLines.find((x) => x.id === l.id)
@@ -1403,12 +1402,12 @@ export const useCore = create<CoreState>()((set, get) => {
       await get().loadRequestActions(id)
     },
 
-    publishJobRemote: async (id, locationId, key) => {
+    publishJobRemote: async (id, key) => {
       const req = get().requests.find((r) => r.id === id)
       if (!req) throw new ApiError(404, 'REQUEST_NOT_FOUND', 'Request not found. Reload the page.')
       if (req.rowVersion === undefined) throw notSaved('This request is not stored on the server')
       try {
-        const rec = await appr.publishJobOpening(id, req.rowVersion, locationId, key)
+        const rec = await appr.publishJobOpening(id, req.rowVersion, key)
         set((s) => ({ requests: s.requests.map((x) => (x.id === id ? appr.requestFrom(rec, x) : x)) }))
       } catch (err) {
         if (err instanceof ApiError && err.code === 'VERSION_CONFLICT') await get().loadRequests()
@@ -1481,8 +1480,15 @@ const rowsIntoPolicies = (policies: PolicyVersion[], holidayRows: org.HolidayRow
   })
 }
 
-export function policyState<K extends PolicyKey>(all: PolicyVersion[], key: K, today = nowISO().slice(0, 10)) {
-  const versions = (all.filter((p) => p.key === key) as PolicyVersion<K>[]).sort((a, b) => a.version - b.version)
+/**
+ * The versions of one policy that apply: the project's own versions when it has any, otherwise the company-wide
+ * default versions (projectId null). Without a project only the company-wide versions apply.
+ */
+export function policyState<K extends PolicyKey>(all: PolicyVersion[], key: K, today = nowISO().slice(0, 10), projectId?: string | null) {
+  const forKey = all.filter((p) => p.key === key) as PolicyVersion<K>[]
+  const ownVersions = projectId ? forKey.filter((p) => p.projectId === projectId) : []
+  const pool = ownVersions.length ? ownVersions : forKey.filter((p) => !p.projectId)
+  const versions = pool.sort((a, b) => a.version - b.version)
   const effective = versions.filter((v) => v.effectiveFrom <= today)
   const current = effective[effective.length - 1] ?? versions[0]
   const scheduled = versions.filter((v) => v.effectiveFrom > today)

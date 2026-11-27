@@ -1,4 +1,4 @@
-import { api } from '@/shared/lib/api'
+﻿import { api } from '@/shared/lib/api'
 
 /**
  * Bill of Quantities (API 1.3.0, /boq-items). Reads need a signed-in user; writes need projects.manage. The item code
@@ -13,7 +13,6 @@ export interface BoqItem {
   projectId: string
   itemCode: string
   description: string
-  wbsNodeId: string | null
   uomId: string
   quantity: number
   rate: number
@@ -26,7 +25,6 @@ export interface BoqItem {
 export interface BoqDraft {
   itemCode: string
   description: string
-  wbsNodeId: string | null
   uomId: string
   quantity: number
   rate: number

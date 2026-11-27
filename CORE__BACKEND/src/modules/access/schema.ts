@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 /** Dotted lowercase names, for example access.manage. The name must not be empty and has at least one dot. */
 const PRIVILEGE_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
@@ -16,7 +16,6 @@ const reasonSchema = z.string().trim().min(1).max(500);
 
 /** Optional scope of a grant. Each id must exist in its table; the database checks that on insert. */
 const scopeSchema = z.object({
-  locationId: z.uuid().optional(),
   projectId: z.uuid().optional(),
   storeId: z.uuid().optional(),
 });
@@ -81,12 +80,33 @@ function unique<T>(values: readonly T[]): boolean {
   return new Set(values).size === values.length;
 }
 
+export type UserRole = (typeof USER_ROLES)[number];
+
+/**
+ * The roles a user holds, given by the request: `roles` when sent, else the single `role`, else the fallback. A user
+ * may hold both roles (a module head can also sit on approval levels). module_head comes first.
+ */
+export function rolesFrom(input: { role?: UserRole | undefined; roles?: UserRole[] | undefined }, fallback: UserRole[]): UserRole[] {
+  const list = input.roles ?? (input.role ? [input.role] : fallback);
+  return USER_ROLES.filter((r) => list.includes(r));
+}
+
+/** The one role older readers expect: a module head when the user holds that role, otherwise an approver. */
+export function primaryRole(roles: readonly string[]): UserRole {
+  return roles.includes('module_head') ? 'module_head' : 'approver';
+}
+
 const profileFields = {
   name: z.string().trim().min(1).max(200),
   email: z.email().max(254).nullable().optional(),
   phone: z.string().trim().min(1).max(30).nullable().optional(),
   designation: z.string().trim().min(1).max(200).nullable().optional(),
   role: z.enum(USER_ROLES),
+  roles: z
+    .array(z.enum(USER_ROLES))
+    .min(1)
+    .max(USER_ROLES.length)
+    .refine(unique, 'roles must not repeat'),
   modules: z
     .array(z.enum(USER_MODULES))
     .max(USER_MODULES.length)
@@ -103,7 +123,8 @@ export const userCreateBody = z
   .object({
     loginId: loginIdSchema,
     ...profileFields,
-    role: profileFields.role.default('approver'),
+    role: profileFields.role.optional(),
+    roles: profileFields.roles.optional(),
     modules: profileFields.modules.default([]),
     scopeType: profileFields.scopeType.default('company'),
     scopeIds: profileFields.scopeIds.default([]),
@@ -118,6 +139,7 @@ export const userPatchBody = z
     phone: profileFields.phone,
     designation: profileFields.designation,
     role: profileFields.role.optional(),
+    roles: profileFields.roles.optional(),
     modules: profileFields.modules.optional(),
     scopeType: profileFields.scopeType.optional(),
     scopeIds: profileFields.scopeIds.optional(),

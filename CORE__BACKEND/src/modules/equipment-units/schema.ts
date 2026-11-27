@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 /** The availability vocabulary of the register (frontend Availability). */
 export const AVAILABILITY_VALUES = [
@@ -19,6 +19,8 @@ export const DOCUMENT_KEYS = [
   'invoiceDoc',
   'insuranceDoc',
   'pucDoc',
+  'regDoc',
+  'fitnessDoc',
 ] as const;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -48,6 +50,8 @@ const textFields = {
   tankCapacity: 20,
   owner: 100,
   hireRef: 60,
+  hiredFrom: 20,
+  overPlanReason: 500,
   warrantyReading: 40,
   invoiceNo: 60,
   insuranceNo: 60,
@@ -87,8 +91,13 @@ const unitFields = {
   assetCode: text(40),
   equipmentTypeId: z.uuid(),
   availability: z.enum(AVAILABILITY_VALUES).optional(),
-  locationId: optionalUuid,
+  // The project the unit belongs to (core_project id), or null when none is chosen.
+  projectId: optionalUuid,
+  // The approved equipment request a hired unit is registered against (core_approval_request id).
+  approvalRequestId: optionalUuid,
   vendorId: optionalUuid,
+  // Hired units: whether the unit is still on hire. Active when registered; changed afterwards.
+  hireStatus: z.enum(['Active', 'Inactive']).nullable().optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
   lng: z.number().min(-180).max(180).nullable().optional(),
   // Last telematics ping, an ISO 8601 instant in UTC.

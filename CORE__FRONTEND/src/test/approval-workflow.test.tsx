@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+﻿import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuth } from '@/modules/auth'
@@ -32,7 +32,7 @@ const level = (levelNo: number, approverUserId: string) => ({
 
 const record = (extra: Partial<RequestRecord> = {}): RequestRecord => ({
   id: REQ, code: 'APR-2026-0042', requestType: 'Manpower requisition', module: 'HRMS', title: 'Two surveyors', amount: 0,
-  status: 'pending', emergency: false, locationId: SITE, chainageMarkerId: MARKER, raisedById: RAISER, raisedByName: 'Raiser',
+  status: 'pending', emergency: false, chainageMarkerId: MARKER, raisedById: RAISER, raisedByName: 'Raiser',
   raisedAt: '2026-11-20T10:00:00Z', chainId: 'c1', matrixVersionId: 'v1', matrixVersion: 1, currentLevel: 1,
   payloadJson: { kind: 'mrf', position: 'Surveyor', count: 2, requiredBy: '2026-12-01', reason: 'New stretch' },
   assignedActorId: ME, decidedAt: null, rowVersion: 3,
@@ -48,7 +48,7 @@ function serverState(req = record()) {
       { ...seed.USERS[0]!, id: OTHER, name: 'Second Approver' },
       { ...seed.USERS[0]!, id: RAISER, name: 'Raiser' },
     ],
-    projects: [{ ...seed.PROJECTS[0]!, id: PROJECT, code: 'NH-44', name: 'Fictional Highway', rowVersion: 1, chainage: { startKm: 0, endKm: 10, markers: [{ id: MARKER, km: 2, label: 'CH-2', wbsCode: '' }] } }],
+    projects: [{ ...seed.PROJECTS[0]!, id: PROJECT, code: 'NH-44', name: 'Fictional Highway', rowVersion: 1, chainage: { startKm: 0, endKm: 10, markers: [{ id: MARKER, km: 2, label: 'CH-2' }] } }],
     sites: [{ ...seed.SITES[0]!, id: SITE, code: 'CAMP-A', name: 'Camp A', projectId: PROJECT, status: 'Active', rowVersion: 1 }],
   })
   useAuth.setState({ profile: { ...(useAuth.getState().profile ?? {}), id: ME } as never })
@@ -79,11 +79,10 @@ describe('deciding a request', () => {
     vi.unstubAllGlobals()
   })
 
-  it('shows the project and site the decision applies to', async () => {
+  it('shows the project the decision applies to', async () => {
     renderDetail()
     const scope = within(await screen.findByRole('group', { name: 'Applies to' }))
     expect(scope.getByText('Fictional Highway (NH-44)')).toBeInTheDocument()
-    expect(scope.getByText('Camp A (CAMP-A)')).toBeInTheDocument()
   })
 
   it('asks for confirmation before approving, and sends one action however often Confirm is clicked', async () => {
@@ -126,7 +125,7 @@ describe('deciding a request', () => {
     serverState(record({ currentLevel: 2, assignedActorId: OTHER }))
     renderDetail()
     expect(await screen.findByText('Waiting on Second Approver')).toBeInTheDocument()
-    for (const name of ['Approve', 'Reject', 'Clarify']) expect(screen.getByRole('button', { name })).toBeDisabled()
+    for (const name of ['Approve', 'Reject', 'Clarify']) expect(screen.queryByRole('button', { name })).toBeNull()
   })
 
   it('leaves a level that also names a role to the server', async () => {

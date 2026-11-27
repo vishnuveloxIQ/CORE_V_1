@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+﻿import type { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { enqueueOutbound } from '../../core/events.js';
@@ -149,7 +149,6 @@ export async function raiseRequest(
     status: 'pending',
     emergency: input.emergency ?? false,
     neededBy: input.neededBy ?? null,
-    locationId: input.locationId ?? null,
     chainageMarkerId: input.chainageMarkerId ?? null,
     raisedById: actor.actorId,
     raisedByName: raiser?.name ?? null,
@@ -398,14 +397,14 @@ function isJobOpening(request: Row): boolean {
 }
 
 /**
- * Publishes an approved job opening to a location: sets publishedLocationId and publishedAt under the row-version
- * guard. Publishing again moves it to another location and renews publishedAt. The location must exist.
+ * Publishes an approved job opening to its project: sets publishedAt under the row-version guard. Publishing again
+ * renews publishedAt.
  */
 export async function publishJobOpening(
   client: PoolClient,
   actor: Actor,
   requestId: string,
-  input: { locationId: string; rowVersion: number },
+  input: { rowVersion: number },
 ): Promise<Row> {
   const existing = await findRecord(client, requestSpec, requestId, true);
   if (!existing) throw notFound(requestSpec);
@@ -420,14 +419,7 @@ export async function publishJobOpening(
       'A job opening can be published only after it is approved',
     );
   }
-  const location = await one<{ id: string }>(client, 'SELECT id FROM core_location WHERE id = $1', [
-    input.locationId,
-  ]);
-  if (!location) {
-    throw new AppError('APPROVAL_REFERENCE_NOT_FOUND', 400, 'The location does not exist');
-  }
   return updateRecord(client, requestSpec, actor, requestId, input.rowVersion, {
-    publishedLocationId: input.locationId,
     publishedAt: new Date(),
   });
 }

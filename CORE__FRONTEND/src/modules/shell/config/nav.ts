@@ -34,53 +34,66 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    label: "Projects and locations",
+    label: "Projects",
     items: [
       { label: "Projects", to: "/projects", icon: "hardhat" },
-      { label: "Locations", to: "/sites", icon: "mapPin" },
       { label: "Geofences", to: "/geofences", icon: "map" },
-      { label: "Resource planning", to: "/people-planning", icon: "users" },
-      { label: "Material planning", to: "/material-planning", icon: "calendar" },
-    ],
-  },
-  {
-    label: "People and organisation",
-    items: [
-      { label: "Organogram", to: "/organogram", icon: "network" },
-      { label: "Departments", to: "/departments", icon: "building" },
-      { label: "Users and roles", to: "/users", icon: "userCog", needs: "access.manage" },
       {
         label: "Approvals",
         to: "/approvals",
-        icon: "approvals",
+        icon: "fileCheck",
         get badge() {
           return pendingRequests();
         },
       },
-      { label: "Job openings", to: "/job-openings", icon: "jobs" },
+      { label: "Sub-contractors", to: "/sub-contractors", icon: "handshake" },
+      { label: "Workforce adverts", to: "/workforce-adverts", icon: "target" },
     ],
   },
   {
-    label: "Inventory/Store",
+    label: "Petty cash management",
     items: [
-      { label: "Stores", to: "/stores", icon: "warehouse" },
-      { label: "Materials", to: "/materials", icon: "package" },
-      { label: "Vendors", to: "/vendors", icon: "briefcase" },
+      { label: "Pending approvals", to: "/approvals/petty-cash/pending", icon: "hourglass" },
+      { label: "Reports", to: "/approvals/petty-cash/reports", icon: "receipt" },
+    ],
+  },
+  {
+    label: "HR management system",
+    items: [
+      { label: "Resource planning", to: "/people-planning", icon: "users" },
+      { label: "Organogram", to: "/organogram", icon: "network" },
+      { label: "Departments", to: "/departments", icon: "building" },
+      { label: "Users and roles", to: "/users", icon: "userCog", needs: "access.manage" },
+      { label: "Job openings", to: "/job-openings", icon: "jobs" },
+      { label: "Approved list", to: "/approved-list", icon: "checkc" },
+      { label: "Manpower availability", to: "/manpower-availability", icon: "userSearch" },
+    ],
+  },
+  {
+    label: "Material Management",
+    items: [
+      { label: "Store registration", to: "/stores", icon: "warehouse" },
+      { label: "Material registration", to: "/materials", icon: "package" },
+      { label: "Project material planning", to: "/material-planning", icon: "calendar" },
+      { label: "Vendor registration", to: "/vendors", icon: "briefcase" },
       { label: "Live stock", to: "/stock", icon: "boxes" },
       { label: "Available materials", to: "/available-materials", icon: "layers" },
+      { label: "Quotation approval", to: "/quotation-approval", icon: "files" },
     ],
   },
   {
-    label: "Equipment",
+    label: "Fleet and Equipment Management",
     items: [
       { label: "Company equipment register", to: "/equipment/register", icon: "truck" },
-      { label: "Maintenance", to: "/equipment/maintenance", icon: "wrench" },
-      { label: "Available equipment", to: "/equipment/available", icon: "gauge" },
+      { label: "Hired equipment register", to: "/equipment/hired", icon: "receiptRupee" },
       {
         label: "Project equipment planning",
         to: "/equipment/planning",
         icon: "clipboard",
       },
+      { label: "Available equipment", to: "/equipment/available", icon: "gauge" },
+      { label: "Assigned equipment", to: "/equipment/assigned", icon: "mapPinned" },
+      { label: "Maintenance", to: "/equipment/maintenance", icon: "wrench" },
     ],
   },
   {
@@ -95,7 +108,7 @@ export const NAV: NavGroup[] = [
           return visitRequests();
         },
       },
-      { label: "Activity log", to: "/audit", icon: "history", needs: "access.manage" },
+      { label: "Audit log", to: "/audit", icon: "history", needs: "access.manage" },
     ],
   },
   {
@@ -120,64 +133,3 @@ export function navFor(privileges: readonly string[]): NavGroup[] {
     (g) => g.items.length > 0,
   );
 }
-
-/** Each notification opens the page where the Tenant Admin has to act. */
-export const NOTIFICATIONS = [
-  {
-    id: "n1",
-    icon: "approvals",
-    title: "REQ-2041 waiting at L2",
-    description:
-      "Equipment: 2 excavators for NH-65 camp A. Your decision is needed.",
-    at: "2026-11-06T10:15:00",
-    to: "/approvals/REQ-2041",
-  },
-  {
-    id: "n2",
-    icon: "calendar",
-    title: "Head Office visit requested — GRV-0118",
-    description: "A visit to Head Office has been requested for 10 Nov 2026. Please confirm or reschedule.",
-    at: "2026-11-06T08:20:00",
-    to: "/grievances/GRV-0118",
-  },
-  {
-    id: "n3",
-    icon: "packageX",
-    title: "Camp B store out of cement",
-    description: "Material request REQ-2039 is marked emergency.",
-    at: "2026-11-04T14:40:00",
-    to: "/approvals/REQ-2039",
-  },
-  {
-    id: "n4",
-    icon: "send",
-    title: "QA/QC engineer opening ready to publish",
-    description: "Approved for Head Office hiring. Publish it to the metro depot location.",
-    at: "2026-10-30T10:00:00",
-    to: "/job-openings",
-  },
-  {
-    id: "n5",
-    icon: "mapPinOff",
-    title: "NH-65 camp B has no geo-fence",
-    description: "Attendance cannot be marked there until you draw one.",
-    at: "2026-10-28T09:00:00",
-    to: "/geofences",
-  },
-  {
-    id: "n6",
-    icon: "workflow",
-    title: "Recruitment chain not usable",
-    description:
-      "Set an L1 approver so modules can raise recruitment requests.",
-    at: "2026-10-25T09:00:00",
-    to: "/approval-matrix/AC-8",
-  },
-] as const satisfies readonly {
-  id: string;
-  icon: IconName;
-  title: string;
-  description: string;
-  at: string;
-  to: string;
-}[];

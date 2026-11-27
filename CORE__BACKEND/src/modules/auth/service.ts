@@ -27,6 +27,8 @@ export interface AuthDeps {
   signingKey: Uint8Array;
   /** Most devices per user (SESSION_DEVICE_LIMIT). Unset means no limit. */
   deviceLimit?: number | undefined;
+  /** How long a locked account stays locked, in seconds (AUTH_LOCK_SECONDS). Unset means 15 minutes. */
+  lockSeconds?: number | undefined;
 }
 
 export interface TokenPair {
@@ -156,7 +158,7 @@ export async function login(deps: AuthDeps, input: LoginInput): Promise<LoginRes
     if (!matches && !locked) {
       const failed = (user.failed_count ?? 0) + 1;
       if (failed >= MAX_FAILED_LOGINS) {
-        await repo.setFailedLogin(client, user.id, 0, new Date(now.getTime() + LOCKOUT_MS));
+        await repo.setFailedLogin(client, user.id, 0, new Date(now.getTime() + (deps.lockSeconds ?? LOCKOUT_MS / 1000) * 1000));
       } else {
         await repo.setFailedLogin(client, user.id, failed, user.locked_until);
       }
@@ -335,6 +337,33 @@ export async function logout(
 }
 
 /** The user behind the caller's access token. */
+/** Updates the signed-in user's own name, email and mobile number. Other fields and roles are not changed here. */
+export async function updateOwnDetails(
+  deps: AuthDeps,
+  input: { tenantId: string; userId: string },
+  body: { name: string; email: string; phone: string },
+): Promise<PublicUser> {
+  return withTenant(deps.pool, input.tenantId, async (client) => {
+    try {
+      await client.query(
+        `UPDATE core_user SET name = $2, email = $3, phone = $4, updated_at = now(), row_version = row_version + 1
+         WHERE id = $1`,
+        [input.userId, body.name, body.email, body.phone],
+      );
+    } catch (err) {
+      if ((err as { code?: string }).code === '23505') {
+        throw new AppError('CONFLICT', 409, 'That email address is already used by another user.');
+      }
+      throw err;
+    }
+    const found = await repo.findPublicUser(client, input.userId);
+    if (!found) {
+      throw new AppError('AUTH_INVALID_TOKEN', 401, 'Access token is invalid or expired');
+    }
+    return found.user;
+  });
+}
+
 export async function currentUser(
   deps: AuthDeps,
   input: { tenantId: string; userId: string },

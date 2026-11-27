@@ -4,6 +4,10 @@ import { page } from '@/shared/lib/route'
 // 3.7 + 3.9 approvals and request handling
 export const approvalRoutes: AppRoute[] = [
   { path: '/approvals', Component: page(() => import('./pages/ApprovalsList')) },
+  { path: '/approvals/petty-cash', Component: page(() => import('./pages/PettyCashApprovals')) },
+  { path: '/approvals/petty-cash/pending', Component: page(() => import('./pages/PettyCashApprovals')) },
+  { path: '/approvals/petty-cash/reports', Component: page(() => import('./pages/PettyCashApprovals')) },
+  { path: '/petty-cash/:id', sample: '/petty-cash/REQ-2037', Component: page(() => import('./pages/ApprovalDetail')) },
   { path: '/approvals/:id', sample: '/approvals/REQ-2039', Component: page(() => import('./pages/ApprovalDetail')) },
 ]
 

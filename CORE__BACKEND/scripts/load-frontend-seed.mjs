@@ -15,6 +15,7 @@
 // grievances, tickets, policies with versions and rules.
 
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import pg from 'pg';
@@ -41,7 +42,8 @@ const seed = await import(pathToFileURL(seedPath).href);
 const {
   COMPANY, PROJECTS, SITES, STORES, MATERIALS, STOCK, EQUIPMENT_TYPES, EQUIPMENT_TYPE_MASTER, ASSIGNMENTS,
   PLAN_LINES, PEOPLE_PLAN, MATERIAL_PLAN, CHAINS, REQUESTS, GRIEVANCES, POLICIES, TICKETS, DEPARTMENTS, ROLES,
-  VENDORS, PMS_LIMITS, USERS,
+  VENDORS, USERS,
+  CASH_LIMITS: PMS_LIMITS,
 } = seed;
 
 let token = '';
@@ -668,7 +670,9 @@ async function main() {
       api('POST', '/organisation/number-series', { body: { seriesCode: 'APR', prefix: 'REQ-', yearScope: 0, nextValue: nextReq } }),
     ),
   );
-  for (const r of REQUESTS) {
+  // SKIP_APPROVAL_REQUESTS=1 leaves requests out: the login user would raise them, and a tenant admin does not raise
+  // requests. Requests are then raised by module users (see the tenant's own data setup).
+  for (const r of process.env.SKIP_APPROVAL_REQUESTS ? [] : REQUESTS) {
     await run('approval request', r.id, () =>
       ensure('approval request', '/approval-requests', (x) => x.title === r.title && x.module === r.module, () =>
         api('POST', '/approval-requests', {
@@ -678,6 +682,13 @@ async function main() {
           },
         }),
       ),
+    );
+  }
+
+  // Quotations waiting for the administrator (sample data from scripts/sample-quotations.json; each starts PENDING).
+  for (const q of JSON.parse(readFileSync(resolve(here, 'sample-quotations.json'), 'utf8'))) {
+    await run('quotation', q.ref, () =>
+      ensure('quotation', '/quotations', (r) => r.ref === q.ref, () => api('POST', '/quotations', { body: q })),
     );
   }
 

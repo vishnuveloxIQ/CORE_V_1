@@ -1,5 +1,5 @@
 import { api } from '@/shared/lib/api'
-import type { CompanyProfile, Department, Holiday, HolidayType, Role, ShiftTiming } from '../types'
+import type { CompanyProfile, CompanyType, Department, Holiday, HolidayType, Role, ShiftTiming } from '../types'
 
 /**
  * Organisation endpoints (/organisation/*): company profile, holidays, shifts, number series, departments and
@@ -16,6 +16,7 @@ const base = '/organisation'
 // ---------- company profile ----------
 export interface CompanyRecord {
   id: string; code: string; legalName: string; status: string; tradeName: string | null
+  companyType: CompanyType | null
   cin: string | null; gstin: string | null; pan: string | null; tan: string | null
   addressLine1: string | null; addressLine2: string | null; city: string | null; state: string | null
   pin: string | null; country: string | null; contactName: string | null; contactEmail: string | null
@@ -23,13 +24,14 @@ export interface CompanyRecord {
   settings: Record<string, number> | null; rowVersion: number
 }
 
-export type CompanyDetails = Omit<CompanyProfile, 'logo' | 'offerLetter' | 'id' | 'code' | 'rowVersion'>
+/** mobileCode is the code sent to a changed mobile number; the API needs it only when that number changes. */
+export type CompanyDetails = Omit<CompanyProfile, 'logo' | 'offerLetter' | 'id' | 'code' | 'rowVersion'> & { mobileCode?: string }
 
 /** Keeps the logo and offer letter already in the store: the API holds neither as a data URL. */
 export const companyFrom = (r: CompanyRecord, prev: CompanyProfile): CompanyProfile => ({
   ...prev,
   id: r.id, code: r.code, rowVersion: r.rowVersion, logoFileId: r.logoFileId,
-  legalName: r.legalName, tradeName: r.tradeName ?? '', cin: r.cin ?? '', gstin: r.gstin ?? '', pan: r.pan ?? '', tan: r.tan ?? '',
+  legalName: r.legalName, tradeName: r.tradeName ?? '', companyType: r.companyType ?? '', cin: r.cin ?? '', gstin: r.gstin ?? '', pan: r.pan ?? '', tan: r.tan ?? '',
   addressLine1: r.addressLine1 ?? '', addressLine2: r.addressLine2 ?? '', city: r.city ?? '', state: r.state ?? '', pin: r.pin ?? '',
   country: r.country ?? '', contactName: r.contactName ?? '', contactEmail: r.contactEmail ?? '', contactPhone: r.contactPhone ?? '',
   website: r.website ?? '',
@@ -46,6 +48,8 @@ export const putCompanyProfile = (v: CompanyDetails, prev: Pick<CompanyProfile, 
       status: 'active',
       legalName: v.legalName,
       tradeName: orNull(v.tradeName),
+      companyType: v.companyType || null,
+      ...(v.mobileCode ? { mobileCode: v.mobileCode } : {}),
       cin: orNull(v.cin), gstin: orNull(v.gstin), pan: orNull(v.pan), tan: orNull(v.tan),
       addressLine1: orNull(v.addressLine1), addressLine2: orNull(v.addressLine2),
       city: orNull(v.city), state: orNull(v.state), pin: orNull(v.pin), country: orNull(v.country),

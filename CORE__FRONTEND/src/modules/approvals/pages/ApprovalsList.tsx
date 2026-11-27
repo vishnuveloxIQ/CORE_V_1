@@ -9,9 +9,11 @@ import { StatTile } from '@/shared/ui/StatTile'
 import type { ApprovalRequest, RequestType } from '@/modules/core-data'
 import { useEnter } from '@/shared/hooks/useMotion'
 import { MODULES, useCore } from '@/modules/core-data'
+import { MANAGE, useCanManage } from '@/modules/auth'
 import { requestColumns } from '../components/columns'
 import { matches, NO_FILTERS, type Filters } from '../utils/inbox'
 import { RaiseRequestDialog } from '../components/RaiseRequestDialog'
+import { displayPCM } from '../utils/raiser'
 
 const VIEWS = ['All','Approved', 'Pending', 'Rejected'] as const
 type View = (typeof VIEWS)[number]
@@ -36,11 +38,16 @@ export default function ApprovalsList() {
   useEnter(ref, 'approvals')
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const requests = useCore((s) => s.requests)
+  // petty cash (PCM) requests have their own page and sidebar category, so they are not listed here
+  const allRequests = useCore((s) => s.requests)
+  const requests = useMemo(() => allRequests.filter((r) => r.module !== 'PMS'), [allRequests])
+  const projects = useCore((s) => s.projects)
   const [view, setView] = useState<View>('Pending')
   const [raising, setRaising] = useState(false)
+  // The tenant admin approves requests but does not raise them (access.manage holders are the admins).
+  const isAdmin = useCanManage(MANAGE.access)
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
-  const cols = useMemo(() => requestColumns((r) => navigate(`/approvals/${r.id}`)), [navigate])
+  const cols = useMemo(() => requestColumns((r) => navigate(`/approvals/${r.id}`), projects), [navigate, projects])
   const preset = CATEGORIES.filter((c) => params.getAll('category').includes(c.label)).map((c) => c.label)
 
   const open = requests.filter((r) => isOpen(r.status))
@@ -53,7 +60,7 @@ export default function ApprovalsList() {
     <div ref={ref}>
       <PageHead crumb="Approvals" title="Approvals" desc="Requests from across the company that need your decision."
         actions={<>
-          <Button icon="plus" onClick={() => setRaising(true)}>New request</Button>
+          {!isAdmin && <Button icon="plus" onClick={() => setRaising(true)}>New request</Button>}
           <Button icon="workflow" onClick={() => navigate('/approval-matrix')}>Approval matrix</Button>
           <Button tone="primary" icon="approvals" disabled={!oldest} onClick={() => oldest && navigate(`/approvals/${oldest.id}`)}>Review oldest</Button>
         </>} />
@@ -64,18 +71,18 @@ export default function ApprovalsList() {
         <StatTile label="Rejected" value={requests.filter((r) => r.status === 'Rejected').length} icon="xc" tone="purple" onClick={() => setView('Rejected')} actionLabel="Show rejected requests" />
       </div>
       <div style={{ marginBottom: 12 }} data-enter><Tabs label="Show" value={view} onChange={setView} items={VIEWS} /></div>
-      <div className="form-grid" style={{ marginBottom: 12 }}>
+      <div className="filter-bar" style={{ marginBottom: 12 }}>
         <FormGroup label="Module">
           {(id) => (
             <Select id={id} name="module" value={filters.module} onChange={(e) => setFilters({ ...filters, module: e.target.value })}>
               <option value="">All modules</option>
-              {MODULES.map((m) => <option key={m} value={m}>{m}</option>)}
+              {MODULES.map((m) => <option key={m} value={m}>{displayPCM(m)}</option>)}
             </Select>
           )}
         </FormGroup>
-        <FormGroup label="Current level" helper="Requests still waiting at this level.">
-          {(id, d) => (
-            <Select id={id} aria-describedby={d} name="level" value={filters.level ?? ''} onChange={(e) => setFilters({ ...filters, level: e.target.value })}>
+        <FormGroup label="Current level">
+          {(id) => (
+            <Select id={id} name="level" value={filters.level ?? ''} onChange={(e) => setFilters({ ...filters, level: e.target.value })}>
               <option value="">Any level</option>
               {['1', '2', '3', '4'].map((l) => <option key={l} value={l}>Level {l}</option>)}
             </Select>
@@ -101,7 +108,7 @@ export default function ApprovalsList() {
         searchText={(r) => `${r.code} ${r.type} ${r.title} ${r.raisedBy} ${r.module} ${r.status}`}
         action={(r) => <Button size="sm" onClick={() => navigate(`/approvals/${r.id}`)}>{isOpen(r.status) ? 'Review' : 'View'}</Button>}
         searchPlaceholder="Search by ID, title or person…" exportName="core-approvals" />
-      {raising && <RaiseRequestDialog onClose={() => setRaising(false)} />}
+      {raising && !isAdmin && <RaiseRequestDialog onClose={() => setRaising(false)} />}
     </div>
   )
 }

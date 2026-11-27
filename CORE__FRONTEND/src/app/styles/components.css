@@ -154,6 +154,11 @@ textarea.field{min-height:120px;resize:vertical;border-radius:20px}
 .fit-table th{white-space:normal;padding-left:10px;padding-right:10px}
 .fit-table td{padding-left:10px;padding-right:10px}
 .fit-table td.c-act,.fit-table th.c-act{white-space:nowrap}
+/* action buttons in a fit table: one column of equal-width buttons, so every row lines up under the same header */
+.fit-table td{vertical-align:middle}
+.fit-table th.c-act{width:170px}
+.fit-table td.c-act .row-actions{display:grid;grid-template-columns:150px;gap:6px;justify-content:start;align-items:center;flex-wrap:nowrap}
+.fit-table td.c-act .row-actions > .btn{width:100%;justify-content:center;min-height:36px;padding:0 12px}
 table{width:100%;border-collapse:separate;border-spacing:0 8px}
 .th-sort{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font:inherit;color:inherit;letter-spacing:inherit;border-radius:4px}
 .th-sort:hover{color:var(--text)}

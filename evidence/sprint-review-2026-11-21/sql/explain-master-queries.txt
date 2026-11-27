@@ -1,0 +1,169 @@
+EXPLAIN (ANALYZE, BUFFERS) on the dev database, tenant acme, 2026-11-21T15:23:58.863Z
+
+Row counts:
+  audit_row_change: 708
+  core_approval_request: 42
+  core_auth_activity: 266
+  core_location: 7
+  core_material: 23
+  core_project: 6
+  core_store: 7
+  core_user: 14
+  core_user_session: 198
+  core_vendor: 2
+
+=== projects list
+SELECT * FROM core_project ORDER BY code
+Sort  (cost=22.46..23.08 rows=250 width=294) (actual time=0.032..0.033 rows=6.00 loops=1)
+  Sort Key: code
+  Sort Method: quicksort  Memory: 26kB
+  Buffers: shared hit=4
+  ->  Seq Scan on core_project  (cost=0.00..12.50 rows=250 width=294) (actual time=0.019..0.019 rows=6.00 loops=1)
+        Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=111
+Planning Time: 0.439 ms
+Execution Time: 0.044 ms
+
+=== locations of one project
+SELECT * FROM core_location WHERE project_id = (SELECT id FROM core_project LIMIT 1) ORDER BY code
+Sort  (cost=8.22..8.23 rows=1 width=504) (actual time=0.041..0.041 rows=1.00 loops=1)
+  Sort Key: core_location.code
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=3
+  InitPlan 1
+    ->  Limit  (cost=0.00..0.05 rows=1 width=16) (actual time=0.006..0.007 rows=1.00 loops=1)
+          Buffers: shared hit=1
+          ->  Seq Scan on core_project  (cost=0.00..12.50 rows=250 width=16) (actual time=0.006..0.006 rows=1.00 loops=1)
+                Buffers: shared hit=1
+  ->  Index Scan using ix_core_location_project_id on core_location  (cost=0.14..8.16 rows=1 width=504) (actual time=0.036..0.036 rows=1.00 loops=1)
+        Index Cond: (project_id = (InitPlan 1).col1)
+        Index Searches: 1
+        Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=98
+Planning Time: 0.438 ms
+Execution Time: 0.061 ms
+
+=== stores of one location
+SELECT * FROM core_store WHERE location_id = (SELECT id FROM core_location LIMIT 1)
+Index Scan using ix_core_store_location_id on core_store  (cost=0.22..8.24 rows=1 width=300) (actual time=0.382..0.383 rows=1.00 loops=1)
+  Index Cond: (location_id = (InitPlan 1).col1)
+  Index Searches: 1
+  Buffers: shared hit=2 read=1
+  InitPlan 1
+    ->  Limit  (cost=0.00..0.08 rows=1 width=16) (actual time=0.007..0.007 rows=1.00 loops=1)
+          Buffers: shared hit=1
+          ->  Seq Scan on core_location  (cost=0.00..11.50 rows=150 width=16) (actual time=0.006..0.006 rows=1.00 loops=1)
+                Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=89
+Planning Time: 0.429 ms
+Execution Time: 0.393 ms
+
+=== material by code
+SELECT * FROM core_material WHERE code = 'CEM-53'
+Seq Scan on core_material  (cost=0.00..13.00 rows=1 width=302) (actual time=0.019..0.019 rows=0.00 loops=1)
+  Filter: ((code)::text = 'CEM-53'::text)
+  Rows Removed by Filter: 23
+  Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=85
+Planning Time: 0.374 ms
+Execution Time: 0.025 ms
+
+=== vendor by code (case-insensitive)
+SELECT * FROM core_vendor WHERE lower(code) = 'ven-001'
+Index Scan using core_vendor_code_key on core_vendor  (cost=0.14..8.16 rows=1 width=388) (actual time=0.384..0.384 rows=1.00 loops=1)
+  Index Cond: (lower(code) = 'ven-001'::text)
+  Index Searches: 1
+  Buffers: shared hit=1 read=1
+Planning:
+  Buffers: shared hit=99
+Planning Time: 0.405 ms
+Execution Time: 0.392 ms
+
+=== sign-in: user by login id
+SELECT id FROM core_user WHERE login_id = 'ACME9999'
+Seq Scan on core_user  (cost=0.00..1.16 rows=1 width=16) (actual time=0.010..0.010 rows=1.00 loops=1)
+  Filter: ((login_id)::text = 'ACME9999'::text)
+  Rows Removed by Filter: 13
+  Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=52
+Planning Time: 0.290 ms
+Execution Time: 0.015 ms
+
+=== refresh: session by refresh hash
+SELECT id FROM core_user_session WHERE refresh_hash = 'x'
+Seq Scan on core_user_session  (cost=0.00..10.74 rows=1 width=16) (actual time=0.093..0.093 rows=0.00 loops=1)
+  Filter: (refresh_hash = 'x'::text)
+  Rows Removed by Filter: 198
+  Buffers: shared hit=8
+Planning:
+  Buffers: shared hit=40
+Planning Time: 0.262 ms
+Execution Time: 0.098 ms
+
+=== device list: live sessions of a user
+SELECT id FROM core_user_session WHERE user_id = (SELECT id FROM core_user LIMIT 1) AND revoked_at IS NULL
+Seq Scan on core_user_session  (cost=0.09..10.82 rows=8 width=16) (actual time=0.022..0.030 rows=1.00 loops=1)
+  Filter: ((revoked_at IS NULL) AND (user_id = (InitPlan 1).col1))
+  Rows Removed by Filter: 197
+  Buffers: shared hit=9
+  InitPlan 1
+    ->  Limit  (cost=0.00..0.09 rows=1 width=16) (actual time=0.004..0.004 rows=1.00 loops=1)
+          Buffers: shared hit=1
+          ->  Seq Scan on core_user  (cost=0.00..1.13 rows=13 width=16) (actual time=0.003..0.003 rows=1.00 loops=1)
+                Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=9
+Planning Time: 0.087 ms
+Execution Time: 0.036 ms
+
+=== audit trail first page
+SELECT * FROM audit_row_change ORDER BY changed_at DESC NULLS LAST, id LIMIT 50
+Limit  (cost=128.60..128.72 rows=50 width=1523) (actual time=1.078..1.082 rows=50.00 loops=1)
+  Buffers: shared hit=104
+  ->  Sort  (cost=128.60..130.37 rows=708 width=1523) (actual time=1.077..1.079 rows=50.00 loops=1)
+        Sort Key: changed_at DESC NULLS LAST, id
+        Sort Method: top-N heapsort  Memory: 178kB
+        Buffers: shared hit=104
+        ->  Seq Scan on audit_row_change  (cost=0.00..105.08 rows=708 width=1523) (actual time=0.018..0.869 rows=708.00 loops=1)
+              Buffers: shared hit=98
+Planning:
+  Buffers: shared hit=141 dirtied=1
+Planning Time: 0.642 ms
+Execution Time: 1.121 ms
+
+=== approval inbox: pending, newest first
+SELECT * FROM core_approval_request WHERE status = 'pending' ORDER BY raised_at DESC, code LIMIT 100
+Limit  (cost=16.93..16.98 rows=19 width=1352) (actual time=0.079..0.080 rows=19.00 loops=1)
+  Buffers: shared hit=16
+  ->  Sort  (cost=16.93..16.98 rows=19 width=1352) (actual time=0.078..0.078 rows=19.00 loops=1)
+        Sort Key: raised_at DESC, code
+        Sort Method: quicksort  Memory: 62kB
+        Buffers: shared hit=16
+        ->  Seq Scan on core_approval_request  (cost=0.00..16.52 rows=19 width=1352) (actual time=0.030..0.058 rows=19.00 loops=1)
+              Filter: (status = 'pending'::text)
+              Rows Removed by Filter: 23
+              Buffers: shared hit=16
+Planning:
+  Buffers: shared hit=240 read=1 dirtied=1
+Planning Time: 0.983 ms
+Execution Time: 0.094 ms
+
+=== access history first page
+SELECT * FROM core_auth_activity ORDER BY occurred_at DESC NULLS LAST LIMIT 50
+Limit  (cost=14.80..14.93 rows=50 width=284) (actual time=0.090..0.093 rows=50.00 loops=1)
+  Buffers: shared hit=4
+  ->  Sort  (cost=14.80..15.43 rows=250 width=284) (actual time=0.089..0.090 rows=50.00 loops=1)
+        Sort Key: occurred_at DESC NULLS LAST
+        Sort Method: top-N heapsort  Memory: 38kB
+        Buffers: shared hit=4
+        ->  Seq Scan on core_auth_activity  (cost=0.00..6.50 rows=250 width=284) (actual time=0.015..0.050 rows=266.00 loops=1)
+              Buffers: shared hit=4
+Planning:
+  Buffers: shared hit=83
+Planning Time: 0.335 ms
+Execution Time: 0.107 ms

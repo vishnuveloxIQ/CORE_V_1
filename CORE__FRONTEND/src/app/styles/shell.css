@@ -1,6 +1,6 @@
 /* Shared chrome (header, sidebar, footer) + the modern floating layout */
 .shell-modern{--sbw:252px;--hh:76px}
-.shell-classic{--sbw:268px;--hh:60px}
+.shell-classic{--sbw:268px;--hh:76px}
 html[data-sidebar="collapsed"] .shell-classic{--sbw:78px}
 /* ---------- floating header (fixed colour) ---------- */
 .header{position:fixed;top:0;left:0;right:0;height:var(--hh);z-index:60;display:flex;align-items:center;gap:14px;padding:0 18px 0 16px;background:var(--chrome);color:var(--chrome-ink);border-bottom:1px solid var(--chrome-line);box-shadow:0 8px 24px -16px rgba(11,36,82,.28)}
@@ -59,7 +59,7 @@ html.dark .nav-tip{background:#2A3567}.nav-tip.show{opacity:1;transform:none}
 
 /* ---------- main + footer ---------- */
 .main{position:relative;flex:1 1 0;min-width:0;padding:12px 12px 0 18px;min-height:calc(100vh - var(--hh))}
-.content{flex:1 0 auto;width:100%;max-width:1540px;margin:0 auto;padding:10px 6px 28px;outline:0;animation:fade .45s cubic-bezier(.2,.8,.2,1) both}
+.content{flex:1 0 auto;width:100%;max-width:none;margin:0 auto;padding:10px 6px 28px;outline:0;animation:fade .45s cubic-bezier(.2,.8,.2,1) both}
 @keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .footer{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px 18px;flex-wrap:wrap;padding:12px 24px;min-height:62px;margin:0;background:var(--chrome);color:var(--chrome-muted);border-top:1px solid var(--chrome-line);font-size:12px;box-shadow:0 -8px 24px -18px rgba(11,36,82,.25)}
 .footer::before{content:"";position:absolute;left:0;right:0;top:-1px;height:3px;background:var(--accent-line)}
@@ -99,6 +99,8 @@ html.dark .nav-tip{background:#2A3567}.nav-tip.show{opacity:1;transform:none}
 /* sidebar group headings: click to open or close the pages under them */
 .nav-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;padding:0;margin:0;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:pointer;text-align:left}
 .nav-toggle svg{width:14px;height:14px;flex:none}
+/* a long group name wraps before the arrow instead of running under it */
+.nav-toggle > span{flex:1 1 auto;min-width:0;white-space:normal;padding-right:10px;line-height:1.4}
 html[data-sidebar="collapsed"] .nav-toggle{display:none}
 @media (max-width:1023px){html[data-sidebar="collapsed"] .nav-toggle{display:flex}}
 

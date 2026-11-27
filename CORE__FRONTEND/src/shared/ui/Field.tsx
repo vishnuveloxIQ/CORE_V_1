@@ -47,7 +47,9 @@ function parseOptions(children: ReactNode): SearchOption[] {
     if (!isValidElement<{ value?: string | number; children?: ReactNode }>(c)) return
     if (c.type === 'option') {
       const label = textOf(c.props.children)
-      out.push({ value: c.props.value !== undefined ? String(c.props.value) : label, label })
+      const value = c.props.value !== undefined ? String(c.props.value) : label
+      // a value written as __name__ is an action (for example "+ Add a position"), not a choice
+      out.push({ value, label, action: /^__.+__$/.test(value) })
     } else if (c.type === 'optgroup' || c.type === Fragment) out.push(...parseOptions(c.props.children))
   })
   return out

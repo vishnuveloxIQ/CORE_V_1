@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+﻿import type { PoolClient } from 'pg';
 import { type Column, insertRow, many, one, updateRow } from '../../core/rows.js';
 import { field, type FieldSpec, selectOf } from '../../core/resource.js';
 import type { UnitFilter } from './schema.js';
@@ -13,10 +13,11 @@ export const UNIT_FIELDS: readonly FieldSpec[] = [
   field('assetCode', 'text'),
   field('name', 'text'),
   field('equipmentTypeId', 'uuid'),
+  field('projectId', 'uuid'),
+  field('approvalRequestId', 'uuid'),
   field('makeModel', 'text'),
   field('regNo', 'text'),
   field('availability', 'text'),
-  field('locationId', 'uuid'),
   field('currentLocation', 'text'),
   field('lat', 'num'),
   field('lng', 'num'),
@@ -39,6 +40,9 @@ export const UNIT_FIELDS: readonly FieldSpec[] = [
   field('owner', 'text'),
   field('vendorId', 'uuid'),
   field('hireRef', 'text'),
+  field('hiredFrom', 'text'),
+  field('hireStatus', 'text'),
+  field('overPlanReason', 'text'),
   field('agreementStart', 'date'),
   field('agreementEnd', 'date'),
   field('warrantyEnd', 'date'),

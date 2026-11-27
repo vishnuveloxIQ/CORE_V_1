@@ -1,6 +1,8 @@
+import { useLocation } from 'react-router-dom'
 import { Fragment, useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { zodResolver } from '@hookform/resolvers/zod'
+import type { Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import { BulkUpload, type RowCheck } from '@/shared/ui/data/BulkUpload'
 import { TablePanel } from '@/shared/ui/data/TablePanel'
@@ -10,54 +12,49 @@ import { Modal } from '@/shared/ui/Modal'
 import { Card } from '@/shared/ui/Card'
 import { PageHead } from '@/modules/shell'
 import { StatTile } from '@/shared/ui/StatTile'
-import { StatusBadge } from '@/shared/ui/Status'
 import { FormGroup, Input, Select } from '@/shared/ui/Field'
 import { Icon } from '@/shared/ui/icons'
 import type { Availability, EquipmentUnit, UnitDocKey, UnitUpload } from '@/modules/core-data'
 import { useEnter } from '@/shared/hooks/useMotion'
 import { bulk } from '@/shared/lib/bulk'
 import { a11y, req } from '@/shared/lib/core'
-import { AVAIL_TONE, COMPANY_EQUIPMENT_TYPE } from '@/modules/core-data'
-import { fmtDate, fmtDateTime } from '@/shared/lib/format'
-import { newId, nextCode, projectOf, useCore } from '@/modules/core-data'
-import { typeIdByName } from '@/modules/core-data'
+import { EQUIPMENT_CATEGORIES, EQUIPMENT_MANUFACTURERS } from '@/modules/core-data'
+import { fmtDate, fmtDateTime, todayISO } from '@/shared/lib/format'
+import { StatusBadge } from '@/shared/ui/Status'
+import { newId, nextCode, useCore } from '@/modules/core-data'
 import { ApiError, errorText, idempotencyKey } from '@/shared/lib/api'
 import { notify } from '@/shared/lib/toast'
-import { Can, MANAGE } from '@/modules/auth'
-import { AssignUnitDialog, EditUnitDialog, UnitAssignments, UnitFiles } from '../components/EquipmentControls'
+import { Can, MANAGE, useAuth } from '@/modules/auth'
+import { EditUnitDialog, UnitFiles } from '../components/EquipmentControls'
 import { asUpload, DOC_ACCEPT, FILE_HINT, IMAGE_ACCEPT, PHOTO_HINT, reportFileFailures } from '../utils/unitFiles'
 
 const AVAILABILITY: Availability[] = ['Available', 'In use', 'Under maintenance', 'Breakdown']
-const OWNERSHIP = ['Owned', 'Hired']
-const CAPACITY_UNITS = ['kVA', 'kW', 'HP', 'Ton', 'm³', 'm³/h', 'm', 'cfm']
+/** Owned equipment is the company's own; hired equipment is held on hire from a vendor. The register has a tab for each. */
+const OWNERSHIP = ['Owned', 'Hired'] as const
+/** Whether a hired unit is still on hire. It is set Active at registration and changed afterwards (Edit); a unit with no saved status falls back to its agreement dates. */
+type HireDates = { hireStatus?: 'Active' | 'Inactive'; agreementStart?: string; agreementEnd?: string }
+const hireActive = (u: HireDates, today = todayISO()) =>
+  u.hireStatus ? u.hireStatus === 'Active' : (!u.agreementStart || u.agreementStart <= today) && (!u.agreementEnd || u.agreementEnd >= today)
+const HIRE_STATUS = (u: HireDates) => (hireActive(u) ? 'Active' : 'Inactive')
+const CAPACITY_UNITS = ['kVA', 'kW', 'HP', 'Ton', 'kg', 'kN', 'm³', 'm³/h', 'm³/min', 'm²', 'm', 'cfm', 'L', 'kL', 'TPH', 'bar']
+/** Categories that are not registered with the transport authority: no registration, PUC or fitness details. */
+const NOT_ROAD_REGISTERED = ['Sensor Paver', 'Tandem Roller', 'Soil Compactor', 'Pad Foot Roller']
 /** capacity as the register shows it: the figure and its unit when both are there */
 const capacityText = (u: { capacity?: string; capacityUnit?: string }) => [u.capacity, u.capacityUnit].filter(Boolean).join(' ')
 const FUEL_TYPES = ['Petrol', 'Diesel', 'CNG', 'Electric']
-/** Meter type is fixed for every unit: hour meter (hours run). */
-const METER_TYPE = 'HMR'
+/** Meter types: an hour meter (running hours) or an odometer (kilometres). */
+const METER_TYPES = ['HMR', 'Odometer'] as const
+const METER_LABEL: Record<(typeof METER_TYPES)[number], string> = { HMR: 'HMR — running hours', Odometer: 'Odometer — kilometres' }
+const METER_UNIT: Record<(typeof METER_TYPES)[number], string> = { HMR: 'h', Odometer: 'km' }
 
 const text = z.string().optional()
 const dateField = z.string().optional().refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), 'Use a date.')
 const numField = z.string().optional().refine((v) => !v || /^\d+(\.\d+)?$/.test(v.trim()), 'Use a number.')
 const reqNum = (label: string) => req(label).refine((v) => /^\d+(\.\d+)?$/.test(v), `${label} must be a number.`)
 const reqYear = (label: string) => req(label).refine((v) => /^\d{4}$/.test(v), `${label} must be a four-digit year.`)
-const reqDate = (label: string) => req(label).refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v), `${label} must be a date.`)
 
 /** Make and model are built from manufacturer and model. */
 const makeModelOf = (manufacturer: string, model: string) => [manufacturer, model].map((s) => s.trim()).filter(Boolean).join(' ')
-/** Owner choices for the Ownership step. */
-const OWNERS = ['Company', 'Hire vendor', 'Sai Earthmovers']
-/** Current-location choices: the server locations of the selected project (the unit's locationId is one of these). */
-const locationsOf = (
-  projects: { id: string; locationIds?: string[] }[],
-  sites: { id: string; name: string; projectId?: string }[],
-  projectId: string | undefined,
-) => {
-  if (!projectId) return []
-  const ids = projects.find((p) => p.id === projectId)?.locationIds ?? []
-  return sites.filter((s) => s.projectId === projectId || ids.includes(s.id))
-}
-const NO_LOCATION = 'The project has no location to link the unit to. Add a location to the project first.'
 
 /** Registration fields. Each key is also rendered, validated, saved and shown from DOC_FIELDS. */
 const docShape = {
@@ -81,13 +78,14 @@ const docShape = {
   pollutionExpiry: dateField,
   fitnessCert: text,
   fitnessExpiry: dateField,
-  owner: req('Owner / vendor'),
-  hireRef: req('Hired agreement reference'),
-  agreementStart: reqDate('Agreement start date'),
-  agreementEnd: reqDate('Agreement end date'),
+  owner: text,
   warrantyEnd: dateField,
   warrantyReading: numField,
-  currentLocation: req('Current location'),
+  currentLocation: text,
+  hireRef: text,
+  hiredFrom: text,
+  agreementStart: dateField,
+  agreementEnd: dateField,
 }
 type DocKey = keyof typeof docShape
 
@@ -95,8 +93,12 @@ const unitSchema = z.object({
   assetCode: req('Equipment ID'),
   name: req('Equipment name'),
   regNo: text,
-  ownershipType: z.string().min(1, 'Choose Owned or Hired.'),
-  chainageId: z.string().min(1, NO_LOCATION),
+  ownershipType: z.enum(OWNERSHIP),
+  meterType: z.enum(METER_TYPES),
+  // hired equipment only: its category and type, and the approved request it is registered against
+  category: text,
+  equipmentType: text,
+  approvalRequestId: text,
   availability: z.string().min(1, 'Choose one of the availability states.'),
   ...docShape,
 })
@@ -108,16 +110,35 @@ const fileShape = {
   invoiceDoc: text,
   insuranceDoc: text,
   pucDoc: text,
+  regDoc: text,
+  fitnessDoc: text,
 }
 type FileKey = keyof typeof fileShape & UnitDocKey
-const addSchema = unitSchema.omit({ chainageId: true }).extend({
-  projectId: z.string().min(1, 'Choose the project this equipment belongs to.'),
+const needTank = (v: { fuelType?: string; tankCapacity?: string }, ctx: z.RefinementCtx) => {
+  // the tank capacity is needed unless the equipment is purely electric
+  if (v.fuelType !== 'Electric' && !v.tankCapacity?.trim()) ctx.addIssue({ code: 'custom', path: ['tankCapacity'], message: 'Tank capacity is required.' })
+}
+const addSchema = unitSchema.extend({ ...fileShape, category: req('Equipment category') }).superRefine(needTank)
+/** Hired equipment: category, type and the approval reference are required; the machine details are optional except the make, model, year and fuel. */
+const addHiredSchema = unitSchema.extend({
   ...fileShape,
+  category: req('Equipment category'),
+  name: req('Equipment name'),
+  owner: req('Vendor name'),
+  agreementStart: req('Agreement start date'),
+  agreementEnd: req('Agreement end date'),
+  chasisNo: text,
+  engineNo: req('Engine number'),
+  regNo: req('Registration number'),
+  meterPhoto: text,
+}).superRefine((v, ctx) => {
+  needTank(v, ctx)
+  if (v.agreementStart && v.agreementEnd && v.agreementEnd < v.agreementStart) ctx.addIssue({ code: 'custom', path: ['agreementEnd'], message: 'The end date cannot be before the start date.' })
 })
 type AddValues = z.infer<typeof addSchema>
 type FieldName = keyof AddValues
 
-type DocField = { key: DocKey; label: string; col: string; example: string; step: number; kind?: 'date' | 'year' | 'num'; hint?: string; required?: boolean; options?: string[]; blank?: string }
+type DocField = { key: DocKey; label: string; col: string; example: string; step: number; kind?: 'date' | 'year' | 'num'; hint?: string; required?: boolean; options?: string[]; blank?: string; /** shown only for this ownership; both when absent */ only?: 'Owned' | 'Hired' }
 /** Registration fields in wizard order. `col` is the bulk-upload column; `step` is the wizard step that shows it. */
 const DOC_FIELDS: DocField[] = [
   { key: 'manufacturer', label: 'Manufacturer (OEM)', col: 'manufacturer', example: 'Tata Hitachi', step: 1, required: true },
@@ -126,55 +147,73 @@ const DOC_FIELDS: DocField[] = [
   { key: 'chasisNo', label: 'Chassis / serial number', col: 'chasis_no', example: 'CH781120', step: 1, required: true },
   { key: 'engineNo', label: 'Engine number', col: 'engine_no', example: 'ENG-44812', step: 1, required: true },
   { key: 'capacity', label: 'Capacity', col: 'capacity', example: '21', kind: 'num', step: 1, required: true },
-  { key: 'capacityUnit', label: 'Capacity unit', col: 'capacity_unit', example: 'kVA', step: 1, required: true, options: CAPACITY_UNITS },
-  { key: 'meterReading', label: 'Initial meter reading (h)', col: 'meter_reading', example: '4200', kind: 'num', step: 1, required: true },
+  { key: 'capacityUnit', label: 'Capacity unit', col: 'capacity_unit', example: 'kVA', step: 1, required: true, options: CAPACITY_UNITS, blank: 'Choose a unit' },
   { key: 'fuelType', label: 'Fuel / energy type', col: 'fuel_type', example: 'Petrol', step: 1, required: true, options: FUEL_TYPES },
   { key: 'fuelNorm', label: 'Fuel norm (L/h)', col: 'fuel_norm', example: '12.5', kind: 'num', step: 1 },
   { key: 'tankCapacity', label: 'Tank capacity (L)', col: 'tank_capacity', example: '300', kind: 'num', step: 1 },
-  { key: 'invoiceNo', label: 'Invoice number', col: 'invoice_no', example: 'INV-2024-0120', step: 1 },
-  { key: 'invoiceDate', label: 'Invoice date', col: 'invoice_date', example: '2024-03-15', kind: 'date', step: 1, hint: 'YYYY-MM-DD' },
+  { key: 'meterReading', label: 'Initial meter reading (h)', col: 'meter_reading', example: '4200', kind: 'num', step: 1, required: true },
+  { key: 'invoiceNo', label: 'Invoice number', col: 'invoice_no', example: 'INV-2024-0120', step: 1, only: 'Owned' },
+  { key: 'invoiceDate', label: 'Invoice date', col: 'invoice_date', example: '2024-03-15', kind: 'date', step: 1, hint: 'YYYY-MM-DD', only: 'Owned' },
+  { key: 'warrantyEnd', label: 'Warranty end date', col: 'warranty_end', example: '2028-06-30', kind: 'date', step: 1, hint: 'YYYY-MM-DD', only: 'Owned' },
+  { key: 'warrantyReading', label: 'Warranty end reading (HMR)', col: 'warranty_reading', example: '6000', kind: 'num', step: 1, only: 'Owned' },
   { key: 'insuranceNo', label: 'Insurance number', col: 'insurance_no', example: 'INS-55130', step: 1 },
   { key: 'insuranceExpiry', label: 'Insurance expiry date', col: 'insurance_expiry', example: '2027-08-10', kind: 'date', step: 1, hint: 'YYYY-MM-DD' },
+  { key: 'regExpiry', label: 'Registration expiry date', col: 'registration_expiry', example: '2029-06-01', kind: 'date', step: 1, hint: 'YYYY-MM-DD' },
   { key: 'pucNo', label: 'PUC number', col: 'puc_no', example: 'PUC-40107', step: 1 },
   { key: 'pollutionExpiry', label: 'Pollution (PUC) expiry date', col: 'pollution_expiry', example: '2027-10-05', kind: 'date', step: 1, hint: 'YYYY-MM-DD' },
-  { key: 'regExpiry', label: 'Registration expiry date', col: 'registration_expiry', example: '2029-06-01', kind: 'date', step: 1, hint: 'YYYY-MM-DD' },
   { key: 'fitnessCert', label: 'Fitness certificate number', col: 'fitness_cert', example: 'FIT-9011', step: 1 },
   { key: 'fitnessExpiry', label: 'Fitness expiry date', col: 'fitness_expiry', example: '2031-02-14', kind: 'date', step: 1, hint: 'YYYY-MM-DD' },
-  { key: 'owner', label: 'Owner / vendor', col: 'owner', example: 'Sai Earthmovers', step: 2, required: true, options: OWNERS, blank: 'Choose an owner' },
-  { key: 'hireRef', label: 'Hired agreement reference', col: 'hire_ref', example: 'HR-2291', step: 2, required: true },
-  { key: 'agreementStart', label: 'Agreement start date', col: 'agreement_start', example: '2026-01-01', kind: 'date', step: 2, required: true, hint: 'YYYY-MM-DD' },
-  { key: 'agreementEnd', label: 'Agreement end date', col: 'agreement_end', example: '2026-12-31', kind: 'date', step: 2, required: true, hint: 'YYYY-MM-DD' },
-  { key: 'warrantyEnd', label: 'Warranty end date', col: 'warranty_end', example: '2028-06-30', kind: 'date', step: 2, hint: 'YYYY-MM-DD' },
-  { key: 'warrantyReading', label: 'Warranty end reading (HMR)', col: 'warranty_reading', example: '6000', kind: 'num', step: 2 },
-  { key: 'currentLocation', label: 'Current location', col: 'current_location', example: 'Chainage 42 Site Camp', step: 2, required: true, blank: 'Choose a location' },
+  { key: 'hireRef', label: 'Hire agreement reference', col: 'hire_ref', example: 'HR-2291', step: 0, only: 'Hired' },
+  { key: 'hiredFrom', label: 'Hired by', col: 'hired_by', example: 'HO hiring', step: 0, only: 'Hired' },
+  { key: 'owner', label: 'Vendor name', col: 'vendor_name', example: 'Sai Earthmovers', step: 0, required: true, only: 'Hired' },
+  { key: 'agreementStart', label: 'Agreement start date', col: 'agreement_start', example: '2025-01-01', kind: 'date', step: 0, required: true, hint: 'YYYY-MM-DD', only: 'Hired' },
+  { key: 'agreementEnd', label: 'Agreement end date', col: 'agreement_end', example: '2025-12-31', kind: 'date', step: 0, required: true, hint: 'YYYY-MM-DD', only: 'Hired' },
 ]
 
-/** Wizard steps: Identity (0), Technical (1), Ownership & location (2), Review & save (3). */
-const STEPS = [
+/** Wizard steps for owned equipment: Identity, Technical, Review. */
+const STEPS_OWNED = [
   { title: 'Identity', sub: 'Code, category, ownership' },
-  { title: 'Technical', sub: 'Specifications, meter, fuel, papers' },
-  { title: 'Ownership & location', sub: 'Owner, dates, location' },
+  { title: 'Technical', sub: 'Specifications, meter, fuel, papers, warranty' },
   { title: 'Review & save', sub: 'Confirm and register' },
 ]
-const LAST = STEPS.length - 1
+/** Wizard steps for hired equipment: basic details, machine / meter / fuel, insurance and statutory, review. */
+const STEPS_HIRED = [
+  { title: 'Basic details', sub: 'Category, type, approval reference' },
+  { title: 'Machine details', sub: 'Specifications, meter, fuel' },
+  { title: 'Insurance & statutory', sub: 'Insurance, registration, PUC, fitness' },
+  { title: 'Review & save', sub: 'Confirm and register' },
+]
+/** Hired equipment fields that sit in the insurance and statutory step, and the owned-only ones it leaves out. */
+const HIRED_PAPERS: DocKey[] = ['insuranceNo', 'insuranceExpiry', 'regExpiry', 'pucNo', 'pollutionExpiry', 'fitnessCert', 'fitnessExpiry']
+const OWNED_ONLY: DocKey[] = ['invoiceNo', 'invoiceDate', 'warrantyEnd', 'warrantyReading']
+/** Machine fields a hired unit may leave empty. */
+const HIRED_OPTIONAL: DocKey[] = ['chasisNo']
 /** Fields that must be valid before Continue moves past each step (required DOC_FIELDS and FILE_STEPS are added per step). */
 const REQUIRED_BY_STEP: FieldName[][] = [
-  ['assetCode', 'name', 'ownershipType'],
+  ['assetCode', 'category', 'name', 'ownershipType'],
   [],
-  ['projectId'],
+  [],
   [],
 ]
 const FILE_STEPS: Partial<Record<number, FileKey[]>> = {
-  1: ['chasisPhoto', 'enginePhoto', 'meterPhoto', 'invoiceDoc', 'insuranceDoc', 'pucDoc'],
+  1: ['chasisPhoto', 'enginePhoto', 'meterPhoto', 'invoiceDoc', 'insuranceDoc', 'pucDoc', 'regDoc', 'fitnessDoc'],
 }
-const stepFields = (i: number): FieldName[] => [
+const stepFields = (i: number, mode: 'Owned' | 'Hired' = 'Owned'): FieldName[] => mode === 'Hired' ? hiredStepFields(i) : [
   ...REQUIRED_BY_STEP[i],
   ...DOC_FIELDS.filter((f) => f.step === i).map((f) => f.key),
   ...(FILE_STEPS[i] ?? []),
 ]
 
+const hiredStepFields = (i: number): FieldName[] => {
+  if (i === 0) return ['category', 'name', 'owner', 'agreementStart', 'agreementEnd']
+  if (i > 2) return []
+  const docs = DOC_FIELDS.filter((f) => f.step === 1 && !OWNED_ONLY.includes(f.key) && HIRED_PAPERS.includes(f.key) === (i === 2)).map((f) => f.key)
+  const files: FileKey[] = i === 1 ? ['chasisPhoto', 'enginePhoto', 'meterPhoto'] : ['insuranceDoc', 'regDoc', 'pucDoc', 'fitnessDoc']
+  return [...docs, ...(i === 1 ? ['regNo' as FieldName] : []), ...files]
+}
+
 const blankDocs = Object.fromEntries(DOC_FIELDS.map((f) => [f.key, ''])) as Partial<Record<DocKey, string>>
-const blankFiles: Record<FileKey, string> = { chasisPhoto: '', enginePhoto: '', meterPhoto: '', invoiceDoc: '', insuranceDoc: '', pucDoc: '' }
+const blankFiles: Record<FileKey, string> = { chasisPhoto: '', enginePhoto: '', meterPhoto: '', invoiceDoc: '', insuranceDoc: '', pucDoc: '', regDoc: '', fitnessDoc: '' }
 
 const SectionTitle = ({ children }: { children: string }) => (
   <h3 style={{ margin: '20px 0 10px', fontSize: 14, fontWeight: 600 }}>{children}</h3>
@@ -190,14 +229,24 @@ const CAM_LABEL: Record<CamTarget, string> = {
 }
 
 /** Four-step equipment registration wizard; the same record shape as a bulk-uploaded row. */
-function AddUnitForm({ onDone }: { onDone: () => void }) {
-  const { projects, sites, saveUnitRemote, attachUnitFiles } = useCore()
+function AddUnitForm({ mode, onDone }: { mode: 'Owned' | 'Hired'; onDone: () => void }) {
+  const { saveUnitRemote, attachUnitFiles, units, users, loadUsers } = useCore()
+  const loginId = useAuth((s) => s.user)
+  // who hires it: site hiring when the person registering heads the P&M module (FEM), otherwise Head Office hiring
+  const me = users.find((u) => u.loginId.toLowerCase() === (loginId ?? '').toLowerCase())
+  const hiredFrom = me?.roles?.includes('Module head') || me?.role === 'Module head' ? (me.modules.includes('P&M') ? 'Site hiring' : 'HO hiring') : 'HO hiring'
+  const registeredBy = me?.modules.includes('P&M') && (me.roles?.includes('Module head') || me.role === 'Module head') ? 'FEM head' : 'HO registration'
   const [step, setStep] = useState(0)
   const [formError, setFormError] = useState('')
   // the same unit sent again after a network error reuses its Idempotency-Key, so a retry cannot register it twice
   const [pending, setPending] = useState<{ body: string; key: string } | null>(null)
   // the machine photo: a preview URL and the file to upload after the unit is created
   const [photo, setPhoto] = useState<{ url: string; upload: UnitUpload } | null>(null)
+  // the category and manufacturer pickers: "__other__" shows a field to type the value
+  const [categoryPick, setCategoryPick] = useState('')
+  const [manufacturerPick, setManufacturerPick] = useState('')
+  // the capacity unit picker: "Add a unit not in the list" shows a field to type it
+  const [otherUnit, setOtherUnit] = useState(false)
   // the chosen photo and document files by tile; uploaded after the unit is created
   const [docFiles, setDocFiles] = useState<Partial<Record<FileKey, UnitUpload>>>({})
   const cameraRef = useRef<HTMLInputElement>(null)
@@ -210,14 +259,18 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
   // the error names the photo it came from, so it shows under that field only
   const [camError, setCamError] = useState<{ target: CamTarget; message: string } | null>(null)
   const { register, handleSubmit, trigger, watch, setError, setValue, formState: { errors: e } } = useForm<AddValues>({
-    resolver: zodResolver(addSchema),
+    resolver: zodResolver(mode === 'Hired' ? addHiredSchema : addSchema) as unknown as Resolver<AddValues>,
     defaultValues: {
-      assetCode: '', name: '', regNo: '', ownershipType: 'Owned', projectId: '', availability: 'Available',
-      ...blankDocs, ...blankFiles, capacityUnit: 'kVA', fuelType: 'Petrol',
+      // a hired unit gets its company code automatically
+      assetCode: mode === 'Hired' ? nextCode('HIR', units.map((u) => ({ code: u.assetCode }))) : '', name: '', category: '', equipmentType: '', approvalRequestId: '', regNo: '', ownershipType: mode, availability: 'Available',
+      ...blankDocs, ...blankFiles, meterType: 'HMR', capacityUnit: '', fuelType: 'Petrol',
     },
   })
 
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.url) }, [photo])
+  useEffect(() => { if (mode === 'Hired' && users.length === 0) void loadUsers() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (mode === 'Hired') setValue('hiredFrom', hiredFrom) }, [hiredFrom]) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // Release the camera when the form leaves the screen.
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()) }, [])
@@ -234,13 +287,19 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
     setCamFor(null)
   }
 
-  // Leaving a step turns the camera off, so it never keeps running on another screen.
-  useEffect(() => {
+  // Leaving a step turns the camera off, so it never keeps running on another screen. Done where the step changes.
+  // the steps follow the kind of equipment: owned has no hire agreement step
+  const steps = mode === 'Hired' ? STEPS_HIRED : STEPS_OWNED
+  const LAST = steps.length - 1
+
+  const goToStep = (next: number | ((s: number) => number)) => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
     setCamFor(null)
     setCamError(null)
-  }, [step])
+    setFormError('')
+    setStep(next)
+  }
 
   /** Asks for camera access (the browser shows its permission prompt); falls back to the device capture input if unavailable. */
   const takePhoto = async (target: CamTarget) => {
@@ -284,35 +343,34 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
   }
 
   const next = async () => {
-    if (await trigger(stepFields(step))) setStep((s) => s + 1)
+    const ok = await trigger(stepFields(step, mode))
+    if (!ok) return
+    // a hired unit needs an equipment photo before it can leave the machine details step
+    if (mode === 'Hired' && step === 1 && !photo) { setFormError('Add an equipment photo to continue.'); return }
+    goToStep((s) => s + 1)
   }
 
   const save = async (v: AddValues) => {
     setFormError('')
     const assetCode = v.assetCode.trim()
-    // the unit links to the chosen server location; its id is sent as locationId
-    const chainageId = locationsOf(projects, sites, v.projectId).find((s) => s.name === v.currentLocation)?.id
-    if (!chainageId) {
-      setStep(2)
-      setError('currentLocation', { message: v.currentLocation ? 'Choose a location of the selected project.' : NO_LOCATION })
-      return
-    }
     const docs = Object.fromEntries(DOC_FIELDS.map((f) => [f.key, v[f.key]?.trim() || undefined])) as Partial<Record<DocKey, string>>
     const unit: EquipmentUnit = {
       id: newId(),
       assetCode,
       name: v.name.trim(),
-      type: COMPANY_EQUIPMENT_TYPE.name,
+      type: (v.category ?? '').trim(),
       makeModel: makeModelOf(v.manufacturer, v.model),
       regNo: v.regNo?.trim() ?? '',
-      meterType: METER_TYPE,
+      meterType: v.meterType,
       ownershipType: v.ownershipType,
-      chainageId,
+      chainageId: '',
       lat: null,
       lng: null,
       lastPing: null,
       availability: v.availability as Availability,
       ...docs,
+      // owned equipment records who registered it (not asked on the form): the P&M module head is the FEM head, anyone else registers for Head Office
+      ...(mode === 'Owned' ? { hiredFrom: registeredBy } : { hireStatus: 'Active' as const }),
     }
     // the id is not part of the request, so the body compares equal on a retry
     const body = JSON.stringify({ ...unit, id: undefined })
@@ -325,7 +383,7 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
     } catch (err) {
       if (!(err instanceof ApiError) || err.code !== 'NETWORK_ERROR') setPending(null)
       if (err instanceof ApiError && err.code === 'EQUIPMENT_UNIT_DUPLICATE') {
-        setStep(0)
+        goToStep(0)
         setError('assetCode', { message: err.message })
         return
       }
@@ -340,9 +398,22 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
   }
 
   const v = watch()
+  // the category drives the capacity units, manufacturers and which papers apply: hired units hold it in `category`, owned in `name`
+  const cat = v.category ?? ''
+  // purely electric equipment has no fuel norm or tank: those values are cleared
+  useEffect(() => {
+    if (v.fuelType === 'Electric') { setValue('fuelNorm', ''); setValue('tankCapacity', '') }
+  }, [v.fuelType]) // eslint-disable-line react-hooks/exhaustive-deps
   const shown = (s?: string) => s?.trim() || '—'
+  /** A field is shown when it fits the ownership, the fuel type and whether the category is road registered. */
+  const reviewApplies = (f: DocField) => {
+    if (f.only && f.only !== mode) return false
+    if (mode === 'Hired' && OWNED_ONLY.includes(f.key)) return false
+    if (v.fuelType === 'Electric' && (f.key === 'fuelNorm' || f.key === 'tankCapacity')) return false
+    if (NOT_ROAD_REGISTERED.includes(cat) && (f.key === 'regExpiry' || f.key === 'pucNo' || f.key === 'pollutionExpiry' || f.key === 'fitnessCert' || f.key === 'fitnessExpiry')) return false
+    return true
+  }
   const dateOut = (s?: string) => (s?.trim() ? fmtDate(s) : '—')
-  const projectCode = projects.find((p) => p.id === v.projectId)?.code ?? '—'
   const onPhoto = (ev: ChangeEvent<HTMLInputElement>) => {
     const file = ev.target.files?.[0]
     if (file) keepPhoto('machine', file)
@@ -351,12 +422,33 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
   const docField = (key: DocKey) => {
     const f = DOC_FIELDS.find((x) => x.key === key)
     if (!f) return null
-    // Current location lists the selected project's server locations.
-    const options = key === 'currentLocation' ? locationsOf(projects, sites, v.projectId).map((s) => s.name) : f.options
+    // capacity units follow the category; meter reading and fuel norm units follow the meter type
+    const options = f.options
+    const unitOfMeter = METER_UNIT[v.meterType ?? 'HMR']
+    const label = key === 'meterReading' ? `Initial meter reading (${unitOfMeter})` : key === 'fuelNorm' ? `Fuel norm (L/${unitOfMeter})` : f.label
     return (
-      <FormGroup key={key} label={f.label} required={f.required} error={e[key]?.message}>
-        {(id, d) => options
-          ? <Select {...a11y(id, d, e[key]?.message)} placement={key === 'currentLocation' ? 'top' : undefined} {...register(key)}>{f.blank && <option value="">{f.blank}</option>}{options.map((o) => <option key={o}>{o}</option>)}</Select>
+      <FormGroup key={key} label={label} required={(f.required && !(mode === 'Hired' && HIRED_OPTIONAL.includes(key))) || (key === 'tankCapacity' && v.fuelType !== 'Electric')} error={e[key]?.message}>
+        {(id, d) => key === 'capacityUnit'
+          ? (
+            <>
+              <Select
+                {...a11y(id, d, e[key]?.message)}
+                value={otherUnit ? '__other__' : v.capacityUnit ?? ''}
+                onChange={(ev) => {
+                  const val = ev.target.value
+                  setOtherUnit(val === '__other__')
+                  setValue('capacityUnit', val === '__other__' ? '' : val, { shouldValidate: true })
+                }}
+              >
+                <option value="">Choose a unit</option>
+                {CAPACITY_UNITS.map((o) => <option key={o} value={o}>{o}</option>)}
+                <option value="__other__">+ Add a unit not in the list</option>
+              </Select>
+              {otherUnit && <Input style={{ marginTop: 8 }} placeholder="Type the unit, e.g. kPa" aria-label="Other capacity unit" {...register('capacityUnit')} />}
+            </>
+          )
+          : options
+          ? <Select {...a11y(id, d, e[key]?.message)} {...register(key)}>{f.blank && <option value="">{f.blank}</option>}{options.map((o) => <option key={o}>{o}</option>)}</Select>
           : <Input type={f.kind === 'date' ? 'date' : 'text'} placeholder={f.example} placement={key === 'warrantyEnd' ? 'top' : undefined} {...a11y(id, d, e[key]?.message)} {...register(key)} />}
       </FormGroup>
     )
@@ -393,10 +485,46 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
     </FormGroup>
   )
 
+  const manufacturerField = (
+            <FormGroup label="Manufacturer (OEM)" required error={e.manufacturer?.message}>
+              {(id, d) => (
+                <Select
+                  {...a11y(id, d, e.manufacturer?.message)}
+                  value={manufacturerPick}
+                  onChange={(ev) => {
+                    const val = ev.target.value
+                    setManufacturerPick(val)
+                    setValue('manufacturer', val === '__other__' ? '' : val, { shouldValidate: true })
+                  }}
+                >
+                  <option value="">Choose a manufacturer</option>
+                  {(EQUIPMENT_MANUFACTURERS[cat] ?? []).map((m) => <option key={m} value={m}>{m}</option>)}
+                  <option value="__other__">+ Add a manufacturer not in the list</option>
+                </Select>
+              )}
+            </FormGroup>
+  )
+  const machinePhotoField = (label: string, required: boolean) => (
+          <FormGroup label={label} required={required} helper={PHOTO_HINT}>
+            {(id) => (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <input id={id} ref={cameraRef} type="file" accept={IMAGE_ACCEPT} capture="environment" hidden onChange={onPhoto} />
+                  <input ref={uploadRef} type="file" accept={IMAGE_ACCEPT} hidden onChange={onPhoto} />
+                  <Button onClick={() => takePhoto('machine')}>{photo ? 'Retake photo' : 'Take photo'}</Button>
+                  <Button onClick={() => uploadRef.current?.click()}>Upload file</Button>
+                  {photo && <img src={photo.url} alt="Machine preview" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6 }} />}
+                </div>
+                {camPanel('machine')}
+              </>
+            )}
+          </FormGroup>
+  )
+
   return (
     <form onSubmit={(ev) => { ev.preventDefault(); if (step < LAST) void next() }} noValidate>
       <ol aria-label="Registration steps" className="reg-steps">
-        {STEPS.map((s, i) => {
+        {steps.map((s, i) => {
           const done = i < step
           const state = done ? 'done' : i === step ? 'current' : 'future'
           const badge = (
@@ -415,7 +543,7 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
               {i > 0 && <li aria-hidden="true" className={`reg-conn${i <= step ? ' done' : ''}`} />}
               <li className={`reg-step ${state}`} aria-current={i === step ? 'step' : undefined}>
                 {done
-                  ? <button type="button" onClick={() => setStep(i)} aria-label={`Go back to step ${i + 1}: ${s.title}`} title={`Back to ${s.title}`}>{badge}{text}</button>
+                  ? <button type="button" onClick={() => goToStep(i)} aria-label={`Go back to step ${i + 1}: ${s.title}`} title={`Back to ${s.title}`}>{badge}{text}</button>
                   : <>{badge}{text}</>}
               </li>
             </Fragment>
@@ -423,116 +551,252 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
         })}
       </ol>
 
-      {step === 0 && (
+      {mode === 'Owned' && step === 0 && (
         <div className="form-grid form-grid-4">
           <FormGroup label="Equipment ID" required error={e.assetCode?.message}>{(id, d) => <Input placeholder="e.g. EXC-006" style={{ textTransform: 'uppercase' }} {...a11y(id, d, e.assetCode?.message)} {...register('assetCode')} />}</FormGroup>
-          <FormGroup label="Equipment name" required error={e.name?.message}>{(id, d) => <Input placeholder="e.g. JCB 3DX Backhoe 01" {...a11y(id, d, e.name?.message)} {...register('name')} />}</FormGroup>
-          <FormGroup label="Ownership type" required error={e.ownershipType?.message}>{(id, d) => <Select {...a11y(id, d, e.ownershipType?.message)} {...register('ownershipType')}>{OWNERSHIP.map((o) => <option key={o}>{o}</option>)}</Select>}</FormGroup>
-          <FormGroup label="Machine photo" helper={PHOTO_HINT}>
-            {(id) => (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <input id={id} ref={cameraRef} type="file" accept={IMAGE_ACCEPT} capture="environment" hidden onChange={onPhoto} />
-                  <input ref={uploadRef} type="file" accept={IMAGE_ACCEPT} hidden onChange={onPhoto} />
-                  <Button onClick={() => takePhoto('machine')}>{photo ? 'Retake photo' : 'Take photo'}</Button>
-                  <Button onClick={() => uploadRef.current?.click()}>Upload file</Button>
-                  {photo && <img src={photo.url} alt="Machine preview" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6 }} />}
-                </div>
-                {camPanel('machine')}
-              </>
+          <FormGroup label="Equipment category" required error={e.category?.message}>
+            {(id, d) => (
+              <Select
+                {...a11y(id, d, e.category?.message)}
+                value={categoryPick}
+                onChange={(ev) => {
+                  const val = ev.target.value
+                  setCategoryPick(val)
+                  setValue('category', val === '__other__' ? '' : val, { shouldValidate: true })
+                  // a manufacturer belongs to one category, so it is chosen again
+                  setManufacturerPick('')
+                  setValue('manufacturer', '')
+                }}
+              >
+                <option value="">Choose a category</option>
+                {EQUIPMENT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__other__">+ Add a category not in the list</option>
+              </Select>
             )}
           </FormGroup>
+          <FormGroup label="Equipment name" required error={e.name?.message}>
+            {(id, d) => <Input placeholder="e.g. Excavator EX210" {...a11y(id, d, e.name?.message)} {...register('name')} />}
+          </FormGroup>
+          {categoryPick === '__other__' && (
+            <FormGroup label="Other category" required>
+              {(id, d) => <Input placeholder="e.g. Crawler crane" {...a11y(id, d, e.category?.message)} {...register('category')} />}
+            </FormGroup>
+          )}
+          {machinePhotoField('Machine photo', false)}
         </div>
       )}
 
-      {step === 1 && (
+      {mode === 'Owned' && step === 1 && (
         <>
-          <SectionTitle>Machine specifications</SectionTitle>
-          <div className="form-grid form-grid-4">
-            {docField('manufacturer')}
+          <SectionTitle>1. Equipment identification</SectionTitle>
+          <div className="form-grid form-grid-3">
+            {manufacturerField}
             {docField('model')}
             {docField('mfgYear')}
+            {manufacturerPick === '__other__' && (
+              <FormGroup label="Other manufacturer" required full>
+                {(id, d) => <Input placeholder="e.g. Escorts Kubota" {...a11y(id, d, e.manufacturer?.message)} {...register('manufacturer')} />}
+              </FormGroup>
+            )}
             {docField('chasisNo')}
-            {fileTile('chasisPhoto', 'Chassis number photo', false, 'chasisPhoto')}
             {docField('engineNo')}
+            <FormGroup label="Registration number" required error={e.regNo?.message}>{(id, d) => <Input placeholder="e.g. TS09EX1402" {...a11y(id, d, e.regNo?.message)} {...register('regNo')} />}</FormGroup>
+            {fileTile('chasisPhoto', 'Chassis / serial number photo', false, 'chasisPhoto')}
             {fileTile('enginePhoto', 'Engine number photo', false, 'enginePhoto')}
-            <FormGroup label="Registration number" error={e.regNo?.message}>{(id, d) => <Input placeholder="e.g. TS09EX1402" {...a11y(id, d, e.regNo?.message)} {...register('regNo')} />}</FormGroup>
+          </div>
+
+          <SectionTitle>2. Technical specifications</SectionTitle>
+          <div className="form-grid form-grid-3">
             {docField('capacity')}
             {docField('capacityUnit')}
+            {docField('fuelType')}
+            {/* fuel norm and tank capacity do not apply to purely electric equipment */}
+            {v.fuelType !== 'Electric' && docField('fuelNorm')}
+            {v.fuelType !== 'Electric' && docField('tankCapacity')}
           </div>
 
-          <SectionTitle>Meter and fuel</SectionTitle>
-          <div className="form-grid form-grid-4">
-            <FormGroup label="Meter type">{(id) => <Input id={id} value="HMR — running hours" readOnly />}</FormGroup>
+          <SectionTitle>3. Meter details</SectionTitle>
+          <div className="form-grid form-grid-3">
+            <FormGroup label="Meter type" required error={e.meterType?.message}>
+              {(id, d) => <Select {...a11y(id, d, e.meterType?.message)} {...register('meterType')}>{METER_TYPES.map((m) => <option key={m} value={m}>{METER_LABEL[m]}</option>)}</Select>}
+            </FormGroup>
             {docField('meterReading')}
             {fileTile('meterPhoto', 'Meter photo', true, 'meterPhoto')}
-            {docField('fuelType')}
-            {docField('fuelNorm')}
-            {docField('tankCapacity')}
           </div>
 
-          <SectionTitle>Invoice, registration, insurance and fitness</SectionTitle>
-          <div className="form-grid form-grid-4">
-            {docField('invoiceNo')}
-            {docField('invoiceDate')}
-            {fileTile('invoiceDoc', 'Invoice document')}
+          {mode === 'Owned' && (
+            <>
+              <SectionTitle>4. Invoice and warranty details</SectionTitle>
+              <div className="form-grid form-grid-3">
+                {docField('invoiceNo')}
+                {docField('invoiceDate')}
+                {fileTile('invoiceDoc', 'Invoice document')}
+                {docField('warrantyEnd')}
+                {docField('warrantyReading')}
+              </div>
+            </>
+          )}
+
+          <SectionTitle>5. Insurance details</SectionTitle>
+          <div className="form-grid form-grid-3">
             {docField('insuranceNo')}
             {docField('insuranceExpiry')}
             {fileTile('insuranceDoc', 'Insurance document')}
-            {docField('pucNo')}
-            {docField('pollutionExpiry')}
-            {fileTile('pucDoc', 'PUC document')}
-            {docField('regExpiry')}
-            {docField('fitnessCert')}
-            {docField('fitnessExpiry')}
           </div>
+
+          {/* registration, PUC and fitness apply only to road-registered equipment */}
+          {!NOT_ROAD_REGISTERED.includes(cat) && (
+            <>
+              <SectionTitle>6. Statutory and compliance details</SectionTitle>
+              <div className="form-grid form-grid-3">
+                {docField('regExpiry')}
+                {fileTile('regDoc', 'Registration document')}
+                <div aria-hidden="true" />
+                {docField('pucNo')}
+                {docField('pollutionExpiry')}
+                {fileTile('pucDoc', 'PUC document')}
+                {docField('fitnessCert')}
+                {docField('fitnessExpiry')}
+                {fileTile('fitnessDoc', 'Fitness certificate document')}
+              </div>
+            </>
+          )}
         </>
       )}
 
-      {step === 2 && (
+      {mode === 'Hired' && step === 0 && (
         <>
-          <SectionTitle>Ownership</SectionTitle>
-          <div className="form-grid form-grid-4">
+          <SectionTitle>1. Basic equipment details</SectionTitle>
+          <div className="form-grid form-grid-3">
+            <FormGroup label="Equipment category" required error={e.category?.message}>
+              {(id, d) => (
+                <Select
+                  {...a11y(id, d, e.category?.message)}
+                  value={categoryPick}
+                  onChange={(ev) => {
+                    const val = ev.target.value
+                    setCategoryPick(val)
+                    setValue('category', val === '__other__' ? '' : val, { shouldValidate: true })
+                    setManufacturerPick('')
+                    setValue('manufacturer', '')
+                  }}
+                >
+                  <option value="">Choose a category</option>
+                  {EQUIPMENT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <option value="__other__">+ Add a category not in the list</option>
+                </Select>
+              )}
+            </FormGroup>
+            <FormGroup label="Equipment name" required error={e.name?.message}>
+              {(id, d) => <Input placeholder="e.g. Excavator EX210" {...a11y(id, d, e.name?.message)} {...register('name')} />}
+            </FormGroup>
+            {categoryPick === '__other__' && (
+              <FormGroup label="Other category" required full>
+                {(id, d) => <Input placeholder="e.g. Crawler crane" {...a11y(id, d, e.category?.message)} {...register('category')} />}
+              </FormGroup>
+            )}
+            <FormGroup label="Hired by">{(id) => <Input id={id} value={hiredFrom} readOnly />}</FormGroup>
             {docField('owner')}
             {docField('hireRef')}
             {docField('agreementStart')}
             {docField('agreementEnd')}
-            {docField('warrantyEnd')}
-            {docField('warrantyReading')}
-          </div>
-
-          <SectionTitle>Location</SectionTitle>
-          <div className="form-grid form-grid-4">
-            <FormGroup label="Current project" required error={e.projectId?.message}>{(id, d) => <Select {...a11y(id, d, e.projectId?.message)} {...register('projectId')}><option value="">Choose a project</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</Select>}</FormGroup>
-            {docField('currentLocation')}
           </div>
         </>
       )}
 
+      {mode === 'Hired' && step === 1 && (
+        <>
+          <SectionTitle>2. Machine specifications</SectionTitle>
+          <div className="form-grid form-grid-3">
+            {manufacturerField}
+            {docField('model')}
+            {docField('mfgYear')}
+            {manufacturerPick === '__other__' && (
+              <FormGroup label="Other manufacturer" required full>
+                {(id, d) => <Input placeholder="e.g. Escorts Kubota" {...a11y(id, d, e.manufacturer?.message)} {...register('manufacturer')} />}
+              </FormGroup>
+            )}
+            {docField('chasisNo')}
+            {docField('engineNo')}
+            <FormGroup label="Registration number" required error={e.regNo?.message}>{(id, d) => <Input placeholder="e.g. TS09EX1402" {...a11y(id, d, e.regNo?.message)} {...register('regNo')} />}</FormGroup>
+            {fileTile('chasisPhoto', 'Chassis / serial number photo', false, 'chasisPhoto')}
+            {fileTile('enginePhoto', 'Engine number photo', false, 'enginePhoto')}
+            {machinePhotoField('Equipment photo', true)}
+            {docField('capacity')}
+            {docField('capacityUnit')}
+          </div>
+
+          <SectionTitle>3. Meter details</SectionTitle>
+          <div className="form-grid form-grid-3">
+            <FormGroup label="Meter type" required error={e.meterType?.message}>
+              {(id, d) => <Select {...a11y(id, d, e.meterType?.message)} {...register('meterType')}>{METER_TYPES.map((m) => <option key={m} value={m}>{METER_LABEL[m]}</option>)}</Select>}
+            </FormGroup>
+            {docField('meterReading')}
+            {fileTile('meterPhoto', 'Meter photo', false, 'meterPhoto')}
+          </div>
+
+          <SectionTitle>4. Fuel details</SectionTitle>
+          <div className="form-grid form-grid-3">
+            {docField('fuelType')}
+            {v.fuelType !== 'Electric' && docField('fuelNorm')}
+            {v.fuelType !== 'Electric' && docField('tankCapacity')}
+          </div>
+        </>
+      )}
+
+      {mode === 'Hired' && step === 2 && (
+        <>
+          <SectionTitle>5. Insurance details</SectionTitle>
+          <div className="form-grid form-grid-3">
+            {docField('insuranceNo')}
+            {docField('insuranceExpiry')}
+            {fileTile('insuranceDoc', 'Insurance document')}
+          </div>
+          {!NOT_ROAD_REGISTERED.includes(cat) && (
+            <>
+              <SectionTitle>6. Statutory and compliance details</SectionTitle>
+              <div className="form-grid form-grid-3">
+                {docField('regExpiry')}
+                {fileTile('regDoc', 'Registration document')}
+                <div aria-hidden="true" />
+                {docField('pucNo')}
+                {docField('pollutionExpiry')}
+                {fileTile('pucDoc', 'PUC document')}
+                {docField('fitnessCert')}
+                {docField('fitnessExpiry')}
+                {fileTile('fitnessDoc', 'Fitness certificate document')}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
       {step === LAST && (
-        <div className="detail-grid detail-grid-4">
+        <div className="detail-grid detail-grid-3">
           <KV k="Equipment ID"><strong>{shown(v.assetCode?.trim() ?? '')}</strong></KV>
+          <KV k="Category"><strong>{shown(cat)}</strong></KV>
           <KV k="Equipment name"><strong>{shown(v.name)}</strong></KV>
           <KV k="Ownership type"><strong>{shown(v.ownershipType)}</strong></KV>
           <KV k="Machine photo"><strong>{photo ? 'Attached' : '—'}</strong></KV>
-          <KV k="Make and model"><strong>{shown(makeModelOf(v.manufacturer ?? '', v.model ?? ''))}</strong></KV>
-          <KV k="Registration number"><strong>{shown(v.regNo)}</strong></KV>
-          <KV k="Meter type"><strong>HMR — running hours</strong></KV>
-          <KV k="Current project"><strong>{projectCode}</strong></KV>
           <KV k="Availability"><strong>{v.availability || '—'}</strong></KV>
-          {DOC_FIELDS.map((f) => (
-            <KV key={f.key} k={f.label}><strong>{f.kind === 'date' ? dateOut(v[f.key]) : shown(v[f.key])}</strong></KV>
-          ))}
+          {/* the same sequence as the form: identification, specifications, meter, invoice, insurance, statutory */}
+          {DOC_FIELDS.filter((f) => reviewApplies(f)).flatMap((f) => [
+            f.key === 'meterReading' ? <KV key="meterType" k="Meter type"><strong>{METER_LABEL[v.meterType ?? 'HMR']}</strong></KV> : null,
+            <KV key={f.key} k={f.key === 'meterReading' ? `Initial meter reading (${METER_UNIT[v.meterType ?? 'HMR']})` : f.key === 'fuelNorm' ? `Fuel norm (L/${METER_UNIT[v.meterType ?? 'HMR']})` : f.label}>
+              <strong>{f.kind === 'date' ? dateOut(v[f.key]) : shown(v[f.key])}</strong>
+            </KV>,
+            f.key === 'engineNo' ? <KV key="regNo" k="Registration number"><strong>{shown(v.regNo)}</strong></KV> : null,
+          ])}
         </div>
       )}
 
       {formError && <div className="login-error" role="alert" style={{ marginTop: 14 }}><span>{formError}</span></div>}
       <div className="form-actions">
         <Button onClick={onDone}>Cancel</Button>
-        {step > 0 && <Button onClick={() => setStep((s) => s - 1)}>Back</Button>}
+        {step > 0 && <Button onClick={() => goToStep((s) => s - 1)}>Back</Button>}
         {step < LAST
           ? <Button tone="primary" onClick={() => void next()}>Continue</Button>
-          : <Button tone="primary" icon="check" onClick={handleSubmit(save)}>Register equipment</Button>}
+          : <Button tone="primary" icon="check" onClick={() => void handleSubmit(save)()}>Register equipment</Button>}
       </div>
 
       <Modal open={camFor !== null} onOpenChange={(o) => { if (!o) stopCam() }} title={camFor ? CAM_LABEL[camFor] : 'Take photo'}>
@@ -552,18 +816,24 @@ function AddUnitForm({ onDone }: { onDone: () => void }) {
 export default function EquipmentRegister() {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'eq-register')
-  const { units, projects, sites, saveUnitRemote, unitsLoad, unitsError, equipmentTypes } = useCore()
+  const { units, projects, saveUnitRemote, unitsLoad, unitsError } = useCore()
+  // the register is split into owned and hired equipment; the wizard and the table follow the tab
+  // owned and hired equipment have their own menu entries and addresses: the address decides the kind
+  const location = useLocation()
+  const kind: 'Owned' | 'Hired' = location.pathname === '/equipment/hired' ? 'Hired' : 'Owned'
+  /** A detail row shows when the field fits the unit's ownership, fuel type and whether its category is road registered. */
+  const detailApplies = (f: DocField) => {
+    if (!selected) return false
+    if (f.only && f.only !== (selected.ownershipType ?? 'Owned')) return false
+    return true
+  }
   const [selected, setSelected] = useState<EquipmentUnit | null>(null)
   const [editFor, setEditFor] = useState<EquipmentUnit | null>(null)
   const [upload, setUpload] = useState(false)
   const [adding, setAdding] = useState(false)
+  // units without an ownership type are owned (the register's first kind)
   const [projectId, setProjectId] = useState('')
-  const [assignFor, setAssignFor] = useState<EquipmentUnit | null>(null)
-  // a unit links to a server location (chainageId holds its id); '' means unassigned
-  const siteOf = (u: EquipmentUnit) => sites.find((s) => s.id === u.chainageId)
-  const projectIdOf = (u: EquipmentUnit) => projectOf(projects, u.chainageId)?.id ?? siteOf(u)?.projectId
-  const projectCodeOf = (u: EquipmentUnit) => projects.find((p) => p.id === projectIdOf(u))?.code ?? 'Unassigned'
-  const shownUnits = projectId ? units.filter((u) => projectIdOf(u) === projectId) : units
+  const shownUnits = units.filter((u) => (u.ownershipType ?? 'Owned') === kind && (!projectId || u.projectId === projectId))
   /** Bulk-uploaded rows are saved one by one; a row the server refuses is reported and the others still save. */
   const importUnits = async (list: EquipmentUnit[]) => {
     const failed: string[] = []
@@ -591,10 +861,10 @@ export default function EquipmentRegister() {
       const value = {
         assetCode: (r.asset_code ?? '').trim(),
         name: (r.equipment_name ?? '').trim(),
-        type: COMPANY_EQUIPMENT_TYPE.name,
+        type: (r.equipment_name ?? '').trim(),
         regNo: (r.reg_no ?? '').trim(),
         ownershipType: ownership ?? '',
-        chainageId: locationsOf(projects, sites, where?.id).find((s) => s.name === docs.currentLocation)?.id ?? '',
+        meterType: 'HMR',
         availability: avail ?? '',
         ...docs,
       }
@@ -604,9 +874,6 @@ export default function EquipmentRegister() {
       for (const f of DOC_FIELDS) {
         if (f.options && docs[f.key] && !f.options.includes(docs[f.key])) errors.push(`${f.col} must be one of: ${f.options.join(', ')}.`)
       }
-      const locations = locationsOf(projects, sites, where?.id).map((s) => s.name)
-      if (where && !locations.length) errors.push(`Project ${where.code} has no location to link the unit to.`)
-      else if (docs.currentLocation && !locations.includes(docs.currentLocation)) errors.push(`current_location must be one of: ${locations.join(', ')}.`)
       if (r.project_code && !where) errors.push(`Project code ${r.project_code} does not exist.`)
       if (value.assetCode && units.some((u) => u.assetCode.toUpperCase() === value.assetCode.toUpperCase()))
         errors.push(`Company code ${value.assetCode} is already registered.`)
@@ -619,12 +886,13 @@ export default function EquipmentRegister() {
               id: `EQ-${n++}`,
               assetCode: value.assetCode,
               name: value.name,
-              type: COMPANY_EQUIPMENT_TYPE.name,
+              type: value.name,
               makeModel: makeModelOf(docs.manufacturer, docs.model),
               regNo: value.regNo,
-              meterType: METER_TYPE,
+              meterType: 'HMR',
               ownershipType: value.ownershipType,
-              chainageId: value.chainageId,
+              chainageId: '',
+              projectId: where?.id,
               lat: null,
               lng: null,
               lastPing: null,
@@ -635,7 +903,6 @@ export default function EquipmentRegister() {
     })
   }
   const count = (a: string) => shownUnits.filter((u) => u.availability === a).length
-  const typeIdOf = (name: string) => typeIdByName(equipmentTypes, name)
   const gps = (u: EquipmentUnit) => (u.lat !== null && u.lng !== null && u.lastPing ? `${u.lat.toFixed(4)}, ${u.lng.toFixed(4)}` : null)
   const txt = (v?: string) => v || '—'
   const dateOf = (v?: string) => (v ? fmtDate(v) : '—')
@@ -644,10 +911,10 @@ export default function EquipmentRegister() {
   if (adding) {
     return (
       <div>
-        <PageHead crumb="Company equipment register" title="Register equipment" desc="Fields marked with * are required. Add one equipment unit to the company register."
+        <PageHead crumb="Company equipment register" title={kind === 'Owned' ? 'Register owned equipment' : 'Register hired equipment'} desc="Fields marked with * are required. Add one equipment unit to the company register."
           actions={<Button icon="chevL" onClick={() => setAdding(false)}>Back to equipment register</Button>} />
         <Card title="Equipment details">
-          <AddUnitForm onDone={() => setAdding(false)} />
+          <AddUnitForm mode={kind} onDone={() => setAdding(false)} />
         </Card>
       </div>
     )
@@ -655,26 +922,24 @@ export default function EquipmentRegister() {
 
   return (
     <div ref={ref}>
-      <PageHead crumb="Company equipment register" title="Company equipment register" desc="Registered equipment units with their current project, GPS position and availability, mapped to the planning lines."
+      <PageHead crumb={kind === 'Owned' ? 'Company equipment register' : 'Hired equipment'} title={kind === 'Owned' ? 'Company equipment register' : 'Hired equipment'} desc={kind === 'Owned' ? "Equipment the company owns." : "Equipment held on hire from vendors."}
         actions={<>
           <Can privilege={MANAGE.masters}>
             <Button icon="upload" onClick={() => setUpload(true)}>Bulk upload</Button>
-            <Button tone="primary" icon="plus" onClick={() => setAdding(true)}>Add equipment</Button>
+            <Button tone="primary" icon="plus" onClick={() => setAdding(true)}>{kind === 'Owned' ? 'Add owned equipment' : 'Add hired equipment'}</Button>
           </Can>
         </>} />
+      {unitsLoad === 'error' && <div className="login-error" role="alert" style={{ marginBottom: 16 }}><span>The equipment units could not be read: {unitsError} The register is empty until the server answers.</span></div>}
       <div style={{ marginBottom: 16, maxWidth: 320 }}>
         <FormGroup label="Show project">
           {(id) => (
             <Select id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
               <option value="">All projects</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           )}
         </FormGroup>
       </div>
-      {unitsLoad === 'error' && <div className="login-error" role="alert" style={{ marginBottom: 16 }}><span>The equipment units could not be read: {unitsError} The register is empty until the server answers.</span></div>}
       <div className="grid stats">
         <StatTile label="Available" value={count('Available')} icon="checkc" tone="green" />
         <StatTile label="In use" value={count('In use')} icon="activity" tone="blue" />
@@ -684,19 +949,20 @@ export default function EquipmentRegister() {
       <TablePanel title="Registered units" subtitle="Registration is maintained by P&M. Filter by availability using the chips; pick more than one to combine. Search by asset code, name, type or registration number." rows={shownUnits} rowKey={(u) => u.id}
         columns={[
           { header: 'S No', kind: 'c-id', cell: (u) => shownUnits.indexOf(u) + 1, csv: (u) => String(shownUnits.indexOf(u) + 1) },
-          { header: 'Equipment Name', kind: 'c-sub', cell: (u) => <strong>{u.name || u.type}</strong>, csv: (u) => u.name || u.type },
+          { header: 'Category', kind: 'c-sub', cell: (u) => <strong>{u.type || u.name}</strong>, csv: (u) => u.type || u.name || '' },
           { header: 'Made', kind: 'c-more', cell: (u) => u.makeModel, csv: (u) => u.makeModel },
           { header: 'Model', kind: 'c-more', cell: (u) => u.model || '—', csv: (u) => u.model ?? '' },
           { header: 'Capacity / size', kind: 'c-more', cell: (u) => capacityText(u) || '—', csv: capacityText },
           { header: 'Company Code', kind: 'c-amt', cell: (u) => u.assetCode, csv: (u) => u.assetCode },
-          { header: 'Current Project', kind: 'c-amt', cell: (u) => projectCodeOf(u), csv: (u) => projectCodeOf(u) },
-          { header: 'Current Status', kind: 'c-status', cell: (u) => <StatusBadge tone={AVAIL_TONE[u.availability]}>{u.availability}</StatusBadge>, csv: (u) => u.availability },
+          ...(kind === 'Hired'
+            ? [
+                { header: 'Hired by', kind: 'c-more' as const, cell: (u: EquipmentUnit) => u.hiredFrom || '—', csv: (u: EquipmentUnit) => u.hiredFrom ?? '' },
+                { header: 'Hire status', kind: 'c-more' as const, cell: (u: EquipmentUnit) => <StatusBadge tone={hireActive(u) ? 'approved' : 'draft'}>{HIRE_STATUS(u)}</StatusBadge>, csv: (u: EquipmentUnit) => HIRE_STATUS(u) },
+              ]
+            : [{ header: 'Registered by', kind: 'c-more' as const, cell: (u: EquipmentUnit) => u.hiredFrom || '—', csv: (u: EquipmentUnit) => u.hiredFrom ?? '' }]),
         ]}
         searchText={(u) => `${u.assetCode} ${u.name ?? ''} ${u.type} ${u.makeModel} ${u.regNo}`} statusOf={(u) => u.availability}
-        action={(u) => <>
-          <Button size="sm" disabled={!typeIdOf(u.type)} title={typeIdOf(u.type) ? undefined : 'This type is not on the server yet'} onClick={() => setAssignFor(u)}>Assign</Button>{' '}
-          <Button size="sm" onClick={() => setSelected(u)}>Details</Button>
-        </>}
+        action={(u) => <Button size="sm" onClick={() => setSelected(u)}>Details</Button>}
         searchPlaceholder="Search by asset, name, type or registration…" exportName="core-equipment-register" chipNoun="availability" />
       <BulkUpload
         open={upload}
@@ -710,7 +976,7 @@ export default function EquipmentRegister() {
           { key: 'ownership_type', label: 'Ownership', required: true, example: 'Owned', hint: OWNERSHIP.join(', ') },
           { key: 'project_code', label: 'Current project code', required: true, example: projects[0]?.code ?? '', hint: `Projects: ${projects.map((p) => p.code).join(', ')}` },
           { key: 'availability', label: 'Availability', required: false, example: 'Available', hint: `Optional, defaults to Available. ${AVAILABILITY.join(', ')}` },
-          ...DOC_FIELDS.map((f) => ({ key: f.col, label: f.label, required: f.required, example: f.example, hint: f.options ? f.options.join(', ') : f.hint })),
+          ...DOC_FIELDS.map((f) => ({ key: f.col, label: f.label, required: f.required && !f.only, example: f.example, hint: f.options ? f.options.join(', ') : f.hint })),
         ]}
         validate={validate}
         onImport={(list) => void importUnits(list)}
@@ -722,27 +988,27 @@ export default function EquipmentRegister() {
             <KV k="Equipment Name"><strong>{selected.name || selected.type}</strong></KV>
             <KV k="Made"><strong>{selected.makeModel}</strong></KV>
             <KV k="Company Code"><strong>{selected.assetCode}</strong></KV>
-            <KV k="Registration Number"><strong>{txt(selected.regNo)}</strong></KV>
             <KV k="Ownership"><strong>{txt(selected.ownershipType)}</strong></KV>
-            <KV k="Current Project"><strong>{projectCodeOf(selected)}</strong></KV>
-            <KV k="Meter type"><strong>{txt(selected.meterType)}</strong></KV>
-            {DOC_FIELDS.map((f) => (
-              <KV key={f.key} k={f.label}><strong>{f.kind === 'date' ? dateOf(selected[f.key]) : txt(selected[f.key])}</strong></KV>
-            ))}
+            {selected.ownershipType === 'Hired' && <KV k="Hire status"><strong>{HIRE_STATUS(selected)}</strong></KV>}
+            {/* the same sequence as the registration form */}
+            {DOC_FIELDS.filter((f) => detailApplies(f)).flatMap((f) => [
+              f.key === 'meterReading' ? <KV key="meterType" k="Meter type"><strong>{txt(selected.meterType)}</strong></KV> : null,
+              <KV key={f.key} k={f.key === 'meterReading' ? `Initial meter reading (${selected.meterType === 'Odometer' ? 'km' : 'h'})` : f.key === 'fuelNorm' ? `Fuel norm (L/${selected.meterType === 'Odometer' ? 'km' : 'h'})` : f.label}>
+                <strong>{f.kind === 'date' ? dateOf(selected[f.key]) : txt(selected[f.key])}</strong>
+              </KV>,
+              f.key === 'engineNo' ? <KV key="regNo" k="Registration number"><strong>{txt(selected.regNo)}</strong></KV> : null,
+            ])}
             <KV k="Location"><strong>{gps(selected) ?? 'No fix'}</strong></KV>
             <KV k="Last fix"><strong>{selected.lastPing ? fmtDateTime(selected.lastPing) : '—'}</strong></KV>
           </div>
           <h3 style={{ margin: '18px 0 8px' }}>Photo and documents</h3>
           <UnitFiles unit={selected} />
-          <h3 style={{ margin: '18px 0 8px' }}>Project assignments</h3>
-          <UnitAssignments unit={selected} />
           <div className="form-actions">
             {selected.rowVersion !== undefined && <Can privilege={MANAGE.masters}><Button onClick={() => { setEditFor(selected); setSelected(null) }}>Edit</Button></Can>}
             <Button onClick={() => setSelected(null)}>Close</Button>
           </div>
         </>}
       </Modal>
-      {assignFor && <AssignUnitDialog unit={assignFor} onClose={() => setAssignFor(null)} />}
       {editFor && <EditUnitDialog unit={editFor} onClose={() => setEditFor(null)} />}
     </div>
   )

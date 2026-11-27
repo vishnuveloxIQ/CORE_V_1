@@ -1,20 +1,21 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TablePanel } from "@/shared/ui/data/TablePanel";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
 import { Muted } from "@/shared/ui/Extras";
+import { FormGroup, Select } from "@/shared/ui/Field";
 import { Modal } from "@/shared/ui/Modal";
 import { PageHead } from "@/modules/shell";
 import { StatusBadge } from "@/shared/ui/Status";
-import type { PolicyVersion } from "@/modules/core-data";
+import type { PolicyKey, PolicyVersion } from "@/modules/core-data";
 import { useEnter } from "@/shared/hooks/useMotion";
 import { fmtDate, titleCase, todayISO } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/icons";
 import { customPolicyState, policyState, useCore } from "@/modules/core-data";
 import { notify } from "@/shared/lib/toast";
 import { errorText } from "@/shared/lib/api";
-import { POLICY_KEYS, POLICY_META, summarize } from "../utils/meta";
+import { POLICY_KEYS, POLICY_META, RATE_POLICY_KEYS, summarize, TEMPLATE_POLICY_KEYS } from "../utils/meta";
 import { saveFirstVersion } from "../utils/setup";
 import { policyTemplate } from "../utils/templates";
 import {
@@ -52,6 +53,11 @@ const stateOf = (
 export default function Policies() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "policies");
+  // read the versions from the server each time the page opens, so the history shows what was saved
+  useEffect(() => {
+    void useCore.getState().loadPolicies();
+    void useCore.getState().loadCustomPolicies();
+  }, []);
   const navigate = useNavigate();
   const policies = useCore((s) => s.policies);
   const customDefs = useCore((s) => s.customPolicies);
@@ -63,7 +69,12 @@ export default function Policies() {
   const [settingUp, setSettingUp] = useState(false);
   const [pick, setPick] = useState(false);
   // a new company has none of the six built-in policies yet: each can start from its standard template
-  const unset = POLICY_KEYS.filter((key) => !policyState(policies, key).latest);
+  const unset = TEMPLATE_POLICY_KEYS.filter((key) => !policyState(policies, key).latest);
+  // the project the cards show: '' is the company-wide default; module policies can differ per project
+  const [projectId, setProjectId] = useState("");
+  const projects = useCore((s) => s.projects);
+  const scopeOf = () => projectId || null;
+  const linkOf = (key: PolicyKey) => `/policies/${key}${projectId ? `?project=${projectId}` : ""}`;
   const setUpRemaining = async () => {
     if (!window.confirm(`Set up ${unset.length} ${unset.length === 1 ? "policy" : "policies"} from the standard templates, effective today? You can change each one afterwards with a new version.`)) return;
     setSettingUp(true);
@@ -87,10 +98,12 @@ export default function Policies() {
   };
 
   const builtIn: HistoryRow[] = policies.map((v: PolicyVersion) => {
-    const { current } = policyState(policies, v.key);
+    // compare with the version in force for the same scope: the project's own, or the company default
+    const { current } = policyState(policies, v.key, undefined, v.projectId);
+    const projectName = v.projectId ? projects.find((p) => p.id === v.projectId)?.name : undefined;
     return {
       id: v.id,
-      policy: POLICY_META[v.key].title,
+      policy: projectName ? `${POLICY_META[v.key].title} · ${projectName}` : POLICY_META[v.key].title,
       href: `/policies/${v.key}`,
       version: v.version,
       change: summarize(v.key, v.data),
@@ -98,7 +111,7 @@ export default function Policies() {
       effectiveFrom: v.effectiveFrom,
       by: v.createdBy,
       createdAt: v.createdAt,
-      state: stateOf(v.id, current.id, v.effectiveFrom, current.effectiveFrom),
+      state: current ? stateOf(v.id, current.id, v.effectiveFrom, current.effectiveFrom) : 'Scheduled',
     };
   });
   const custom: HistoryRow[] = customDefs.flatMap((d) => {
@@ -129,7 +142,7 @@ export default function Policies() {
       <PageHead
         crumb="Policies"
         title="Policies"
-        desc="The updated version applies only from its effective date, while all historical payroll and attendance records remain unchanged."
+        desc="The revised policy shall take effect only from its specified effective date. All previously recorded payroll and attendance data shall remain unchanged and unaffected by subsequent revisions."
         actions={
           <>
             {unset.length > 0 && (
@@ -211,13 +224,24 @@ export default function Policies() {
           <Button onClick={() => setPick(false)}>Cancel</Button>
         </div>
       </Modal>
+      <div style={{ marginBottom: 16, maxWidth: 320 }}>
+        <FormGroup label="Show project">
+          {(id) => (
+            <Select id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">Company default</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </Select>
+          )}
+        </FormGroup>
+      </div>
       <div
         className="grid policy-cards"
         style={{ marginBottom: 16 }}
       >
         {POLICY_KEYS.map((key) => {
-          const { current, scheduled } = policyState(policies, key);
+          const { current, scheduled } = policyState(policies, key, undefined, scopeOf());
           const meta = POLICY_META[key];
+          const isRate = RATE_POLICY_KEYS.includes(key);
           return (
             <Card
               key={key}
@@ -240,20 +264,20 @@ export default function Policies() {
                   <Button
                     size="sm"
                     iconRight="arrowR"
-                    onClick={() => navigate(`/policies/${key}`)}
+                    onClick={() => navigate(linkOf(key))}
                     aria-label={`Open ${meta.title}`}
                   >
-                    Open
+                    {isRate ? "Rate sheets" : "Open"}
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     tone="primary"
                     icon="plus"
-                    onClick={() => navigate(`/policies/${key}`)}
+                    onClick={() => navigate(linkOf(key))}
                     aria-label={`Set up ${meta.title}`}
                   >
-                    Set up from template
+                    {isRate ? "Upload rate sheet" : "Set up from template"}
                   </Button>
                 )}
               </div>
@@ -315,7 +339,7 @@ export default function Policies() {
       </div>
       <TablePanel
         title="Version history"
-        subtitle="Filter by status using the chips; pick more than one to combine. Search by policy, reason or author."
+        subtitle="Filter records by status using the available selection options. Multiple statuses may be selected simultaneously."
         rows={all}
         rowKey={(v) => v.id}
         columns={[
@@ -340,7 +364,7 @@ export default function Policies() {
             csv: (v) => `v${v.version}`,
           },
           {
-            header: "Change",
+            header: "Change & Reason",
             kind: "c-sub",
             cell: (v) => (
               <>

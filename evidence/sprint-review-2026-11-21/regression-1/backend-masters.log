@@ -1,0 +1,135 @@
+npm notice run velox-core-backend@1.0.0 npx
+npm notice run vitest run tests/regression/masters-contract.test.ts tests/masters tests/projects tests/organisation tests/equipment-units tests/stock-levels tests/offer-letter tests/relationships tests/permissions tests/db/shared-uom.test.ts tests/testing-pass/conflicts-and-ownership.test.ts --maxWorkers=4 --reporter=default --reporter=junit --outputFile.junit=C:/VELOX_IQ/CORE/CORE__V__0.4/evidence/sprint-review-2026-11-21/regression-1/backend-masters.junit.xml
+
+ RUN  v5.1.1 C:/VELOX_IQ/CORE/CORE__BACKEND
+
+(node:39772) ExperimentalWarning: The supports Web Crypto API method is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:39772) ExperimentalWarning: The ML-DSA-44 Web Crypto API algorithm is an experimental feature and might change at any time
+ ✓ tests/testing-pass/conflicts-and-ownership.test.ts (6 tests) 10778ms
+   ✓ tenant writes, 409 conflicts and ownership (6)
+     ✓ tenant writes (3)
+       ✓ a token for beta cannot change an acme vendor: 404, and the acme row is unchanged 500ms
+       ✓ a token for beta cannot delete an acme vendor, and the acme vendor stays 369ms
+       ✓ a beta session id sent with an acme token is not a session of acme: 401 and nothing is revoked 387ms
+     ✓ ownership (1)
+       ✓ one user cannot remove another user's passkey: 404, and the passkey stays 300ms
+ ✓ tests/projects/projects.test.ts (9 tests) 10951ms
+   ✓ projects and sites (phase 5b) (9)
+     ✓ projects: create with dates and value, change only with the current version, close by status, audit both 695ms
+     ✓ locations: coordinates and chainage in pairs, week-off days, project fixed after create, deactivate 425ms
+     ✓ stores: the chainage marker must sit on the same project as the location 340ms
+     ✓ WBS nodes: parents in the same project, no cycles, codes per project, delete only when unused 382ms
+     ✓ chainage markers: codes per project, km zero or more, delete only when unused, audit the delete 307ms
+     ✓ geo zones: shape fields, version rises only when the fence changes, delete 450ms
+     ✓ milestones: weights total at most 100 per project, cancelled ones count, the row itself is left out on edit 392ms
+     ✓ the migration keys and CHECKs hold when rows are written directly (0010) 707ms
+     ✓ answers 401 without a token and 403 without projects.manage on every write; reads need only a sign-in 521ms
+ ✓ tests/organisation/organisation.test.ts (11 tests) 11000ms
+   ✓ organisation (phase 5a) (11)
+     ✓ answers 404 for the profile, and 409 for a holiday, before the profile is set up 667ms
+     ✓ creates the profile once, changes it only with the current version, and audits both 385ms
+     ✓ holidays: date range, duplicates, versioned edits, delete, and audit 362ms
+     ✓ shifts: timing, time zone, week-off days, effective dates; deactivate instead of delete 330ms
+     ✓ allocates numbers in order, leaves no gap after a rollback, and opens a year from the latest 307ms
+     ✓ departments: codes, colours, parent cycles, heads and in-use delete 377ms
+     ✓ positions: reporting cycles, department heads and in-use delete 375ms
+     ✓ the migration keys and CHECKs hold when rows are written directly (0009) 549ms
+     ✓ answers 401 without a token and 403 without organisation.manage on every write; reads need only a sign-in 419ms
+ ✓ tests/masters/masters.test.ts (25 tests) 15197ms
+   ✓ master data (phase 5c) (25)
+     ✓ vendors: create with tax IDs, record the signed-in user, and audit the insert without the GSTIN 663ms
+     ✓ vendors: a code that differs only in case is a duplicate 362ms
+     ✓ vendors: a change needs the current version; a stale version conflicts; a missing one is refused 365ms
+     ✓ materials: an unknown unit, a bad HSN, a negative reorder level and a duplicate code are refused 308ms
+     ✓ equipment types: the code is fixed after create; a PATCH that sends it is refused 305ms
+     ✓ allocations: create with a unit, read the unit code back, and delete 346ms
+     ✓ allocations: a zero quantity, an unknown project, and a changed project are refused 341ms
+     ✓ assignments: create records the time and user; a second row for the same type and project is a duplicate 329ms
+     ✓ assignments: a PATCH changes the quantity only; the project and type stay fixed 330ms
+     ✓ plan lines: a store must sit on the same project as the line; a store on another project is refused 339ms
+     ✓ plan lines: each kind needs its own references, and the end date cannot precede the start 346ms
+     ✓ plan lines: a people line needs a real position 374ms
+     ✓ plan lines: cancel with a PATCH to status cancelled; there is no delete route 393ms
+     ✓ reads need a signed-in user; every write needs a token (401) and masters.manage (403) 814ms
+     ✓ the database refuses an equipment plan line without an equipment type 350ms
+ ✓ tests/equipment-units/unit-media.test.ts (7 tests) 7148ms
+   ✓ equipment unit media (migration 0028) (7)
+     ✓ returns the new fields as null on a unit that has none 883ms
+     ✓ sets lat, lng and lastPingAt on create and PATCH, and refuses out-of-range values 533ms
+     ✓ links a machine photo and documents by file id, reads them back, and clears them with null 513ms
+     ✓ accepts files linked on POST 459ms
+     ✓ refuses an unknown file id with 400 EQUIPMENT_UNIT_FILE_NOT_FOUND, on POST and PATCH 471ms
+     ✓ refuses a document key outside the allowed list and a value that is not a uuid 464ms
+     ✓ keeps the photo write behind masters.manage 769ms
+ ✓ tests/stock-levels/stock-levels.test.ts (9 tests) 7162ms
+   ✓ stock levels (migration 0020) (9)
+     ✓ answers a plain signed-in user on GET and refuses writes with 403 848ms
+     ✓ refuses a POST without an Idempotency-Key 466ms
+     ✓ creates a row with defaults, reads it back with the filters, and sets an existing row 426ms
+     ✓ keeps the stored reserved value when a set leaves it out 418ms
+     ✓ refuses reserved above qty with 422 on create and on patch 449ms
+     ✓ answers 404 for an unknown store, an unknown material and an unknown stock row 405ms
+     ✓ patches qty and reserved under rowVersion, and refuses a stale version with 409 450ms
+     ✓ writes an audit row for each change 425ms
+ ✓ tests/permissions/detail-routes.test.ts (5 tests) 7570ms
+   ✓ detail routes: permissions (5)
+     ✓ refuses every detail route without a token, with 401 598ms
+     ✓ lets a signed-in user with no privileges read a record, the same as the list shows it 746ms
+     ✓ answers 404, not 401 or 403, for an unknown id on every open detail route 546ms
+     ✓ requires organisation.manage for offer-letter revisions: 403 without it, and the unknown-id 404 with it 744ms
+     ✓ does not show a record of another company: a user of beta gets 404 for an acme project id 753ms
+ ✓ tests/equipment-units/equipment-units.test.ts (9 tests) 5959ms
+   ✓ equipment units (migration 0022) (9)
+     ✓ answers a plain signed-in user on GET and refuses writes with 403 456ms
+     ✓ refuses a POST without an Idempotency-Key 424ms
+     ✓ creates a unit with the type name, defaults availability, and reads it back 379ms
+     ✓ refuses a duplicate asset code with 409, ignoring case 365ms
+     ✓ refuses an unknown equipment type with 400 and an unknown field with 400 457ms
+     ✓ patches a unit under its rowVersion, and refuses a stale version with 409 465ms
+     ✓ requires rowVersion on PATCH, answers 404 for an unknown unit, and refuses a code already in use 407ms
+     ✓ filters the register by equipment type, availability status and asset code 448ms
+ ✓ tests/offer-letter/offer-letter.test.ts (8 tests) 7146ms
+   ✓ offer letter revisions (migration 0023) (8)
+     ✓ refuses anonymous reads and writes with 401 605ms
+     ✓ answers a plain signed-in user with 403 on GET and POST 499ms
+     ✓ creates revision 1 for the first letter and lists it with the uploader and no content 488ms
+     ✓ lists revisions newest first and assigns max plus one 457ms
+     ✓ refuses a file that is not an offer letter with 400, and writes no revision 372ms
+     ✓ answers 404 for a file that does not exist 472ms
+     ✓ reports hasContent from core_file_content, per file 396ms
+     ✓ refuses a POST without an Idempotency-Key 320ms
+ ✓ tests/masters/plan-line-stage.test.ts (8 tests) 7519ms
+   ✓ plan line stage (migration 0030) (8)
+     ✓ is null by default, and the status stays draft 1090ms
+     ✓ a people line accepts only its own stages on POST 562ms
+     ✓ a material line accepts only its own stages on POST 501ms
+     ✓ a equipment line accepts only its own stages on POST 495ms
+     ✓ refuses an unknown stage or a UI label with 400 525ms
+     ✓ changes, checks and clears the stage on PATCH; the GET list returns it 497ms
+     ✓ the database refuses a stage that does not fit the kind 459ms
+     ✓ keeps the write behind masters.manage 558ms
+ ✓ tests/relationships/cross-project.test.ts (6 tests) 7495ms
+   ✓ cross-project leakage and relationships (6)
+     ✓ filtered lists show only the chosen project: locations, markers, WBS nodes and milestones 1152ms
+     ✓ a store cannot take a location and a marker from two different projects, on create or on move 675ms
+     ✓ a WBS node cannot have a parent from another project 566ms
+     ✓ a record cannot be moved to another project: location, marker, WBS node and milestone refuse a projectId change 626ms
+     ✓ a location, marker or milestone cannot be created under a project that does not exist 406ms
+     ✓ a store cannot point at a marker or location that does not exist 536ms
+ ✓ tests/regression/masters-contract.test.ts (84 tests | 2 skipped) 5065ms
+ ✓ tests/organisation/rules.test.ts (12 tests) 64ms
+ ✓ tests/masters/rules.test.ts (34 tests) 31ms
+ ✓ tests/projects/rules.test.ts (15 tests) 17ms
+ ✓ tests/db/shared-uom.test.ts (4 tests) 3281ms
+ ✓ tests/masters/uoms.test.ts (3 tests) 2762ms
+   ✓ units of measure (GET /uoms) (3)
+     ✓ lists every unit for a plain signed-in user, sorted by name 578ms
+ ✓ tests/projects/project-chainage-range.test.ts (3 tests) 2822ms
+
+ Test Files  18 passed (18)
+      Tests  256 passed | 2 skipped (258)
+   Start at  20:23:05
+   Duration  38.20s (tests 78%, import 22%, transform 1%)
+
+JUNIT report written to C:/VELOX_IQ/CORE/CORE__V__0.4/evidence/sprint-review-2026-11-21/regression-1/backend-masters.junit.xml

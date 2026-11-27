@@ -17,6 +17,7 @@ const companyFields = {
   legalName: text(200),
   status,
   tradeName: text(200).nullable(),
+  companyType: z.enum(['proprietorship', 'partnership', 'pvt_ltd']).nullable(),
   cin: taxId(TAX_ID_PATTERNS.cin),
   gstin: taxId(TAX_ID_PATTERNS.gstin),
   pan: taxId(TAX_ID_PATTERNS.pan),
@@ -40,6 +41,8 @@ const companyFields = {
 export const companyProfileBody = z.object({
   ...companyFields,
   rowVersion: versionField.optional(),
+  /** Six-digit code sent to the mobile number. Needed only when the number changes. */
+  mobileCode: z.string().regex(/^\d{6}$/).optional(),
 });
 
 const holidayFields = z.object({

@@ -22,7 +22,7 @@ export default function AvailableMaterials() {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'available-materials')
   const navigate = useNavigate()
-  const { stock, stores, materials, sites } = useCore()
+  const { stock, stores, materials } = useCore()
 
   const rows: Row[] = materials
     .map((material) => {
@@ -30,8 +30,7 @@ export default function AvailableMaterials() {
         .filter((s) => s.materialId === material.id && s.qty - s.reserved > 0)
         .map((s): Holding => {
           const store = stores.find((x) => x.id === s.storeId)
-          const site = store ? sites.find((x) => x.id === store.locationId) : undefined
-          return { storeId: s.storeId, store: store?.name ?? 'Unknown store', location: site?.name ?? store?.location ?? '—', free: s.qty - s.reserved }
+          return { storeId: s.storeId, store: store?.name ?? 'Unknown store', location: store?.location || '—', free: s.qty - s.reserved }
         })
         .sort((a, b) => b.free - a.free)
       return { material, holdings, free: holdings.reduce((n, h) => n + h.free, 0) }
@@ -66,7 +65,7 @@ export default function AvailableMaterials() {
           { header: 'Material', kind: 'c-sub', cell: (r) => <span><strong>{r.material.name}</strong><span className="sub">{r.material.code} · {r.material.category}</span></span>, csv: (r) => `${r.material.code} ${r.material.name}` },
           { header: 'Free', kind: 'c-amt', cell: (r) => <strong>{qty.format(r.free)} {r.material.uom}</strong>, csv: (r) => `${r.free} ${r.material.uom}` },
           {
-            header: 'Where',
+            header: 'Store',
             kind: 'c-more',
             cell: (r) => (
               <span style={{ whiteSpace: 'normal' }}>

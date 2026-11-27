@@ -3,6 +3,12 @@ import type { ApprovalRequest } from '@/modules/core-data'
 export type JobRoute = 'Site hires directly' | 'Head Office posts and sends candidate'
 const JOB_ROUTES: JobRoute[] = ['Site hires directly', 'Head Office posts and sends candidate']
 
+/** How each route is named on screen. The stored value does not change. */
+export const JOB_ROUTE_LABEL: Record<JobRoute, string> = {
+  'Site hires directly': 'Direct site hiring',
+  'Head Office posts and sends candidate': 'Head Office hiring',
+}
+
 /**
  * Who fills a job opening: the payload's route, else the approver's decision recorded with an action
  * (GET /approval-requests/{id}/actions). Undefined when neither is known yet.
@@ -13,10 +19,10 @@ export const jobRouteOf = (req: ApprovalRequest): JobRoute | undefined => {
   return d as JobRoute | undefined
 }
 
-/** The location a job opening was published to: the server's publishedLocationId, else the older payload field. */
-export const publishedTo = (req: ApprovalRequest) =>
-  req.publishedLocationId ?? (req.payload.kind === 'job' ? req.payload.publishedToSite ?? null : null)
+/** A job opening is published once it has a publish time (publishedAt), or the older payload marker. */
+export const isPublished = (req: ApprovalRequest) =>
+  Boolean(req.publishedAt) || (req.payload.kind === 'job' && Boolean(req.payload.publishedToSite))
 
 /** Approved, not yet published, and not left to the location to hire directly. */
 export const canPublishJob = (req: ApprovalRequest) =>
-  req.payload.kind === 'job' && req.status === 'Approved' && !publishedTo(req) && jobRouteOf(req) !== 'Site hires directly'
+  req.payload.kind === 'job' && req.status === 'Approved' && !isPublished(req) && jobRouteOf(req) !== 'Site hires directly'

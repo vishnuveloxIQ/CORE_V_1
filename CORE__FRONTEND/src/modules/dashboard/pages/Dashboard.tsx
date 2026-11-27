@@ -202,7 +202,7 @@ export default function Dashboard() {
             ? `Filter by request type using the chips; pick more than one to combine. Requests on ${project.code} chainages, emergency first.`
             : "Filter by request type using the chips; pick more than one to combine. Emergency first. Open a request to decide."
         }
-        columns={requestColumns((r) => navigate(`/approvals/${r.id}`))}
+        columns={requestColumns((r) => navigate(`/approvals/${r.id}`), projects)}
         key={project?.id ?? "all"}
         rows={[...waiting]
           .filter((r) => !project || inProject(r.chainageId, project.id))

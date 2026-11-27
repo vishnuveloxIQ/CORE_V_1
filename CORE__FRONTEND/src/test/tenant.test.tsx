@@ -18,15 +18,16 @@ describe('no tenant-less login', () => {
     window.location.hash = '#/forgot'
   })
 
-  it('refuses a sign-in call when no company has been chosen, and sends nothing', async () => {
+  it('sends a sign-in with no company header, so the server finds the company from the login ID', async () => {
     const fetchMock = vi.fn(() => json(200, { data: {} }))
     vi.stubGlobal('fetch', fetchMock)
     expect(tenantId()).toBeNull()
-    await expect(api('POST', '/auth/login', { body: { loginId: 'ACME9999', password: 'x' }, auth: false })).rejects.toMatchObject({
-      code: 'TENANT_REQUIRED',
-    })
+    await api('POST', '/auth/login', { body: { loginId: 'ACME9999', password: 'x' }, auth: false })
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect((init.headers as Record<string, string>)['X-Tenant-Id']).toBeUndefined()
+    // a reset still needs the company chosen first, so it is refused and sends nothing
     await expect(api('POST', '/auth/password-reset/request', { body: { loginId: 'ACME9999' }, auth: false })).rejects.toBeInstanceOf(ApiError)
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('Forgot password refuses a login ID whose prefix is not a company, and sends nothing', async () => {

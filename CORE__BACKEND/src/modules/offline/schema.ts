@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 /** Body of POST /offline-operations: one operation captured on a device while offline. */
 export const offlineOperationSchema = z.object({
@@ -8,7 +8,8 @@ export const offlineOperationSchema = z.object({
   capturedAt: z.iso.datetime({ offset: true }),
   userId: z.uuid().optional(),
   projectId: z.uuid().optional(),
-  locationId: z.uuid().optional(),
+
+
   storeId: z.uuid().optional(),
   payload: z.record(z.string(), z.unknown()),
 });

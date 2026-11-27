@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+﻿import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TablePanel } from "@/shared/ui/data/TablePanel";
 import { Button } from "@/shared/ui/Button";
@@ -12,7 +12,7 @@ import { REQUEST_TONE, projectOf } from "@/modules/core-data";
 import { fmtDate, money } from "@/shared/lib/format";
 import { useCore } from "@/modules/core-data";
 import { PublishJobDialog } from "../components/PublishJobDialog";
-import { canPublishJob, jobRouteOf, publishedTo } from "../utils/jobs";
+import { canPublishJob, isPublished, JOB_ROUTE_LABEL, jobRouteOf } from "../utils/jobs";
 import { OfferLetterPanel } from "@/modules/company";
 
 type Job = ApprovalRequest & {
@@ -25,33 +25,29 @@ export default function JobOpenings() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "job-openings");
   const navigate = useNavigate();
-  const { requests, projects, sites } = useCore();
+  const { requests, projects } = useCore();
   const offerLetter = useCore((s) => s.company.offerLetter);
   const [format, setFormat] = useState(false);
   const [publishing, setPublishing] = useState<Job | null>(null);
   const jobs = requests.filter(isJob);
-  // an approved opening is ready to publish unless the location hires directly (POST /approval-requests/{id}/publish)
+  // an approved opening is ready to publish unless the project hires directly (POST /approval-requests/{id}/publish)
   const stage = (j: Job) =>
     j.status === "Pending" || j.status === "In review" || j.status === "Clarification requested"
       ? "Waiting for decision"
       : j.status === "Rejected"
         ? "Rejected"
-        : publishedTo(j)
-          ? "Published to location"
+        : isPublished(j)
+          ? "Published"
           : canPublishJob(j)
             ? "Ready to publish"
-            : "Location hiring";
-  const publishedText = (j: Job) => {
-    const at = publishedTo(j);
-    if (!at) return "";
-    return `${sites.find((s) => s.id === at)?.name ?? at}${j.publishedAt ? `, ${fmtDate(j.publishedAt)}` : ""}`;
-  };
+            : "Project hiring";
+  const publishedText = (j: Job) => (j.publishedAt ? fmtDate(j.publishedAt) : "");
   const STAGE_TONE = {
     "Waiting for decision": "pending",
     Rejected: "rejected",
-    "Published to location": "approved",
+    "Published": "approved",
     "Ready to publish": "review",
-    "Location hiring": "approved",
+    "Project hiring": "approved",
   } as const;
 
   return (
@@ -117,19 +113,20 @@ export default function JobOpenings() {
             csv: (j) => j.code,
           },
           {
-            header: "Position / project",
+            header: "Position",
             kind: "c-sub",
             cell: (j) => (
-              <>
-                <strong>
-                  {j.payload.position} × {j.payload.openings}
-                </strong>
-                <span className="sub">
-                  {projectOf(projects, j.chainageId)?.name ?? j.chainageId}
-                </span>
-              </>
+              <strong>
+                {j.payload.position} × {j.payload.openings}
+              </strong>
             ),
             csv: (j) => `${j.payload.position} x${j.payload.openings}`,
+          },
+          {
+            header: "Project",
+            kind: "c-more",
+            cell: (j) => projectOf(projects, j.chainageId)?.name ?? j.chainageId,
+            csv: (j) => projectOf(projects, j.chainageId)?.name ?? j.chainageId,
           },
           {
             header: "CTC range",
@@ -141,8 +138,8 @@ export default function JobOpenings() {
           {
             header: "Route",
             kind: "c-more",
-            cell: (j) => jobRouteOf(j) ?? "Not decided",
-            csv: (j) => jobRouteOf(j) ?? "",
+            cell: (j) => { const r = jobRouteOf(j); return r ? JOB_ROUTE_LABEL[r] : "Not decided"; },
+            csv: (j) => { const r = jobRouteOf(j); return r ? JOB_ROUTE_LABEL[r] : ""; },
           },
           {
             header: "Approval",
@@ -166,10 +163,10 @@ export default function JobOpenings() {
             cell: (j) => (
               <>
                 <StatusBadge tone={STAGE_TONE[stage(j)]}>{stage(j)}</StatusBadge>
-                {publishedTo(j) && <span className="sub">{publishedText(j)}</span>}
+                {isPublished(j) && <span className="sub">{publishedText(j)}</span>}
               </>
             ),
-            csv: (j) => (publishedTo(j) ? `${stage(j)}: ${publishedText(j)}` : stage(j)),
+            csv: (j) => (isPublished(j) ? `${stage(j)}: ${publishedText(j)}` : stage(j)),
           },
         ]}
         searchText={(j) =>
@@ -184,7 +181,7 @@ export default function JobOpenings() {
               icon="send"
               onClick={() => setPublishing(j)}
             >
-              Publish to location
+              Publish
             </Button>
           ) : (
             <Button size="sm" onClick={() => navigate(`/approvals/${j.id}`)}>

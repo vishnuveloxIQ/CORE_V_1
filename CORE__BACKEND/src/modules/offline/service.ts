@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+﻿import type { PoolClient } from 'pg';
 import { lockWithinSchema } from '../../db/tenant.js';
 import type { OfflineOperationInput } from './schema.js';
 
@@ -31,16 +31,15 @@ export async function recordOfflineOperation(
 
   const inserted = await client.query<{ id: string }>(
     `INSERT INTO integ_offline_operation (
-       client_operation_key, client_device_key, user_id, project_id, location_id, store_id,
+       client_operation_key, client_device_key, user_id, project_id, store_id,
        operation_type, payload, captured_at, received_at, sync_status
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::timestamptz, now(), 'received')
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::timestamptz, now(), 'received')
      RETURNING id`,
     [
       input.clientOperationKey,
       input.clientDeviceKey,
       input.userId ?? null,
       input.projectId ?? null,
-      input.locationId ?? null,
       input.storeId ?? null,
       input.operationType,
       JSON.stringify(input.payload),

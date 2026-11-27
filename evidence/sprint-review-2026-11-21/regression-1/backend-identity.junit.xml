@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="228" failures="0" errors="0" time="107.0249276">
+    <testsuite name="tests/access/access.test.ts" timestamp="2026-11-21T14:54:22.560Z" hostname="Vishnu" tests="19" failures="0" errors="0" skipped="0" time="9.7512932">
+        <testcase classname="tests/access/access.test.ts" name="scope matching (phase 4d) &gt; a company-wide grant covers every requested scope" time="0.0043008">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="scope matching (phase 4d) &gt; a location grant covers only that location, and not a company-wide request" time="0.0005328">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="scope matching (phase 4d) &gt; a grant that sets two dimensions needs both of them to match" time="0.0007616">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="role privileges (phase 4d) &gt; only system roles carry privileges, and access_admin carries access.manage" time="0.0015262">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; who may call the admin routes &gt; answers 401 without a token and 403 without access.manage, on every admin route" time="0.8858979">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; who may call the admin routes &gt; lets every signed-in user read their own access, which is empty for a new user" time="0.4609443">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; grants &gt; grants a privilege with a location scope, shown to the admin and to the user" time="0.6580962">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; grants &gt; a role grant carries the system role privileges, and revoking it takes effect at once" time="0.6048721">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; grants &gt; a module-head grant is stored and holds no privileges in 4d" time="0.5918631">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; grants &gt; enforces scope: a location grant does not pass a company-wide or other-location request" time="0.643608">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; grants &gt; refuses an unknown user, an unknown role or location, and a malformed privilege" time="0.6366707">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; grants &gt; revoke answers 404 for an unknown grant, and suspension rows are not grants" time="0.5852999">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; suspension &gt; denies the user at once, and restore brings the same session back" time="0.5237573">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; suspension &gt; refuses a second active suspension, and restoring twice" time="0.4715567">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; suspension &gt; requires a reason to suspend" time="0.435917">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; audit trail &gt; writes an audit row with the actor for each grant, revoke, suspension and restore" time="0.4938114">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; bootstrap grant (access:grant) &gt; grants access.manage with no actor, and the user can then administer" time="0.3178407">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; bootstrap grant (access:grant) &gt; refuses an unknown login and an invalid tenant id" time="0.0750788">
+        </testcase>
+        <testcase classname="tests/access/access.test.ts" name="access administration (phase 4d) &gt; database constraints (migration 0008) &gt; refuses an unknown access type and a second active suspension" time="0.2293094">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/access/user-admin.test.ts" timestamp="2026-11-21T14:54:22.565Z" hostname="Vishnu" tests="9" failures="0" errors="0" skipped="0" time="6.5679341">
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; refuses anonymous (401) and users without access.manage (403) on every new route" time="0.0430006">
+        </testcase>
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; creates a user with a temporary password returned once, never in GET" time="0.202096">
+        </testcase>
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; a replay with the same Idempotency-Key does not return the password again" time="0.160434">
+        </testcase>
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; refuses a duplicate login id with 409, ignoring case" time="0.2626489">
+        </testcase>
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; validates the create body" time="0.0590502">
+        </testcase>
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; patches the profile with rowVersion, refuses loginId and a stale version" time="0.186031">
+        </testcase>
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; shows suspended true while a suspension is open" time="0.1814296">
+        </testcase>
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; forces a password change: login flag, blocked routes, change-password clears it" time="1.045861">
+        </testcase>
+        <testcase classname="tests/access/user-admin.test.ts" name="admin user routes &gt; admin reset returns a new temporary password once, sets the flag and ends sessions" time="0.7737428">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/access/users.test.ts" timestamp="2026-11-21T14:54:22.567Z" hostname="Vishnu" tests="7" failures="0" errors="0" skipped="0" time="3.4164531">
+        <testcase classname="tests/access/users.test.ts" name="tenant users (access.manage) &gt; refuses a plain signed-in user with 403 on the list and on one user" time="0.0252752">
+        </testcase>
+        <testcase classname="tests/access/users.test.ts" name="tenant users (access.manage) &gt; refuses an anonymous request with 401" time="0.0029367">
+        </testcase>
+        <testcase classname="tests/access/users.test.ts" name="tenant users (access.manage) &gt; lists users with only the view fields, never a hash or login-state column" time="0.0187816">
+        </testcase>
+        <testcase classname="tests/access/users.test.ts" name="tenant users (access.manage) &gt; returns one user by id with the same fields, and 404 for an unknown id" time="0.0194138">
+        </testcase>
+        <testcase classname="tests/access/users.test.ts" name="tenant users (access.manage) &gt; filters by status and by a case-insensitive search on login or name" time="0.0393448">
+        </testcase>
+        <testcase classname="tests/access/users.test.ts" name="tenant users (access.manage) &gt; pages with limit and offset and reports the total" time="0.0271351">
+        </testcase>
+        <testcase classname="tests/access/users.test.ts" name="tenant users (access.manage) &gt; refuses a limit above 200 or below 1 with 400" time="0.0196211">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/audit-log/audit-log.test.ts" timestamp="2026-11-21T14:54:22.569Z" hostname="Vishnu" tests="7" failures="0" errors="0" skipped="0" time="6.7351754">
+        <testcase classname="tests/audit-log/audit-log.test.ts" name="audit log (GET /audit-log) &gt; refuses a plain signed-in user with 403 and an anonymous caller with 401" time="0.8066807">
+        </testcase>
+        <testcase classname="tests/audit-log/audit-log.test.ts" name="audit log (GET /audit-log) &gt; lists audited changes with the frontend fields and the paging meta" time="0.7979544">
+        </testcase>
+        <testcase classname="tests/audit-log/audit-log.test.ts" name="audit log (GET /audit-log) &gt; pages with limit and offset, and the total does not depend on the page" time="0.4440996">
+        </testcase>
+        <testcase classname="tests/audit-log/audit-log.test.ts" name="audit log (GET /audit-log) &gt; refuses out-of-range paging values with 400" time="0.4050604">
+        </testcase>
+        <testcase classname="tests/audit-log/audit-log.test.ts" name="audit log (GET /audit-log) &gt; filters by entity type, action, actor and date, and refuses a reversed date range" time="0.6649528">
+        </testcase>
+        <testcase classname="tests/audit-log/audit-log.test.ts" name="audit log (GET /audit-log) &gt; never returns password, PIN, refresh or secret columns in the audit output" time="0.338308">
+        </testcase>
+        <testcase classname="tests/audit-log/audit-log.test.ts" name="audit log (GET /audit-log) &gt; reads one entry by id, the same as its list item, with secrets removed; unknown is 404" time="0.4927563">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/auth/auth.test.ts" timestamp="2026-11-21T14:54:22.571Z" hostname="Vishnu" tests="14" failures="0" errors="0" skipped="0" time="7.4366766">
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; logs in and returns tokens and the user, with no password or token hashes" time="0.3680381">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; gives the same 401 for a wrong password and for an unknown login id" time="0.4958251">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; a correct password clears the failure count before the lock" time="0.797549">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; locks the account after five wrong passwords, and the right password is refused until the lock ends" time="0.9508765">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; rejects an inactive user with the generic 401 even when the password is right" time="0.2524428">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; rejects a missing or malformed X-Tenant-Id with 400" time="0.113079">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; rotates the refresh token, keeps the original expiry, and treats a reused token as theft" time="0.3818309">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; refuses an unknown refresh token with 401" time="0.0037623">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; logout revokes the session at once, even though the access token has not expired" time="0.2090096">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; /auth/me returns the caller and refuses a missing or malformed bearer token" time="0.2256979">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; rejects an expired token, and a token signed with another key" time="0.2346205">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; writes one auth activity row per attempt, with no IP address stored" time="0.2926157">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; keeps passwords and tokens out of the log" time="0.1925212">
+        </testcase>
+        <testcase classname="tests/auth/auth.test.ts" name="auth (phase 4a) &gt; refuses a second user with the same login id (23505)" time="0.0882839">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/auth/email-otp.test.ts" timestamp="2026-11-21T14:54:22.574Z" hostname="Vishnu" tests="4" failures="0" errors="0" skipped="0" time="0.0093884">
+        <testcase classname="tests/auth/email-otp.test.ts" name="email one-time codes (decision 4) &gt; sends the code to the user email address, with the expiry in the text" time="0.0038082">
+        </testcase>
+        <testcase classname="tests/auth/email-otp.test.ts" name="email one-time codes (decision 4) &gt; sends nothing and does not throw when the user has no email address" time="0.0011445">
+        </testcase>
+        <testcase classname="tests/auth/email-otp.test.ts" name="email one-time codes (decision 4) &gt; passes a transport failure up, so the route can answer 503" time="0.0014921">
+        </testcase>
+        <testcase classname="tests/auth/email-otp.test.ts" name="email one-time codes (decision 4) &gt; never puts the login id into the email text" time="0.0004642">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/auth/lookup-and-audit.test.ts" timestamp="2026-11-21T14:54:22.576Z" hostname="Vishnu" tests="7" failures="0" errors="0" skipped="0" time="4.2529163">
+        <testcase classname="tests/auth/lookup-and-audit.test.ts" name="pre-login lookups and audit trail &gt; login does not reveal whether a login or a tenant exists &gt; a wrong password and an unknown login give the same answer" time="0.3797239">
+        </testcase>
+        <testcase classname="tests/auth/lookup-and-audit.test.ts" name="pre-login lookups and audit trail &gt; login does not reveal whether a login or a tenant exists &gt; an unknown tenant gives the same answer as an unknown login" time="0.2484369">
+        </testcase>
+        <testcase classname="tests/auth/lookup-and-audit.test.ts" name="pre-login lookups and audit trail &gt; login does not reveal whether a login or a tenant exists &gt; a login with no tenant header is refused with 400, not with a sign-in answer" time="0.0036124">
+        </testcase>
+        <testcase classname="tests/auth/lookup-and-audit.test.ts" name="pre-login lookups and audit trail &gt; passkey sign-in options do not reveal a tenant &gt; an unknown tenant gets the same status as an unknown login in a real tenant" time="0.0195484">
+        </testcase>
+        <testcase classname="tests/auth/lookup-and-audit.test.ts" name="pre-login lookups and audit trail &gt; the audit trail records sign-in attempts &gt; a failed sign-in for an unknown login is recorded with no user, and a known user&apos;s failure with the user" time="0.2130189">
+        </testcase>
+        <testcase classname="tests/auth/lookup-and-audit.test.ts" name="pre-login lookups and audit trail &gt; the audit trail records sign-in attempts &gt; a successful sign-in is recorded and carries the device label the client sent" time="0.2271184">
+        </testcase>
+        <testcase classname="tests/auth/lookup-and-audit.test.ts" name="pre-login lookups and audit trail &gt; the audit trail records sign-in attempts &gt; the audit-log endpoint is refused to a user without the access privilege" time="0.2099921">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/auth/passkey.test.ts" timestamp="2026-11-21T14:54:22.577Z" hostname="Vishnu" tests="27" failures="0" errors="0" skipped="0" time="10.1361449">
+        <testcase classname="tests/auth/passkey.test.ts" name="webauthn configuration (phase 4c) &gt; defaults to localhost and the app port outside production" time="0.0054229">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="webauthn configuration (phase 4c) &gt; reads the RP ID and a comma-separated origin list" time="0.0009381">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="webauthn configuration (phase 4c) &gt; requires the RP ID and origins in production" time="0.0036346">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="webauthn configuration (phase 4c) &gt; rejects an origin that is not a URL" time="0.0012598">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; registration &gt; registers a passkey for the signed-in user and lists it" time="0.7669738">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; registration &gt; requires a session to start or finish a registration" time="0.164652">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; registration &gt; refuses a registration answer that was already used" time="0.4113217">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; registration &gt; refuses a registration answer for a different challenge" time="0.3467106">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; registration &gt; refuses a registration whose challenge has expired" time="0.3393279">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; registration &gt; refuses a registration from another origin" time="0.2932187">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; registration &gt; refuses a registration without user verification" time="0.3346323">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; registration &gt; refuses a credential that another user already registered" time="0.561582">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; signs in with a passkey and returns a session that works" time="0.3928644">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; refuses a replayed sign-in" time="0.3396914">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; refuses a sign-in for a different challenge" time="0.3695329">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; refuses a sign-in whose challenge has expired" time="0.3550462">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; refuses a sign-in from another origin" time="0.2997649">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; refuses a sign-in without user verification" time="0.2947888">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; refuses a sign-in with a bad signature" time="0.2822164">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; refuses a counter that goes backwards" time="0.3284405">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; accepts an authenticator that does not count" time="0.2955344">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; answers an unknown login id the same way as a wrong passkey" time="0.3001381">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; refuses a sign-in for a locked account" time="0.2516567">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; sign-in &gt; counts sign-in options against the password login limit" time="0.0979121">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; removal &gt; removes a passkey when the account still has a password" time="0.3011291">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; removal &gt; refuses to remove the last sign-in method" time="0.3290615">
+        </testcase>
+        <testcase classname="tests/auth/passkey.test.ts" name="passkeys (phase 4c) &gt; removal &gt; does not remove another user&apos;s passkey" time="0.5440852">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/auth/password-reset.test.ts" timestamp="2026-11-21T14:54:22.581Z" hostname="Vishnu" tests="22" failures="0" errors="0" skipped="0" time="20.4987239">
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; sends a six-digit code by email and answers 202 without the code" time="0.7504875">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; answers the same 202 for an unknown login id and sends nothing" time="0.3012896">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; answers 202 and sends nothing to an inactive user" time="0.3967556">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; answers 202 and sends nothing when the user has no email or phone" time="0.2745192">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; sets the new password, revokes every session and returns no tokens" time="0.936828">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; clears a lock, so the user can log in with the new password" time="1.2905846">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; refuses a wrong code with AUTH_INVALID_OTP, records it, and still accepts the right code after one miss" time="0.7487831">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; burns the code after five wrong tries, even when the right code comes next" time="1.4852073">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; accepts a code once only" time="0.603766">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; closes the earlier code when a new one is requested" time="0.7474177">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; refuses an expired code" time="0.5476213">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; checks the new password before the code is used, so a weak password does not burn a try" time="0.5983955">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; rejects a code that is not six digits at the request boundary" time="0.0997388">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; stores only an argon2id hash of the code" time="0.3078546">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; never writes the code or the new password to the log" time="0.727874">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; answers 503 when no delivery is configured" time="0.180416">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; answers 503 without leaking the code when delivery fails" time="0.4434282">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; limits login attempts per login id to ten per window, even for an unknown login id" time="1.1991032">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; gives a real login id the same 429 as an unknown one" time="1.4509393">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; limits reset requests to three per login id" time="0.6153414">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; limits reset requests to twenty per client address across login ids" time="2.3638676">
+        </testcase>
+        <testcase classname="tests/auth/password-reset.test.ts" name="password reset and rate limits (phase 4b) &gt; limits reset confirm attempts to ten per login id, even with the right code" time="2.186494">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/auth/sessions-stepup.test.ts" timestamp="2026-11-21T14:54:22.584Z" hostname="Vishnu" tests="12" failures="0" errors="0" skipped="0" time="9.4123441">
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; device sessions &gt; lists the live sessions newest first, and marks the one the request is using as current" time="0.8620714">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; device sessions &gt; revoking another device signs that device out at once, and leaves this one signed in" time="0.6054055">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; device sessions &gt; answers 404 for a session that is not this user&apos;s, so one user cannot see another user&apos;s sessions" time="0.5463553">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; device sessions &gt; refuses the session list and revoke without a token" time="0.1044505">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; step-up &gt; a protected route refuses a request without a step-up token, with 401 STEP_UP_REQUIRED" time="0.3104873">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; step-up &gt; a valid step-up token lets the request through to its own answer" time="0.4241644">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; step-up &gt; an access token cannot be used as a step-up token" time="0.3403379">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; step-up &gt; a step-up token is bound to its user: another admin cannot borrow it" time="0.5864555">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; step-up &gt; a step-up token is bound to its session: the same user on another device cannot use it" time="0.4981746">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; step-up &gt; refuses step-up for a user with no passkey, with 409 STEP_UP_NO_PASSKEY" time="0.3368292">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; step-up &gt; refuses a passkey answer from the wrong origin, with 401 STEP_UP_FAILED, and records the failure" time="0.360952">
+        </testcase>
+        <testcase classname="tests/auth/sessions-stepup.test.ts" name="device sessions and step-up &gt; step-up &gt; a passkey answer works once: replaying the same answer for a second step-up is refused" time="0.3160223">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/auth/token-lifecycle.test.ts" timestamp="2026-11-21T14:54:22.587Z" hostname="Vishnu" tests="5" failures="0" errors="0" skipped="0" time="5.0674505">
+        <testcase classname="tests/auth/token-lifecycle.test.ts" name="token lifecycle &gt; refuses a refresh token whose session has expired, with 401" time="0.3537735">
+        </testcase>
+        <testcase classname="tests/auth/token-lifecycle.test.ts" name="token lifecycle &gt; refuses a refresh token once the account is deactivated, with 401" time="0.2430631">
+        </testcase>
+        <testcase classname="tests/auth/token-lifecycle.test.ts" name="token lifecycle &gt; refuses an access token whose payload was altered, even with the signature kept" time="0.2698083">
+        </testcase>
+        <testcase classname="tests/auth/token-lifecycle.test.ts" name="token lifecycle &gt; refuses an access token signed with the right key but another issuer or audience" time="0.2406597">
+        </testcase>
+        <testcase classname="tests/auth/token-lifecycle.test.ts" name="token lifecycle &gt; refuses an access token that names a session which does not exist, even with a valid signature" time="0.2384656">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/core/password.test.ts" timestamp="2026-11-21T14:54:22.588Z" hostname="Vishnu" tests="18" failures="0" errors="0" skipped="0" time="0.795295">
+        <testcase classname="tests/core/password.test.ts" name="argon2id hashing &gt; stores an encoded argon2id hash with the configured settings" time="0.104827">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="argon2id hashing &gt; uses a fresh salt, so the same secret gives different hashes" time="0.2025469">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="argon2id hashing &gt; verifies the right secret and rejects the wrong one" time="0.2673954">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="argon2id hashing &gt; returns false for a malformed hash instead of throwing" time="0.0005986">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="argon2id hashing &gt; computes the dummy hash once and it matches no realistic secret" time="0.2036371">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="password policy &gt; rejects a password shorter than 12 characters" time="0.0025112">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="password policy &gt; accepts a password of exactly 12 characters" time="0.0015319">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="password policy &gt; rejects a password longer than 128 characters" time="0.0013901">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="password policy &gt; rejects a password equal to the login id, ignoring case" time="0.0012111">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="password policy &gt; does not put the password in the error" time="0.0012917">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="PIN format &gt; accepts 1234" time="0.000672">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="PIN format &gt; accepts 123456" time="0.0004415">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="PIN format &gt; accepts 000000" time="0.0002872">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="PIN format &gt; rejects &quot;123&quot;" time="0.0005345">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="PIN format &gt; rejects &quot;1234567&quot;" time="0.0002881">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="PIN format &gt; rejects &quot;12a4&quot;" time="0.0001477">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="PIN format &gt; rejects &quot; 1234&quot;" time="0.0001042">
+        </testcase>
+        <testcase classname="tests/core/password.test.ts" name="PIN format &gt; rejects &quot;&quot;" time="0.0000995">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/core/rate-limit.test.ts" timestamp="2026-11-21T14:54:22.591Z" hostname="Vishnu" tests="7" failures="0" errors="0" skipped="0" time="0.0267186">
+        <testcase classname="tests/core/rate-limit.test.ts" name="FixedWindowLimiter &gt; allows hits up to the limit and rejects the next one" time="0.0053055">
+        </testcase>
+        <testcase classname="tests/core/rate-limit.test.ts" name="FixedWindowLimiter &gt; counts each key separately" time="0.0006285">
+        </testcase>
+        <testcase classname="tests/core/rate-limit.test.ts" name="FixedWindowLimiter &gt; reports the seconds left in the window, rounded up" time="0.000495">
+        </testcase>
+        <testcase classname="tests/core/rate-limit.test.ts" name="FixedWindowLimiter &gt; never reports a retry time below one second" time="0.0004448">
+        </testcase>
+        <testcase classname="tests/core/rate-limit.test.ts" name="FixedWindowLimiter &gt; starts a new window once the old one has ended" time="0.0004543">
+        </testcase>
+        <testcase classname="tests/core/rate-limit.test.ts" name="FixedWindowLimiter &gt; keeps a rejected hit in the count, so a caller cannot hammer past the limit" time="0.0002998">
+        </testcase>
+        <testcase classname="tests/core/rate-limit.test.ts" name="FixedWindowLimiter &gt; removes ended windows once the map is large" time="0.0155696">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/hardening/cors.test.ts" timestamp="2026-11-21T14:54:22.592Z" hostname="Vishnu" tests="10" failures="0" errors="0" skipped="0" time="0.1629575">
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS_ORIGINS parsing &gt; accepts a comma-separated list of origins" time="0.005281">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS_ORIGINS parsing &gt; leaves the setting undefined when unset" time="0.0004134">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS_ORIGINS parsing &gt; refuses a wildcard" time="0.0020694">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS_ORIGINS parsing &gt; refuses an entry with a path or a trailing slash" time="0.0006439">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS headers &gt; answers an allowed origin with its Allow-Origin header and Vary: Origin" time="0.1285164">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS headers &gt; gives no CORS headers to an origin that is not listed" time="0.0052034">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS headers &gt; gives no CORS headers to a request without an Origin header" time="0.0038842">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS headers &gt; answers a preflight from an allowed origin with 204 and the allowed methods and headers" time="0.0038564">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS headers &gt; gives an unlisted origin no Allow-Origin on a preflight" time="0.0036403">
+        </testcase>
+        <testcase classname="tests/hardening/cors.test.ts" name="CORS headers &gt; adds no CORS headers at all when CORS_ORIGINS is unset" time="0.0076576">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/hardening/shared-rate-limit.test.ts" timestamp="2026-11-21T14:54:22.595Z" hostname="Vishnu" tests="5" failures="0" errors="0" skipped="0" time="3.724229">
+        <testcase classname="tests/hardening/shared-rate-limit.test.ts" name="PostgresRateLimiter (hardening) &gt; allows up to the limit and refuses the next hit with Retry-After" time="0.0109692">
+        </testcase>
+        <testcase classname="tests/hardening/shared-rate-limit.test.ts" name="PostgresRateLimiter (hardening) &gt; shares the count between two limiter instances (two app instances)" time="0.0058817">
+        </testcase>
+        <testcase classname="tests/hardening/shared-rate-limit.test.ts" name="PostgresRateLimiter (hardening) &gt; starts a new window after the old one has ended" time="0.2684399">
+        </testcase>
+        <testcase classname="tests/hardening/shared-rate-limit.test.ts" name="PostgresRateLimiter (hardening) &gt; keeps keys apart" time="0.0027365">
+        </testcase>
+        <testcase classname="tests/hardening/shared-rate-limit.test.ts" name="PostgresRateLimiter (hardening) &gt; sweeps nothing that is still inside its window" time="0.0031053">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/regression/identity-contract.test.ts" timestamp="2026-11-21T14:54:22.596Z" hostname="Vishnu" tests="24" failures="0" errors="0" skipped="0" time="4.6028553">
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; route sweep (every operation in the OpenAPI document) &gt; the document lists the whole API" time="0.0028076">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; route sweep (every operation in the OpenAPI document) &gt; every protected operation refuses a request with no token: 401 AUTH_REQUIRED" time="0.3436087">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; route sweep (every operation in the OpenAPI document) &gt; every protected operation refuses a garbage token and a forged one: 401" time="0.6605732">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; route sweep (every operation in the OpenAPI document) &gt; every public operation is reachable without a token (never 401), and each one is in the document" time="0.0299439">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; GET /users refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0125661">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; GET /users/{id} refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0055462">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; POST /users refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0063059">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; PATCH /users/{id} refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0060964">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; POST /users/{id}/password-reset refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0056416">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; GET /access/users/{id} refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.00669">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; POST /access/users/{id}/grants refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0060272">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; DELETE /access/grants/{id} refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0059012">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; POST /access/users/{id}/suspensions refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0059719">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; POST /access/suspensions/{id}/restore refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0059323">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; GET /audit-log refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0058507">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; GET /audit-log/{id} refuses a signed-in user without it: 403 ACCESS_DENIED" time="0.0059091">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; access administration needs access.manage &gt; lets the access administrator read users and the audit log" time="0.0227267">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; self-service routes work for any signed-in user &gt; /auth/me answers 200 for a user with no privileges" time="0.0070289">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; self-service routes work for any signed-in user &gt; /auth/me/access answers 200 for a user with no privileges" time="0.0062319">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; self-service routes work for any signed-in user &gt; /auth/sessions answers 200 for a user with no privileges" time="0.0056929">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; self-service routes work for any signed-in user &gt; /auth/passkeys answers 200 for a user with no privileges" time="0.0073558">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; tokens &gt; the access token names the user, the session and the tenant, and lasts 15 minutes" time="0.0008062">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; tokens &gt; the refresh token is an opaque random value, not a readable token, and the response holds no secrets" time="0.2148781">
+        </testcase>
+        <testcase classname="tests/regression/identity-contract.test.ts" name="regression: identity contract &gt; temporary passwords &gt; a user on a temporary password is held to the change-password routes" time="0.238305">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/testing-pass/auth-edges.test.ts" timestamp="2026-11-21T14:54:22.600Z" hostname="Vishnu" tests="22" failures="0" errors="0" skipped="0" time="3.5781965">
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /auth/me answers 401 AUTH_REQUIRED with no token" time="0.0069861">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /approval-chains answers 401 AUTH_REQUIRED with no token" time="0.0037449">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /approval-requests answers 401 AUTH_REQUIRED with no token" time="0.0028689">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /policies answers 401 AUTH_REQUIRED with no token" time="0.0022656">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /files answers 401 AUTH_REQUIRED with no token" time="0.0029952">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /notifications answers 401 AUTH_REQUIRED with no token" time="0.002648">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /tickets answers 401 AUTH_REQUIRED with no token" time="0.0026527">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /auth/me answers 401 with a malformed bearer value" time="0.0033154">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /approval-chains answers 401 with a malformed bearer value" time="0.0031294">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /approval-requests answers 401 with a malformed bearer value" time="0.0021538">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /policies answers 401 with a malformed bearer value" time="0.0020486">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /files answers 401 with a malformed bearer value" time="0.0019583">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /notifications answers 401 with a malformed bearer value" time="0.0023469">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /tickets answers 401 with a malformed bearer value" time="0.0021036">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /auth/me answers 401 for a token signed with another key" time="0.0057054">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /approval-chains answers 401 for a token signed with another key" time="0.0148792">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /approval-requests answers 401 for a token signed with another key" time="0.003263">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /policies answers 401 for a token signed with another key" time="0.0030453">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /files answers 401 for a token signed with another key" time="0.0033398">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /notifications answers 401 for a token signed with another key" time="0.0030749">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; /tickets answers 401 for a token signed with another key" time="0.0029779">
+        </testcase>
+        <testcase classname="tests/testing-pass/auth-edges.test.ts" name="auth edges on protected routes (testing pass) &gt; the real token opens /auth/me, so the refusals above are not caused by a broken route" time="0.0104365">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/testing-pass/idempotency-http.test.ts" timestamp="2026-11-21T14:54:22.604Z" hostname="Vishnu" tests="6" failures="0" errors="0" skipped="0" time="5.2284164">
+        <testcase classname="tests/testing-pass/idempotency-http.test.ts" name="Idempotency-Key on module writes (decision 1) &gt; refuses a module POST with no Idempotency-Key header with 400 IDEMPOTENCY_KEY_REQUIRED" time="0.7820959">
+        </testcase>
+        <testcase classname="tests/testing-pass/idempotency-http.test.ts" name="Idempotency-Key on module writes (decision 1) &gt; refuses a blank Idempotency-Key with 400 IDEMPOTENCY_KEY_REQUIRED" time="0.4668566">
+        </testcase>
+        <testcase classname="tests/testing-pass/idempotency-http.test.ts" name="Idempotency-Key on module writes (decision 1) &gt; replays the first response for a repeat with the same key and body, and creates the row once" time="0.3517278">
+        </testcase>
+        <testcase classname="tests/testing-pass/idempotency-http.test.ts" name="Idempotency-Key on module writes (decision 1) &gt; refuses the same key with a different body with 409 IDEMPOTENCY_KEY_REUSED" time="0.355055">
+        </testcase>
+        <testcase classname="tests/testing-pass/idempotency-http.test.ts" name="Idempotency-Key on module writes (decision 1) &gt; leaves the auth routes unaffected: login needs no Idempotency-Key" time="0.274678">
+        </testcase>
+        <testcase classname="tests/testing-pass/idempotency-http.test.ts" name="Idempotency-Key on module writes (decision 1) &gt; documents the header on module writes and not on auth or offline operations in OpenAPI" time="0.0944041">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/testing-pass/tenant-isolation.test.ts" timestamp="2026-11-21T14:54:22.605Z" hostname="Vishnu" tests="3" failures="0" errors="0" skipped="0" time="5.6217588">
+        <testcase classname="tests/testing-pass/tenant-isolation.test.ts" name="tenant isolation over HTTP (testing pass) &gt; a token for tenant beta cannot read a ticket that lives in acme" time="0.6000188">
+        </testcase>
+        <testcase classname="tests/testing-pass/tenant-isolation.test.ts" name="tenant isolation over HTTP (testing pass) &gt; the X-Tenant-Id header does not move a protected request to another tenant" time="0.2176424">
+        </testcase>
+        <testcase classname="tests/testing-pass/tenant-isolation.test.ts" name="tenant isolation over HTTP (testing pass) &gt; a validly signed token that claims another tenant is refused with 401" time="0.1806445">
+        </testcase>
+    </testsuite>
+</testsuites>

@@ -1,4 +1,4 @@
-import { api } from '@/shared/lib/api'
+﻿import { api } from '@/shared/lib/api'
 import type { ApprovalChain, ApprovalRequest, MatrixLevel, MatrixVersion, ModuleName, CashLimitRow, CashLimitPriority, RequestAction, RequestPayload, RequestStatus, RequestType, TimeoutRule } from '../types'
 
 /**
@@ -30,10 +30,10 @@ export interface CashLimitRecord {
 export type RequestStatusApi = 'pending' | 'approved' | 'rejected' | 'returned' | 'cancelled' | 'clarification_requested'
 export interface RequestRecord {
   id: string; code: string; requestType: string; module: string; title: string; amount: number | null; status: RequestStatusApi; emergency: boolean; neededBy?: string | null
-  locationId: string | null; chainageMarkerId: string | null; raisedById: string | null; raisedByName: string | null; raisedAt: string
+  chainageMarkerId: string | null; raisedById: string | null; raisedByName: string | null; raisedAt: string
   chainId: string | null; matrixVersionId: string | null; matrixVersion: number | null; currentLevel: number | null
   payloadJson: RequestPayload | Record<string, unknown> | null; assignedActorId: string | null; decidedAt: string | null; rowVersion: number
-  publishedLocationId?: string | null; publishedAt?: string | null
+  publishedAt?: string | null
   /** the matching levels as they were when the request was raised */
   levelsSnapshot?: MatrixLevelRecord[] | null
 }
@@ -94,7 +94,7 @@ export const cashLimitBody = (r: CashLimitRow): CashLimitBody =>
 export const listRequests = (status?: RequestStatusApi) => list<RequestRecord>(`/approval-requests${status ? `?status=${status}` : ''}`)
 export const getRequest = (id: string) => api<RequestRecord>('GET', `/approval-requests/${enc(id)}`)
 export interface RaiseBody {
-  requestType: string; module: string; amount: number; projectId?: string; locationId?: string; chainageMarkerId?: string
+  requestType: string; module: string; amount: number; projectId?: string; chainageMarkerId?: string
   title: string; payload?: Record<string, unknown>; emergency?: boolean; neededBy?: string
 }
 export const raiseRequest = (body: RaiseBody, idempotencyKey?: string) => api<RequestRecord>('POST', '/approval-requests', { body, idempotencyKey })
@@ -105,9 +105,9 @@ export const listRequestActions = (id: string) => api<ActionRecord[]>('GET', `/a
  */
 export const actOnRequest = (id: string, rowVersion: number, body: { action: ActionRecord['action']; comment?: string; amountApproved?: number; decision?: string }, idempotencyKey?: string) =>
   api<RequestRecord>('POST', `/approval-requests/${enc(id)}/actions`, { body: { ...body, rowVersion }, idempotencyKey })
-/** POST /approval-requests/{id}/publish (approvals.manage): an approved job opening, published to one location. */
-export const publishJobOpening = (id: string, rowVersion: number, locationId: string, idempotencyKey?: string) =>
-  api<RequestRecord>('POST', `/approval-requests/${enc(id)}/publish`, { body: { locationId, rowVersion }, idempotencyKey })
+/** POST /approval-requests/{id}/publish (approvals.manage): an approved job opening, published to its project. */
+export const publishJobOpening = (id: string, rowVersion: number, idempotencyKey?: string) =>
+  api<RequestRecord>('POST', `/approval-requests/${enc(id)}/publish`, { body: { rowVersion }, idempotencyKey })
 
 // ---------- record to UI mappers ----------
 export const asUuid = (v: string | null | undefined) =>
@@ -174,10 +174,9 @@ export function requestFrom(r: RequestRecord, local?: ApprovalRequest): Approval
     id: r.id, code: r.code, type: r.requestType as RequestType, module: r.module as ModuleName, title: r.title,
     raisedBy: r.raisedByName ?? '', raisedById: r.raisedById, raisedAt: r.raisedAt, chainageId: r.chainageMarkerId ?? '',
     emergency: r.emergency, neededBy: r.neededBy ?? null, status: statusFrom(r), currentLevel: r.currentLevel ?? 1, chainId: r.chainId ?? undefined,
-    matrixVersion: r.matrixVersion ?? 1, payload: (r.payloadJson ?? local?.payload ?? {}) as RequestPayload, rowVersion: r.rowVersion,
-    assignedActorId: r.assignedActorId, publishedLocationId: r.publishedLocationId ?? null, publishedAt: r.publishedAt ?? null,
+    matrixVersion: r.matrixVersion ?? 1, payload: (r.payloadJson ?? local?.payload ?? {}) as RequestPayload, amount: r.amount, rowVersion: r.rowVersion,
+    assignedActorId: r.assignedActorId, publishedAt: r.publishedAt ?? null,
     levelsSnapshot: (r.levelsSnapshot ?? []).map((l) => ({ levelNo: l.levelNo, ...levelFrom(l) })),
-    locationId: r.locationId ?? null,
   }
 }
 

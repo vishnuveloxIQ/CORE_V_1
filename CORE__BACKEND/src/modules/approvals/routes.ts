@@ -70,7 +70,7 @@ export function registerApprovalsRoutes(app: CoreApp, options: RouteOptions): vo
     return reply.code(201).send(ok(updated));
   });
 
-  // Publishes an approved job opening to a location (approvals.manage). Returns the updated request.
+  // Publishes an approved job opening to its project (approvals.manage). Returns the updated request.
   app.post('/approval-requests/:id/publish', guardRoute(options, write, { summary: 'POST /approval-requests/:id/publish', body: publishRequestBody }), async (request) => {
     const { id } = parseInput(idParamsSchema, request.params);
     const body = parseInput(publishRequestBody, request.body);

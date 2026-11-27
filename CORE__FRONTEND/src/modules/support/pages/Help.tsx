@@ -5,15 +5,18 @@ import { z } from "zod";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
 import { EmptyState } from "@/shared/ui/EmptyState";
-import { MiniTable } from "@/shared/ui/Extras";
+import { KV, MiniTable } from "@/shared/ui/Extras";
+import { Modal } from "@/shared/ui/Modal";
+import { MANAGE, useAuth, useCanManage } from "@/modules/auth";
 import { FormGroup, Input, Select, Textarea } from "@/shared/ui/Field";
 import { StatusBadge } from "@/shared/ui/Status";
 import { useEnter } from "@/shared/hooks/useMotion";
 import { a11y, req } from "@/shared/lib/core";
-import { fmtDate } from "@/shared/lib/format";
+import { fmtDate, fmtDateTime } from "@/shared/lib/format";
 import { notify } from "@/shared/lib/toast";
+import { errorText } from "@/shared/lib/api";
 import { Icon } from "@/shared/ui/icons";
-import { useCore } from "@/modules/core-data";
+import { answerTicket, useCore, type Ticket } from "@/modules/core-data";
 import { useRemoteSave } from "@/shared/hooks/useRemoteSave";
 import { PageHead } from "@/modules/shell";
 
@@ -26,7 +29,7 @@ const FAQ: { q: string; a: string; tag: string }[] = [
   {
     tag: "Policies",
     q: "What does the payment threshold do?",
-    a: "Advance payments below the threshold are paid by PMS. At or above it, Head Office approves and pays the payee directly.",
+    a: "Advance payments below the threshold are paid by PCM. At or above it, Head Office approves and pays the payee directly.",
   },
   {
     tag: "Approvals",
@@ -56,7 +59,7 @@ const FAQ: { q: string; a: string; tag: string }[] = [
   {
     tag: "HR",
     q: "How are loans and advances routed?",
-    a: "Like advance payments, until PRD v2 Q6 settles whether they are the same records: below the payment threshold the location pays through PMS; at or above it Head Office approves and pays.",
+    a: "Like advance payments, until PRD v2 Q6 settles whether they are the same records: below the payment threshold the location pays through PCM; at or above it Head Office approves and pays.",
   },
   {
     tag: "Hiring",
@@ -191,10 +194,17 @@ const CATEGORIES = [
 export default function Help() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "help");
-  const { tickets, addTicket } = useCore();
+  const { tickets, addTicket, loadTickets } = useCore();
+  const me = useAuth((s) => s.profile?.id);
+  const canAnswer = useCanManage(MANAGE.access);
+  const [answerText, setAnswerText] = useState("");
+  const [answerSaving, setAnswerSaving] = useState(false);
+  const [answerError, setAnswerError] = useState("");
   // POST /tickets; nothing is kept in the browser when the server refuses it
   const { run, error: saveError, saving } = useRemoteSave();
   const [q, setQ] = useState("");
+  // the ticket whose full details are open
+  const [openTicket, setOpenTicket] = useState<Ticket | null>(null);
   const query = q.trim().toLowerCase();
   const faqs = FAQ.filter(
     (f) => !query || `${f.q} ${f.a} ${f.tag}`.toLowerCase().includes(query),
@@ -330,7 +340,7 @@ export default function Help() {
           </Card>
           <Card title="Your tickets">
             <MiniTable
-              head={["Ticket", "Subject", "Raised", "Status"]}
+              head={["Ticket", "Subject", "Raised", "Status", ""]}
               empty="No tickets yet."
               rows={tickets.map((t) => [
                 <strong key="i">{t.code}</strong>,
@@ -348,9 +358,56 @@ export default function Help() {
                 >
                   {t.status}
                 </StatusBadge>,
+                <Button key="v" size="sm" onClick={() => setOpenTicket(t)}>View</Button>,
               ])}
             />
           </Card>
+          <Modal open={!!openTicket} onOpenChange={(o) => !o && setOpenTicket(null)} title={openTicket ? `Ticket ${openTicket.code}` : "Ticket"} description={openTicket?.subject}>
+            {openTicket && (
+              <>
+                <div className="detail-grid detail-grid-4">
+                  <KV k="Ticket"><strong>{openTicket.code}</strong></KV>
+                  <KV k="Status"><StatusBadge tone={openTicket.status === "Open" ? "pending" : openTicket.status === "Answered" ? "review" : "draft"}>{openTicket.status}</StatusBadge></KV>
+                  <KV k="Category"><strong>{openTicket.category || "—"}</strong></KV>
+                  <KV k="Priority"><strong>{openTicket.priority}</strong></KV>
+                  <KV k="Raised on"><strong>{fmtDateTime(openTicket.createdAt)}</strong></KV>
+                  <KV k="Subject" full><strong>{openTicket.subject}</strong></KV>
+                  <KV k="Description" full><span style={{ whiteSpace: "pre-wrap" }}>{openTicket.description || "No description was given."}</span></KV>
+                  <KV k="Answer" full>
+                    {openTicket.answer
+                      ? <span style={{ whiteSpace: "pre-wrap" }}>{openTicket.answer}</span>
+                      : <span className="helper">{canAnswer && openTicket.raisedById === me ? "Tickets raised by company administrators are answered by VeloxIQ." : "Not answered yet."}</span>}
+                  </KV>
+                </div>
+                {canAnswer && openTicket.raisedById !== me && (
+                  <div className="stack" style={{ marginTop: 16 }}>
+                    <FormGroup label={openTicket.answer ? "Replace the answer" : "Your answer"} required full>
+                      {(id) => <Textarea id={id} rows={4} maxLength={4000} value={answerText} onChange={(ev) => setAnswerText(ev.target.value)} />}
+                    </FormGroup>
+                    {answerError && <div className="login-error" role="alert"><span>{answerError}</span></div>}
+                    <div className="form-actions" style={{ marginTop: 0 }}>
+                      <Button tone="primary" disabled={answerSaving || !answerText.trim()} onClick={async () => {
+                        setAnswerSaving(true);
+                        setAnswerError("");
+                        try {
+                          const saved = await answerTicket(openTicket.id, openTicket.rowVersion ?? 1, answerText.trim());
+                          await loadTickets();
+                          setOpenTicket({ ...openTicket, answer: saved.answer ?? answerText.trim(), status: "Answered", rowVersion: saved.rowVersion });
+                          setAnswerText("");
+                          notify("Answer sent");
+                        } catch (err) {
+                          setAnswerError(errorText(err));
+                        } finally {
+                          setAnswerSaving(false);
+                        }
+                      }}>{answerSaving ? "Sending…" : "Send answer"}</Button>
+                    </div>
+                  </div>
+                )}
+                <div className="form-actions"><Button onClick={() => setOpenTicket(null)}>Close</Button></div>
+              </>
+            )}
+          </Modal>
         </div>
       </div>
     </div>

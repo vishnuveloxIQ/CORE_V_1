@@ -1,15 +1,11 @@
 import { z } from 'zod'
-import type { MaterialPlanStatus, PeoplePlanStatus, Site, Store } from '@/modules/core-data'
+import type { MaterialPlanStatus, PeoplePlanStatus, Store } from '@/modules/core-data'
 import { num, req } from '@/shared/lib/core'
 
-/**
- * The stores assigned to a project: a store sits at a location (store.locationId), and a location belongs to one
- * project (site.projectId). With no project chosen there are none.
- */
-export function storesForProject(stores: Store[], sites: Site[], projectId: string): Store[] {
+/** The stores assigned to a project (store.projectId). With no project chosen there are none. */
+export function storesForProject(stores: Store[], projectId: string): Store[] {
   if (!projectId) return []
-  const locationIds = new Set(sites.filter((s) => s.projectId === projectId).map((s) => s.id))
-  return stores.filter((s) => locationIds.has(s.locationId))
+  return stores.filter((s) => s.projectId === projectId)
 }
 
 /** Validation and statuses shared by the resource and material planning forms, pages and bulk uploads. */
@@ -19,6 +15,8 @@ export const PEOPLE_STATUSES: PeoplePlanStatus[] = ['Planned', 'Confirmed', 'Ful
 export const peopleSchema = z.object({
   projectId: z.string().min(1, 'Choose a project.'),
   positionId: z.string().min(1, 'Choose the position this is for.'),
+  /** the department the people in this requirement work in (not the project's department) */
+  department: z.string().trim().max(100, 'Keep it under 100 characters.').optional(),
   role: req('Role or trade'),
   headcount: num('Headcount', 1).int('Whole numbers only.'),
   from: z.string().min(1, 'Pick a start date.'),

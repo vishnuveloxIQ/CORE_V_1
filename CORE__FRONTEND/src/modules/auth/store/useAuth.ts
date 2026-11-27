@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { startAuthentication, browserSupportsWebAuthn, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
-import { api, ApiError, onPasswordChangeRequired, onSessionExpired, SESSION_REPLACED_CODE, setTokens, type TokenPair } from '@/shared/lib/api'
+import { api, ApiError, clearTenantId, onPasswordChangeRequired, onSessionExpired, SESSION_REPLACED_CODE, setTenantId, setTokens, type TokenPair } from '@/shared/lib/api'
 import { passkeyLoginOptions, passkeyLoginVerify, type PasskeyAuthenticationResponse } from '../api'
 
 /**
@@ -108,7 +108,10 @@ export const useAuth = create<AuthState>()(
       login: async (loginId, password) => {
         if (Date.now() < get().lockedUntil) return 'locked'
         try {
-          const result = await api<TokenPair & { user: SignedInUser; mustChangePassword?: boolean }>('POST', '/auth/login', { body: { loginId: loginId.trim(), password }, auth: false })
+          clearTenantId()
+          const result = await api<TokenPair & { user: SignedInUser; mustChangePassword?: boolean; tenantId: string }>('POST', '/auth/login', { body: { loginId: loginId.trim(), password }, auth: false })
+          // the company comes back with the session: its login ID prefix decides it on the server
+          setTenantId(result.tenantId)
           await applySignIn(result, set)
           return 'ok'
         } catch (err) {
@@ -119,9 +122,11 @@ export const useAuth = create<AuthState>()(
         if (Date.now() < get().lockedUntil) return 'locked'
         if (!browserSupportsWebAuthn()) { set({ lastError: 'This browser does not support passkeys. Sign in with your password.' }); return 'error' }
         try {
+          clearTenantId()
           const options = await passkeyLoginOptions(loginId)
           const response = await startAuthentication({ optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON })
           const result = await passkeyLoginVerify(loginId, response as unknown as PasskeyAuthenticationResponse)
+          setTenantId((result as unknown as { tenantId: string }).tenantId)
           await applySignIn(result as unknown as TokenPair & { user: SignedInUser; mustChangePassword?: boolean }, set)
           return 'ok'
         } catch (err) {

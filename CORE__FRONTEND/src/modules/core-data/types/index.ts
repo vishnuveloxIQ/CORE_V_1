@@ -1,4 +1,4 @@
-/** Domain types for VeloxIQ CORE (PRD v1.0 draft). */
+﻿/** Domain types for VeloxIQ CORE (PRD v1.0 draft). */
 
 export type ModuleName = 'HRMS' | 'PMS' | 'Stores' | 'P&M'
 export const MODULES: ModuleName[] = ['HRMS', 'PMS', 'Stores', 'P&M']
@@ -12,6 +12,9 @@ export interface Entity { id: string; code?: string; shortCode?: string }
 /** A logo change chosen on the company profile form, applied when the profile is saved. */
 export type LogoChange = { file: File; dataUrl: string } | 'remove'
 
+/** Legal form of the company. '' means not chosen yet. */
+export type CompanyType = 'proprietorship' | 'partnership' | 'pvt_ltd'
+
 export interface CompanyProfile {
   /** set once the profile has been read from or saved to the API */
   id?: string
@@ -21,6 +24,7 @@ export interface CompanyProfile {
   logoFileId?: string | null
   legalName: string
   tradeName: string
+  companyType: CompanyType | ''
   cin: string
   gstin: string
   pan: string
@@ -37,7 +41,7 @@ export interface CompanyProfile {
   website: string
   /** data URL of the uploaded logo */
   logo: string
-  /** the one offer letter format HRMS uses — uploaded and replaced only by the Tenant Admin */
+  /** the one offer letter format HRMS uses â€” uploaded and replaced only by the Tenant Admin */
   offerLetter: OfferLetterFile | null
 }
 
@@ -112,6 +116,9 @@ export interface PaymentThresholdPolicy { amount: number; currency: 'INR' }
 export interface RuleItem { title: string; category: 'Conduct' | 'Safety' | 'Attendance' | 'IT' | 'General'; body: string; ackRequired: boolean }
 export interface RulesPolicy { rules: RuleItem[] }
 
+/** One uploaded rate sheet: the file it came from and how many rows it holds (the rows themselves are rate records). */
+export interface RateSheetPolicy { fileName: string; rows: number }
+
 export interface PolicyData {
   shifts: ShiftPolicy
   holidays: HolidayPolicy
@@ -119,6 +126,8 @@ export interface PolicyData {
   leave: LeavePolicy
   'payment-threshold': PaymentThresholdPolicy
   rules: RulesPolicy
+  'equipment-rates': RateSheetPolicy
+  'material-rates': RateSheetPolicy
 }
 export type PolicyKey = keyof PolicyData
 
@@ -126,6 +135,8 @@ export interface PolicyVersion<K extends PolicyKey = PolicyKey> {
   id: string
   key: K
   version: number
+  /** the project this version applies to; null for the company-wide default */
+  projectId: string | null
   effectiveFrom: string
   reason: string
   createdBy: string
@@ -202,24 +213,44 @@ export interface Role {
 }
 
 // ---------- 3.2 Projects ----------
-export type ProjectStatus = 'Planning' | 'Active' | 'On hold' | 'Completed'
+export type ProjectStatus = 'Planning' | 'Active' | 'On hold' | 'Completed' | 'Inactive'
 /** `In progress` is kept only for sample data; the API stores pending, achieved or cancelled. */
 export interface Milestone { id: string; name: string; due: string; weight: number; status: 'Not started' | 'In progress' | 'Done' | 'Cancelled'; rowVersion?: number }
-export interface WbsNode { id: string; code: string; name: string; parentId: string | null; rowVersion?: number
-  /** an inactive item is kept for history but no longer used for new work (core_wbs_node.status) */
-  status?: 'Active' | 'Inactive' }
+export type ExecutionMode = 'self' | 'hybrid' | 'back_to_back_subcontracting'
+export const EXECUTION_MODE_LABEL: Record<ExecutionMode, string> = {
+  self: 'Self execution',
+  hybrid: 'Hybrid execution',
+  back_to_back_subcontracting: 'Back to back sub contracting',
+}
+/** How the project was awarded. */
+export type ProjectType = 'direct' | 'nominated_sub_contractor' | 'sub_contractor' | 'risk_and_cost_basis'
+export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
+  direct: 'Direct',
+  nominated_sub_contractor: 'Nominated sub contractor',
+  sub_contractor: 'Sub contractor',
+  risk_and_cost_basis: 'Risk and cost basis',
+}
 export interface Project {
   id: string
   code: string
   name: string
   client: string
+  /** optional consultant on the project */
+  consultantName?: string
+  /** optional state the project works in */
+  state?: string
+  /** how the project is executed */
+  executionMode?: ExecutionMode | ''
+  /** the owning department: a listed name, or the name typed for "Other" */
+  department?: string
+  /** how the project was awarded */
+  projectType?: ProjectType | ''
   startDate: string
   endDate: string
   status: ProjectStatus
   value: number
   description: string
   milestones: Milestone[]
-  wbs: WbsNode[]
   /** project-level plan (planning moved here from the site) */
   plan: SitePlan
   /** project-level geo-fence zones (moved here from the site) */
@@ -231,7 +262,6 @@ export interface Project {
     rangeSaved?: boolean
   }
   /** locations (Site ids) assigned to this project; a site itself holds no project link */
-  locationIds: string[]
   /** optimistic-lock version from the API (core_project.row_version); absent on rows created on this device */
   rowVersion?: number
 }
@@ -257,7 +287,7 @@ export interface GeoFence {
   updatedBy: string
 }
 /** `code` is the API's marker code (core_chainage_marker.code); absent on sample data. */
-export interface ChainageMarker { id: string; km: number; label: string; wbsCode: string; code?: string; rowVersion?: number }
+export interface ChainageMarker { id: string; km: number; label: string; code?: string; rowVersion?: number }
 export type GeoZoneType = 'Head Office' | 'Mess' | 'Store yard' | 'Gate' | 'Other'
 /** `purpose` is what the API stores (core_geo_zone.zone_type); `type` is the sample-data place label. */
 export interface GeoZone extends GeoFence { id: string; label: string; type: GeoZoneType; purpose?: 'Attendance' | 'Equipment'; rowVersion?: number }
@@ -285,8 +315,8 @@ export interface Site {
 
 // ---------- 3.4 Stores ----------
 export interface Store { id: string; code: string; name: string; chainageId: string
-  /** site the store sits at (core_store.location_id → core_location) */
-  locationId: string
+  /** the project the store belongs to (core_store.project_id) */
+  projectId: string
   location: string; keeper: string; phone: string; status: 'Active' | 'Inactive'
   /** optimistic-lock version from the API (core_store.row_version); absent on sample data */
   rowVersion?: number }
@@ -299,7 +329,7 @@ export interface StockRow { id: string; storeId: string; materialId: string; qty
 // ---------- 3.5 Equipment ----------
 export type PeoplePlanStatus = 'Planned' | 'Confirmed' | 'Fulfilled'
 /** Planned manpower for a project. TODO(backend): GET/POST/PUT/DELETE /projects/{id}/people-plan. */
-export interface PeoplePlanLine { id: string; projectId: string; role: string; headcount: number; from: string; to: string; status: PeoplePlanStatus; rowVersion?: number
+export interface PeoplePlanLine { id: string; projectId: string; department?: string; role: string; headcount: number; from: string; to: string; status: PeoplePlanStatus; rowVersion?: number
   /** the organisation position the line is for (core_plan_line.position_id); the API requires it for people lines */
   positionId?: string }
 export type CashLimitPriority = 'Emergency' | 'Normal'
@@ -315,6 +345,10 @@ export interface PlanLine { id: string; equipmentType: string; projectId: string
 export type Availability = 'Available' | 'In use' | 'Under maintenance' | 'Breakdown'
 export interface EquipmentUnit {
   id: string; assetCode: string; type: string; makeModel: string; regNo: string; chainageId: string; lat: number | null; lng: number | null; lastPing: string | null; availability: Availability
+  /** The project the unit belongs to (core_project id). Optional for units registered before projects were stored on them. */
+  projectId?: string
+  /** The approved equipment request a hired unit is registered against (core_approval_request id) */
+  approvalRequestId?: string
   /** Equipment name given at registration (e.g. "Excavator EX-1"). Optional for records registered before it existed. */
   name?: string
   /** Compliance and purchase records shown in the unit details. Optional until P&M captures them on upload. */
@@ -329,7 +363,7 @@ export interface EquipmentUnit {
   owner?: string
   /** hired units: the vendor that owns it (core_vendor) */
   vendorId?: string
-  hireRef?: string; agreementStart?: string; agreementEnd?: string
+  hireRef?: string; hiredFrom?: string; /** hired units: still on hire (set Active at registration, changed afterwards) */ hireStatus?: 'Active' | 'Inactive'; overPlanReason?: string; agreementStart?: string; agreementEnd?: string
   warrantyEnd?: string; warrantyReading?: string; currentLocation?: string
   /** API row version (set for units read from the server; a PATCH sends it back) */
   rowVersion?: number
@@ -341,7 +375,7 @@ export interface EquipmentUnit {
   documents?: UnitDocuments
 }
 /** Photo and document keys a unit stores (equipment_unit.documents). */
-export type UnitDocKey = 'chasisPhoto' | 'enginePhoto' | 'meterPhoto' | 'invoiceDoc' | 'insuranceDoc' | 'pucDoc'
+export type UnitDocKey = 'chasisPhoto' | 'enginePhoto' | 'meterPhoto' | 'invoiceDoc' | 'insuranceDoc' | 'pucDoc' | 'regDoc' | 'fitnessDoc'
 export type UnitDocuments = Partial<Record<UnitDocKey, string>>
 /** A count of units of one equipment type allocated to a requested location (chainage marker). */
 export interface EquipmentAssignment { id: string; equipmentType: string
@@ -368,7 +402,10 @@ export interface CoreUser {
   email: string
   phone: string
   designation: string
+  /** primary role: module head when the person holds it, else approver */
   role: UserRole
+  /** every role the person holds (a module head may also be an approver); falls back to role */
+  roles?: UserRole[]
   /** module heads only: every module this person heads */
   modules: ModuleName[]
   scopeType: ScopeType
@@ -397,7 +434,7 @@ export type RequestType =
   | 'Material'
   | 'Advance payment'
   | 'Recruitment'
-  // PRD v2 §3.6 — employee lifecycle actions: CORE approves, HRMS executes
+  // PRD v2 Â§3.6 â€” employee lifecycle actions: CORE approves, HRMS executes
   | 'Employee transfer'
   | 'Promotion'
   | 'Bonus and incentive'
@@ -453,7 +490,7 @@ export interface RequestAction {
   decision?: string
   /** payments: amount this approver cleared (INR); may be less than requested */
   amountApproved?: number
-  /** line-level edits the approver made (field → { from, to }) */
+  /** line-level edits the approver made (field â†’ { from, to }) */
   lineChanges?: Record<string, { from: unknown; to: unknown }>
 }
 
@@ -464,7 +501,7 @@ export type RequestPayload =
   | { kind: 'recruitment'; position: string; count: number; decision?: 'Local' | 'Head Office'; candidate?: string }
   | {
     kind: 'job'; position: string; openings: number; ctcMin: number; ctcMax: number; experience: string
-    /** PRD v2 §3.11 — who fills the opening, decided by CORE */
+    /** PRD v2 Â§3.11 â€” who fills the opening, decided by CORE */
     route?: 'Site hires directly' | 'Head Office posts and sends candidate'
     /** requirement posted on the HRMS recruitment page */
     postedOnHrms: boolean
@@ -503,17 +540,17 @@ export interface ApprovalRequest {
   matrixVersion: number
   history: RequestAction[]
   payload: RequestPayload
+  /** the request's amount in INR when it has one (from the API); payment requests may also carry it in the payload */
+  amount?: number | null
   /** set when read from the API; acting on a request sends it */
   rowVersion?: number
   /** user the request now waits on (the raiser while a clarification is open) */
   assignedActorId?: string | null
   /** job openings published by Head Office: the location and when (POST /approval-requests/{id}/publish) */
-  publishedLocationId?: string | null
   publishedAt?: string | null
   /** the levels fixed when the request was raised (server snapshot); later matrix changes do not alter them */
   levelsSnapshot?: Array<MatrixLevel & { levelNo: number }>
   /** the site (location) the request is for; none means the whole company */
-  locationId?: string | null
 }
 
 // ---------- 3.8 Grievances ----------
@@ -529,7 +566,7 @@ export interface Grievance {
   code: string
   /** name of the person who raised it */
   raisedBy: string
-  /** user id of the person who raised it (raised_by → core_user) */
+  /** user id of the person who raised it (raised_by â†’ core_user) */
   raisedById: string
   /** employee number of the raiser, when known */
   employeeId?: string
@@ -560,7 +597,9 @@ export interface Ticket { id: string; code: string; subject: string; category: s
   /** user id of whoever raised it (raised_by_user_id) */
   raisedById: string
   /** set when read from the API */
-  rowVersion?: number }
+  rowVersion?: number
+  /** the company administrator's answer; empty until answered */
+  answer?: string }
 
 // ---------- masters added for the database handoff ----------
 /** core_equipment_type: equipment type master. Units and assignments still refer to the type by name. */
@@ -591,4 +630,15 @@ export interface Vendor {
   registeredBy: string
   /** bank verification time; null until verified */
   verifiedAt: string | null
+}
+
+// ---------- Rates for the Fleet and Equipment and Material management modules, per project ----------
+export type RateBasis = 'rental' | 'hire'
+export interface EquipmentRate {
+  id: string; projectId: string; policyVersionId: string | null
+  equipmentType: string; rateBasis: RateBasis; unit: string; rate: number; amount: number | null; remarks: string
+}
+export interface MaterialRate {
+  id: string; projectId: string; policyVersionId: string | null
+  materialName: string; materialCode: string; uom: string; rate: number; amount: number | null; remarks: string
 }

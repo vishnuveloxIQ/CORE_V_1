@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { createContext, useContext, type CSSProperties, type ReactNode } from 'react'
 import type { FieldErrors, UseFormRegister } from 'react-hook-form'
 import { a11y } from '@/shared/lib/core'
 import { cn } from '@/shared/lib/cn'
@@ -24,9 +24,9 @@ export function Tabs<T extends string>({ value, onChange, items, label }: { valu
 }
 
 /** Highlighted note (uses the kit's .info-box). */
-export function Note({ title, children, icon = 'info', className }: { title: string; children?: ReactNode; icon?: IconName; className?: string }) {
+export function Note({ title, children, icon = 'info', className, style }: { title: string; children?: ReactNode; icon?: IconName; className?: string; style?: CSSProperties }) {
   return (
-    <div className={cn('info-box', className)} role="note" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+    <div className={cn('info-box', className)} role="note" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', ...style }}>
       <Icon name={icon} style={{ flex: '0 0 auto', marginTop: 2 }} />
       <div><strong>{title}</strong>{children}</div>
     </div>
@@ -41,17 +41,27 @@ export function KV({ k, children, full }: { k: string; children: ReactNode; full
 /** Small muted text */
 export const Muted = ({ children }: { children: ReactNode }) => <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>{children}</span>
 
+/** True inside a first-version form (a policy or approval chain being created): there is no earlier version to change. */
+const FirstVersionContext = createContext(false)
+export function FirstVersion({ children }: { children: ReactNode }) {
+  return <FirstVersionContext.Provider value={true}>{children}</FirstVersionContext.Provider>
+}
+
 /** Effective date + reason, shared by every versioned form (policies, approval matrix). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function VersionFields({ register, errors }: { register: UseFormRegister<any>; errors: FieldErrors<{ effectiveFrom: string; reason: string }> }) {
+  const firstVersion = useContext(FirstVersionContext)
   return (
     <>
       <FormGroup label="Effective date" required error={errors.effectiveFrom?.message} helper="New requests follow this version from this date. Earlier requests keep the version they were raised under.">
         {(id, d) => <Input type="date" {...a11y(id, d, errors.effectiveFrom?.message)} {...register('effectiveFrom')} />}
       </FormGroup>
-      <FormGroup label="Reason for change" required full error={errors.reason?.message}>
-        {(id, d) => <Textarea rows={2} placeholder="Enter the reason for this change. It is kept in the version history." {...a11y(id, d, errors.reason?.message)} {...register('reason')} />}
-      </FormGroup>
+      {/* the reason is asked only when an existing version is changed; the first version has none */}
+      {!firstVersion && (
+        <FormGroup label="Reason for change" required full error={errors.reason?.message}>
+          {(id, d) => <Textarea rows={2} placeholder="Enter the reason for this change. It is kept in the version history." {...a11y(id, d, errors.reason?.message)} {...register('reason')} />}
+        </FormGroup>
+      )}
     </>
   )
 }

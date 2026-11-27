@@ -19,6 +19,7 @@ export interface CompanyFields {
   legalName: string;
   status: string;
   tradeName: string | null;
+  companyType: 'proprietorship' | 'partnership' | 'pvt_ltd' | null;
   cin: string | null;
   gstin: string | null;
   pan: string | null;
@@ -105,7 +106,7 @@ export type PositionRecord = PositionFields & Versioned;
 
 /** Column list for each table. SQL aliases map snake_case to camelCase here, in the repo layer only. */
 const COMPANY_SELECT = `id, code, legal_name AS "legalName", status, trade_name AS "tradeName",
-  cin, gstin, pan, tan, address_line1 AS "addressLine1", address_line2 AS "addressLine2",
+  company_type AS "companyType", cin, gstin, pan, tan, address_line1 AS "addressLine1", address_line2 AS "addressLine2",
   city, state, pin, country, contact_name AS "contactName", contact_email AS "contactEmail",
   contact_phone AS "contactPhone", website, logo_file_id AS "logoFileId",
   settings_json AS settings, row_version AS "rowVersion",
@@ -148,6 +149,7 @@ const COMPANY_COLUMNS: readonly Column[] = [
   { name: 'legal_name' },
   { name: 'status' },
   { name: 'trade_name' },
+  { name: 'company_type' },
   { name: 'cin' },
   { name: 'gstin' },
   { name: 'pan' },
@@ -331,6 +333,7 @@ function companyValues(f: CompanyFields): unknown[] {
     f.legalName,
     f.status,
     f.tradeName,
+    f.companyType,
     f.cin,
     f.gstin,
     f.pan,

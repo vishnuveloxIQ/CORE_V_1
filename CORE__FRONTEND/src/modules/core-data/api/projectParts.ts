@@ -1,8 +1,8 @@
-import { api } from '@/shared/lib/api'
-import type { ChainageMarker, GeoShape, GeoZone, LatLng, Milestone, Site, WbsNode } from '../types'
+﻿import { api } from '@/shared/lib/api'
+import type { ChainageMarker, GeoShape, GeoZone, LatLng, Milestone, Site } from '../types'
 
 /**
- * The parts of a project the API keeps in their own tables: milestones, WBS nodes, chainage markers, geo zones
+ * The parts of a project the API keeps in their own tables: milestones, chainage markers, geo zones
  * and locations. Each read is filtered by ?projectId=. Writes send an Idempotency-Key (POST, PATCH) and the
  * row version (PATCH).
  */
@@ -28,35 +28,21 @@ export const updateMilestone = (id: string, rowVersion: number, m: Omit<Mileston
   api<MilestoneRecord>('PATCH', path('/milestones', id), { body: { ...milestoneBody(m), rowVersion } })
 export const deleteMilestone = (id: string) => api<{ deleted: true }>('DELETE', path('/milestones', id))
 
-// ---------- WBS nodes ----------
-export interface WbsNodeRecord { id: string; code: string; name: string; projectId: string; parentWbsNodeId: string | null; status: 'active' | 'inactive'; rowVersion: number }
-
-export const wbsFrom = (r: WbsNodeRecord): WbsNode => ({ id: r.id, code: r.code, name: r.name, parentId: r.parentWbsNodeId, status: r.status === 'inactive' ? 'Inactive' : 'Active', rowVersion: r.rowVersion })
-/** The WBS fields the form edits. */
-export interface WbsDraft { code: string; name: string; parentId: string | null; status?: 'Active' | 'Inactive' }
-const wbsStatus = (s: WbsDraft['status']) => (s === 'Inactive' ? 'inactive' : s === 'Active' ? 'active' : undefined)
-export const listWbs = (projectId: string) => api<WbsNodeRecord[]>('GET', `/wbs-nodes${q(projectId)}`)
-export const createWbs = (projectId: string, n: WbsDraft) =>
-  api<WbsNodeRecord>('POST', '/wbs-nodes', { body: { projectId, code: n.code, name: n.name, parentWbsNodeId: n.parentId, status: wbsStatus(n.status) } })
-export const updateWbs = (id: string, rowVersion: number, n: WbsDraft, idempotencyKey?: string) =>
-  api<WbsNodeRecord>('PATCH', path('/wbs-nodes', id), { body: { code: n.code, name: n.name, parentWbsNodeId: n.parentId, status: wbsStatus(n.status), rowVersion }, idempotencyKey })
-export const deleteWbs = (id: string) => api<{ deleted: true }>('DELETE', path('/wbs-nodes', id))
-
 // ---------- chainage markers ----------
-export interface MarkerRecord { id: string; code: string; label: string | null; projectId: string; chainageKm: number; wbsNodeId: string | null; rowVersion: number }
+export interface MarkerRecord { id: string; code: string; label: string | null; projectId: string; chainageKm: number; rowVersion: number }
 
-export const markerFrom = (r: MarkerRecord, wbs: WbsNode[]): ChainageMarker =>
-  ({ id: r.id, code: r.code, km: r.chainageKm, label: r.label ?? '', wbsCode: wbs.find((w) => w.id === r.wbsNodeId)?.code ?? '', rowVersion: r.rowVersion })
+export const markerFrom = (r: MarkerRecord): ChainageMarker =>
+  ({ id: r.id, code: r.code, km: r.chainageKm, label: r.label ?? '', rowVersion: r.rowVersion })
 /** The marker code the API needs: CH- and the km, e.g. CH-12.5 (unique because a km holds one marker). */
 export const markerCode = (km: number) => `CH-${Number(km.toFixed(3))}`
 export const listMarkers = (projectId: string) => api<MarkerRecord[]>('GET', `/chainage-markers${q(projectId)}`)
-export const createMarker = (projectId: string, m: { km: number; label: string; wbsCode: string }, wbs: WbsNode[]) =>
+export const createMarker = (projectId: string, m: { km: number; label: string }) =>
   api<MarkerRecord>('POST', '/chainage-markers', {
-    body: { projectId, code: markerCode(m.km), label: m.label || null, chainageKm: m.km, wbsNodeId: wbs.find((w) => w.code === m.wbsCode)?.id ?? null },
+    body: { projectId, code: markerCode(m.km), label: m.label || null, chainageKm: m.km },
   })
-export const updateMarker = (id: string, rowVersion: number, m: { km: number; label: string; wbsCode: string }, wbs: WbsNode[], idempotencyKey?: string) =>
+export const updateMarker = (id: string, rowVersion: number, m: { km: number; label: string }, idempotencyKey?: string) =>
   api<MarkerRecord>('PATCH', path('/chainage-markers', id), {
-    body: { code: markerCode(m.km), label: m.label || null, chainageKm: m.km, wbsNodeId: wbs.find((w) => w.code === m.wbsCode)?.id ?? null, rowVersion },
+    body: { code: markerCode(m.km), label: m.label || null, chainageKm: m.km, rowVersion },
     idempotencyKey,
   })
 export const deleteMarker = (id: string) => api<{ deleted: true }>('DELETE', path('/chainage-markers', id))

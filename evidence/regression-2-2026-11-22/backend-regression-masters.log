@@ -1,0 +1,14 @@
+npm notice run velox-core-backend@1.6.0 test:regression:masters
+npm notice run vitest run tests/regression/masters-contract.test.ts tests/masters tests/projects tests/organisation tests/equipment-units tests/stock-levels tests/offer-letter tests/relationships tests/permissions tests/db/shared-uom.test.ts tests/testing-pass/conflicts-and-ownership.test.ts --maxWorkers=4
+
+ RUN  v5.1.1 C:/VELOX_IQ/CORE/CORE__BACKEND
+
+(node:51320) ExperimentalWarning: The supports Web Crypto API method is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:51320) ExperimentalWarning: The ML-DSA-44 Web Crypto API algorithm is an experimental feature and might change at any time
+
+ Test Files  18 passed (18)
+      Tests  268 passed | 2 skipped (270)
+   Start at  17:51:14
+   Duration  83.79s (tests 94%, import 5%)
+

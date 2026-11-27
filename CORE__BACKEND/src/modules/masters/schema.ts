@@ -49,6 +49,8 @@ const materialFields = z.object({
   reorderLevel: nonNegativeQuantity.nullable().optional(),
   category: text(100).nullable().optional(),
   subCategory: text(100).nullable().optional(),
+  // the stores this material is available in; replaces the whole list when sent
+  storeIds: z.array(z.uuid()).max(500).optional(),
 });
 export const materialCreateBody = materialFields;
 export const materialPatchBody = materialFields.partial().extend({ rowVersion: versionField });
@@ -109,6 +111,7 @@ const planLineFields = z.object({
   equipmentTypeId: z.uuid().nullable().optional(),
   positionId: z.uuid().nullable().optional(),
   role: text(200).nullable().optional(),
+  department: text(100).nullable().optional(),
   materialId: z.uuid().nullable().optional(),
   uomId: z.uuid().nullable().optional(),
   storeId: z.uuid().nullable().optional(),

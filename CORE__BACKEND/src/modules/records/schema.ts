@@ -106,6 +106,8 @@ export const ticketPatchBody = z
     subject: text(200),
     category: text(60),
     description: optionalText(4000),
+    // the answer to the ticket, written by the administrator who answers it (migration 0046); null clears it
+    answer: z.string().trim().max(4000).nullable().optional(),
     priority: z.enum(TICKET_PRIORITIES),
     status: z.enum(TICKET_STATUSES),
     rowVersion: versionField,

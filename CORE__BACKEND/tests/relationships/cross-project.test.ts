@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { idempotencyFor } from '../testing-pass/helpers.js';
@@ -10,7 +10,7 @@ import { PROJECTS_MANAGE } from '../../src/modules/projects/routes.js';
 import { createTestDatabase, TEST_DATABASE_URL, type TestDatabase } from '../db/helpers.js';
 
 // Cross-project leakage and invalid relationships. Two projects (A and B) each get their own location, chainage
-// marker, store, WBS node and milestone. Lists filtered by project must not show the other project's rows, a
+// marker, store and milestone. Lists filtered by project must not show the other project's rows, a
 // record must not be linked to another project's record, and a record must not be moved to another project.
 
 const TENANT = 'acme';
@@ -85,7 +85,7 @@ describe.skipIf(!TEST_DATABASE_URL)('cross-project leakage and relationships', {
     return res.json().data as Row;
   }
 
-  /** Two projects, each with one location, marker, store, WBS node and milestone. */
+  /** Two projects, each with one location, marker, store and milestone. */
   async function twoProjects(token: string) {
     const make = async (label: string) => {
       const project = await createRow(token, '/projects', { code: uniq('PRJ'), name: `Project ${label}` });
@@ -94,17 +94,16 @@ describe.skipIf(!TEST_DATABASE_URL)('cross-project leakage and relationships', {
       const store = await createRow(token, '/stores', {
         code: uniq('ST'),
         name: `Store ${label}`,
-        locationId: location.id,
+        projectId: project.id,
         chainageMarkerId: marker.id,
       });
-      const wbs = await createRow(token, '/wbs-nodes', { code: uniq('W'), name: `WBS ${label}`, projectId: project.id });
       const milestone = await createRow(token, '/milestones', { projectId: project.id, name: `Milestone ${label}`, weight: 10 });
-      return { project, location, marker, store, wbs, milestone };
+      return { project, location, marker, store, milestone };
     };
     return { a: await make('A'), b: await make('B') };
   }
 
-  it('filtered lists show only the chosen project: locations, markers, WBS nodes and milestones', async () => {
+  it('filtered lists show only the chosen project: locations, markers and milestones', async () => {
     const token = await manager();
     const { a, b } = await twoProjects(token);
 
@@ -115,10 +114,6 @@ describe.skipIf(!TEST_DATABASE_URL)('cross-project leakage and relationships', {
     const markers = (await call('GET', `/chainage-markers?projectId=${b.project.id}`, token)).json().data as Row[];
     expect(markers.map((r) => r.id)).toContain(b.marker.id);
     expect(markers.map((r) => r.id)).not.toContain(a.marker.id);
-
-    const wbs = (await call('GET', `/wbs-nodes?projectId=${a.project.id}`, token)).json().data as Row[];
-    expect(wbs.map((r) => r.id)).toContain(a.wbs.id);
-    expect(wbs.map((r) => r.id)).not.toContain(b.wbs.id);
 
     const milestones = (await call('GET', `/milestones?projectId=${a.project.id}`, token)).json().data as Row[];
     expect(milestones.map((r) => r.id)).toContain(a.milestone.id);
@@ -132,7 +127,7 @@ describe.skipIf(!TEST_DATABASE_URL)('cross-project leakage and relationships', {
     const mixedCreate = await call('POST', '/stores', token, {
       code: uniq('ST'),
       name: 'Mixed store',
-      locationId: a.location.id,
+      projectId: a.location.projectId,
       chainageMarkerId: b.marker.id,
     });
     expect(mixedCreate.statusCode).toBe(400);
@@ -140,35 +135,20 @@ describe.skipIf(!TEST_DATABASE_URL)('cross-project leakage and relationships', {
 
     // Moving the store's location to project B while its marker stays on project A is refused too.
     const moved = await call('PATCH', `/stores/${a.store.id}`, token, {
-      locationId: b.location.id,
+      projectId: b.location.projectId,
       rowVersion: a.store.rowVersion,
     });
     expect(moved.statusCode).toBe(400);
     expect(moved.json().error.code).toBe('PROJECTS_REFERENCE_MISMATCH');
   });
 
-  it('a WBS node cannot have a parent from another project', async () => {
-    const token = await manager();
-    const { a, b } = await twoProjects(token);
-
-    const crossParent = await call('POST', '/wbs-nodes', token, {
-      code: uniq('W'),
-      name: 'Parent elsewhere',
-      projectId: a.project.id,
-      parentWbsNodeId: b.wbs.id,
-    });
-    expect(crossParent.statusCode).toBe(400);
-    expect(crossParent.json().error.code).toBe('PROJECTS_REFERENCE_MISMATCH');
-  });
-
-  it('a record cannot be moved to another project: location, marker, WBS node and milestone refuse a projectId change', async () => {
+  it('a record cannot be moved to another project: location, marker and milestone refuse a projectId change', async () => {
     const token = await manager();
     const { a, b } = await twoProjects(token);
 
     const moves: Array<[string, string, object]> = [
       [`/locations/${a.location.id}`, 'location', { projectId: b.project.id, rowVersion: a.location.rowVersion }],
       [`/chainage-markers/${a.marker.id}`, 'marker', { projectId: b.project.id, rowVersion: a.marker.rowVersion }],
-      [`/wbs-nodes/${a.wbs.id}`, 'WBS node', { projectId: b.project.id, rowVersion: a.wbs.rowVersion }],
       [`/milestones/${a.milestone.id}`, 'milestone', { projectId: b.project.id, rowVersion: a.milestone.rowVersion }],
     ];
     for (const [url, label, body] of moves) {
@@ -215,7 +195,7 @@ describe.skipIf(!TEST_DATABASE_URL)('cross-project leakage and relationships', {
     const noMarker = await call('POST', '/stores', token, {
       code: uniq('ST'),
       name: 'No marker',
-      locationId: a.location.id,
+      projectId: a.location.projectId,
       chainageMarkerId: randomUUID(),
     });
     expect(noMarker.statusCode).toBe(400);
@@ -224,7 +204,7 @@ describe.skipIf(!TEST_DATABASE_URL)('cross-project leakage and relationships', {
     const noLocation = await call('POST', '/stores', token, {
       code: uniq('ST'),
       name: 'No location',
-      locationId: randomUUID(),
+      projectId: randomUUID(),
     });
     expect(noLocation.statusCode).toBe(400);
     expect(noLocation.json().error.code).toBe('PROJECTS_REFERENCE_NOT_FOUND');

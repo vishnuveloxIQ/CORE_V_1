@@ -1,4 +1,4 @@
-/** Sample data for the CORE screens. Replace with API calls when the contracts (PRD §5) exist. */
+﻿/** Sample data for the CORE screens. Replace with API calls when the contracts (PRD Â§5) exist. */
 import { dataUrlBytes, textPdfDataUrl } from '../utils/pdf'
 import type {
   ApprovalChain, ApprovalRequest, AuditEntry, CompanyProfile, Department, EquipmentTypeMaster, EquipmentUnit, Grievance, Material, CoreUser,
@@ -40,6 +40,7 @@ export const OFFER_LETTER: OfferLetterFile = {
 export const COMPANY: CompanyProfile = {
   legalName: 'VeloxIQ Infra Projects Pvt Ltd',
   tradeName: 'VeloxIQ Infra',
+  companyType: 'pvt_ltd',
   cin: 'U45200TG2019PTC134567',
   gstin: '36AAHCV1234K1Z8',
   pan: 'AAHCV1234K',
@@ -62,85 +63,66 @@ const PROJECTS_RAW: Project[] = [
   {
     id: 'P-101', code: 'NH65-PKG2', name: 'NH-65 widening, package 2', client: 'National Highways Authority', startDate: '2026-01-15', endDate: '2027-12-31',
     status: 'Active', value: 4_85_00_00_000, description: 'Four-laning of 38 km stretch including two minor bridges.',
-    plan: { startDate: '2026-01-20', endDate: '2027-06-30', peakWorkforce: 240, workingDays: 'Mon–Sat', notes: 'Monsoon slowdown Jul–Sep.' },
+    plan: { startDate: '2026-01-20', endDate: '2027-06-30', peakWorkforce: 240, workingDays: 'Monâ€“Sat', notes: 'Monsoon slowdown Julâ€“Sep.' },
     zones: [{ id: 'Z-S1', label: 'Main location', type: 'Other', shape: 'Linear', centerLat: 17.14, centerLng: 79.6247, radiusM: 0, points: [[17.15, 79.57], [17.146, 79.6], [17.1405, 79.6233], [17.135, 79.65], [17.1305, 79.68]], bufferM: 250, version: 3, updatedAt: '2026-10-20T11:30:00', updatedBy: TENANT_ADMIN }],
     milestones: [
       { id: 'MS-1', name: 'Mobilisation complete', due: '2026-03-31', weight: 10, status: 'Done' },
-      { id: 'MS-2', name: 'Earthwork km 0–20', due: '2026-12-15', weight: 30, status: 'In progress' },
+      { id: 'MS-2', name: 'Earthwork km 0â€“20', due: '2026-12-15', weight: 30, status: 'In progress' },
       { id: 'MS-3', name: 'Minor bridge 1 deck cast', due: '2027-04-30', weight: 25, status: 'Not started' },
       { id: 'MS-4', name: 'Bituminous surfacing', due: '2027-11-30', weight: 35, status: 'Not started' },
     ],
-    wbs: [
-      { id: 'W-1', code: '1', name: 'Earthwork', parentId: null },
-      { id: 'W-2', code: '1.1', name: 'Embankment km 0–20', parentId: 'W-1' },
-      { id: 'W-3', code: '1.2', name: 'Embankment km 20–38', parentId: 'W-1' },
-      { id: 'W-4', code: '2', name: 'Structures', parentId: null },
-      { id: 'W-5', code: '2.1', name: 'Minor bridge 1', parentId: 'W-4' },
-    ],
-    locationIds: ['S-201', 'S-202'],
     chainage: { startKm: 0, endKm: 38, markers: [
-      { id: 'CH-1', km: 0, label: 'Start of package', wbsCode: '1.1' },
-      { id: 'CH-2', km: 8.5, label: 'Minor bridge 1', wbsCode: '2.1' },
-      { id: 'CH-3', km: 20, label: 'Camp A boundary', wbsCode: '1.1' },
-      { id: 'CH-6', km: 20, label: 'Camp B start', wbsCode: '1.2' },
+      { id: 'CH-1', km: 0, label: 'Start of package' },
+      { id: 'CH-2', km: 8.5, label: 'Minor bridge 1' },
+      { id: 'CH-3', km: 20, label: 'Camp A boundary' },
+      { id: 'CH-6', km: 20, label: 'Camp B start' },
     ] },
   },
   {
     id: 'P-102', code: 'MTR-DEP', name: 'Metro depot civil works', client: 'City Metro Rail Corp', startDate: '2026-04-01', endDate: '2027-09-30',
     status: 'Active', value: 1_92_00_00_000, description: 'Depot buildings, inspection bays and stabling lines.',
-    plan: { startDate: '2026-04-05', endDate: '2027-09-15', peakWorkforce: 320, workingDays: 'Mon–Sun (rotational)', notes: 'Night work permitted.' },
+    plan: { startDate: '2026-04-05', endDate: '2027-09-15', peakWorkforce: 320, workingDays: 'Monâ€“Sun (rotational)', notes: 'Night work permitted.' },
     zones: [{ id: 'Z-S2', label: 'Main location', type: 'Other', shape: 'Polygon', centerLat: 17.4012, centerLng: 78.5591, radiusM: 0, points: [[17.4031, 78.557], [17.403, 78.5612], [17.3994, 78.5614], [17.3995, 78.5569]], bufferM: 0, version: 1, updatedAt: '2026-04-02T09:00:00', updatedBy: TENANT_ADMIN }],
     milestones: [
       { id: 'MS-5', name: 'Foundations', due: '2026-10-31', weight: 40, status: 'In progress' },
       { id: 'MS-6', name: 'Superstructure', due: '2027-05-31', weight: 60, status: 'Not started' },
     ],
-    wbs: [
-      { id: 'W-6', code: '1', name: 'Inspection bay', parentId: null },
-      { id: 'W-7', code: '1.1', name: 'Pile foundations', parentId: 'W-6' },
-    ],
-    locationIds: ['S-203'],
-    chainage: { startKm: 0, endKm: 0, markers: [{ id: 'CH-7', km: 0, label: 'Depot gate 1', wbsCode: '1' }] },
+    chainage: { startKm: 0, endKm: 0, markers: [{ id: 'CH-7', km: 0, label: 'Depot gate 1' }] },
   },
   {
     id: 'P-103', code: 'WTP-SRK', name: 'Water treatment plant, Srikakulam', client: 'State Water Board', startDate: '2027-01-10', endDate: '2028-03-31',
     status: 'Planning', value: 86_00_00_000, description: '120 MLD plant with clear water reservoir.', milestones: [],
-    wbs: [{ id: 'W-9', code: '1', name: 'Intake and clarifiers', parentId: null }],
-    locationIds: ['S-206'],
     chainage: { startKm: 0, endKm: 2.5, markers: [
-      { id: 'CH-8', km: 0, label: 'Intake well', wbsCode: '1' },
-      { id: 'CH-9', km: 2.5, label: 'Clarifier tanks', wbsCode: '1' },
+      { id: 'CH-8', km: 0, label: 'Intake well' },
+      { id: 'CH-9', km: 2.5, label: 'Clarifier tanks' },
     ] },
-    plan: { startDate: '2027-01-10', endDate: '2028-03-31', peakWorkforce: 0, workingDays: 'Mon–Sat', notes: '' }, zones: [],
+    plan: { startDate: '2027-01-10', endDate: '2028-03-31', peakWorkforce: 0, workingDays: 'Monâ€“Sat', notes: '' }, zones: [],
   },
   {
     id: 'P-104', code: 'FLY-KKP', name: 'Kukatpally junction flyover', client: 'Greater Hyderabad Municipal Corp', startDate: '2026-02-01', endDate: '2027-07-31',
     status: 'On hold', value: 2_40_00_00_000, description: 'Six-lane flyover; on hold until the client shifts utilities.',
-    plan: { startDate: '2026-02-01', endDate: '2027-07-31', peakWorkforce: 0, workingDays: 'Mon–Sat', notes: 'On hold until the client shifts utilities.' },
+    plan: { startDate: '2026-02-01', endDate: '2027-07-31', peakWorkforce: 0, workingDays: 'Monâ€“Sat', notes: 'On hold until the client shifts utilities.' },
     zones: [],
     milestones: [{ id: 'MS-7', name: 'Pile load test', due: '2026-06-30', weight: 20, status: 'Done' }, { id: 'MS-8', name: 'Pier caps', due: '2027-01-31', weight: 30, status: 'Not started' }],
-    wbs: [{ id: 'W-10', code: '1', name: 'Pier works', parentId: null }],
-    locationIds: ['S-205'],
-    chainage: { startKm: 0, endKm: 0, markers: [{ id: 'CH-10', km: 0, label: 'Pier P1 junction', wbsCode: '1' }] },
+    chainage: { startKm: 0, endKm: 0, markers: [{ id: 'CH-10', km: 0, label: 'Pier P1 junction' }] },
   },
   {
     id: 'P-105', code: 'CNL-PH1', name: 'Canal lining, phase 1', client: 'State Irrigation Department', startDate: '2025-04-01', endDate: '2026-09-30',
     status: 'Completed', value: 64_00_00_000, description: '14 km concrete lining of the main canal.',
-    plan: { startDate: '2025-04-10', endDate: '2026-09-20', peakWorkforce: 140, workingDays: 'Mon–Sat', notes: 'Demobilised after handover on 25 Sep 2026.' },
+    plan: { startDate: '2025-04-10', endDate: '2026-09-20', peakWorkforce: 140, workingDays: 'Monâ€“Sat', notes: 'Demobilised after handover on 25 Sep 2026.' },
     zones: [{ id: 'Z-S3', label: 'Main location', type: 'Other', shape: 'Radius', centerLat: 16.8722, centerLng: 79.5625, radiusM: 400, points: [], bufferM: 0, version: 1, updatedAt: '2025-04-08T10:00:00', updatedBy: TENANT_ADMIN }],
-    milestones: [{ id: 'MS-9', name: 'Lining km 0–14', due: '2026-08-31', weight: 100, status: 'Done' }],
-    wbs: [{ id: 'W-8', code: '1', name: 'Concrete lining', parentId: null }],
-    locationIds: ['S-204'],
-    chainage: { startKm: 0, endKm: 14, markers: [{ id: 'CH-4', km: 0, label: 'Head regulator', wbsCode: '1' }, { id: 'CH-5', km: 14, label: 'End of phase 1', wbsCode: '1' }] },
+    milestones: [{ id: 'MS-9', name: 'Lining km 0â€“14', due: '2026-08-31', weight: 100, status: 'Done' }],
+    chainage: { startKm: 0, endKm: 14, markers: [{ id: 'CH-4', km: 0, label: 'Head regulator' }, { id: 'CH-5', km: 14, label: 'End of phase 1' }] },
   },
 ]
 
 const SITES_RAW: Site[] = [
   {
-    id: 'S-201', code: 'NH65-A', name: 'NH-65 camp A (km 0–20)', addressLine: 'Camp office, km 4.2', city: 'Suryapet', state: 'Telangana', pin: '508213',
+    id: 'S-201', code: 'NH65-A', name: 'NH-65 camp A (km 0â€“20)', addressLine: 'Camp office, km 4.2', city: 'Suryapet', state: 'Telangana', pin: '508213',
     inCharge: 'Ravi Kumar', phone: '9811122233', email: 'site.a@veloxiq.example', status: 'Active',
   },
   {
-    id: 'S-202', code: 'NH65-B', name: 'NH-65 camp B (km 20–38)', addressLine: 'Camp office, km 27.8', city: 'Kodad', state: 'Telangana', pin: '508206',
+    id: 'S-202', code: 'NH65-B', name: 'NH-65 camp B (km 20â€“38)', addressLine: 'Camp office, km 27.8', city: 'Kodad', state: 'Telangana', pin: '508206',
     inCharge: 'Meera Das', phone: '9822233344', email: 'site.b@veloxiq.example', status: 'Active',
   },
   {
@@ -162,13 +144,13 @@ const SITES_RAW: Site[] = [
 ]
 
 const STORES_RAW: Store[] = [
-  { id: 'ST-301', code: 'STR-A', name: 'Camp A main store', chainageId: 'CH-1', locationId: 'S-201', location: 'Camp A, shed 2', keeper: 'Kiran Rao', phone: '9844455566', status: 'Active' },
-  { id: 'ST-302', code: 'STR-B', name: 'Camp B store', chainageId: 'CH-6', locationId: 'S-202', location: 'Camp B, yard', keeper: 'Arun Reddy', phone: '9855566677', status: 'Active' },
-  { id: 'ST-303', code: 'STR-D', name: 'Depot store', chainageId: 'CH-7', locationId: 'S-203', location: 'Depot gate 1', keeper: 'Ananya Rao', phone: '9866677788', status: 'Active' },
-  { id: 'ST-304', code: 'STR-C', name: 'Canal camp store', chainageId: 'CH-4', locationId: 'S-204', location: 'Camp yard (closed)', keeper: 'Gopal Krishna', phone: '9844411122', status: 'Inactive' },
-  { id: 'ST-305', code: 'STR-WTP', name: 'WTP site store', chainageId: 'CH-8', locationId: 'S-206', location: 'Intake well yard', keeper: 'Suresh Babu', phone: '9877788899', status: 'Active' },
-  { id: 'ST-306', code: 'STR-FLY', name: 'Flyover store', chainageId: 'CH-10', locationId: 'S-205', location: 'Pier P1 yard', keeper: 'Lakshmi Devi', phone: '9888899900', status: 'Active' },
-  { id: 'ST-307', code: 'STR-CNL', name: 'Canal phase 1 store', chainageId: 'CH-5', locationId: 'S-204', location: 'End of phase 1 yard', keeper: 'Ramesh Naidu', phone: '9899900011', status: 'Active' },
+  { id: 'ST-301', code: 'STR-A', name: 'Camp A main store', chainageId: 'CH-1', projectId: 'P-101', location: 'Camp A, shed 2', keeper: 'Kiran Rao', phone: '9844455566', status: 'Active' },
+  { id: 'ST-302', code: 'STR-B', name: 'Camp B store', chainageId: 'CH-6', projectId: 'P-101', location: 'Camp B, yard', keeper: 'Arun Reddy', phone: '9855566677', status: 'Active' },
+  { id: 'ST-303', code: 'STR-D', name: 'Depot store', chainageId: 'CH-7', projectId: 'P-102', location: 'Depot gate 1', keeper: 'Ananya Rao', phone: '9866677788', status: 'Active' },
+  { id: 'ST-304', code: 'STR-C', name: 'Canal camp store', chainageId: 'CH-4', projectId: 'P-105', location: 'Camp yard (closed)', keeper: 'Gopal Krishna', phone: '9844411122', status: 'Inactive' },
+  { id: 'ST-305', code: 'STR-WTP', name: 'WTP site store', chainageId: 'CH-8', projectId: 'P-103', location: 'Intake well yard', keeper: 'Suresh Babu', phone: '9877788899', status: 'Active' },
+  { id: 'ST-306', code: 'STR-FLY', name: 'Flyover store', chainageId: 'CH-10', projectId: 'P-104', location: 'Pier P1 yard', keeper: 'Lakshmi Devi', phone: '9888899900', status: 'Active' },
+  { id: 'ST-307', code: 'STR-CNL', name: 'Canal phase 1 store', chainageId: 'CH-5', projectId: 'P-105', location: 'End of phase 1 yard', keeper: 'Ramesh Naidu', phone: '9899900011', status: 'Active' },
 ]
 
 const ALL = ['ST-301', 'ST-302', 'ST-303']
@@ -253,20 +235,20 @@ export const EQUIPMENT_TYPES = [
 const MIN_UNITS_PER_TYPE = 5
 
 const PLAN_LINES_RAW: PlanLine[] = [
-  { id: 'EP-1', equipmentType: 'Excavator', projectId: 'P-101', plannedQty: 4, from: '2026-02-01', to: '2027-03-31', reason: 'Earthwork km 0–20' },
+  { id: 'EP-1', equipmentType: 'Excavator', projectId: 'P-101', plannedQty: 4, from: '2026-02-01', to: '2027-03-31', reason: 'Earthwork km 0â€“20' },
   { id: 'EP-2', equipmentType: 'Dump Truck', projectId: 'P-101', plannedQty: 12, from: '2026-02-01', to: '2027-03-31', reason: 'Haulage' },
   { id: 'EP-3', equipmentType: 'Road Roller', projectId: 'P-101', plannedQty: 3, from: '2026-04-01', to: '2027-10-31', reason: 'Compaction both camps' },
   { id: 'EP-4', equipmentType: 'Tower Crane', projectId: 'P-102', plannedQty: 1, from: '2026-05-01', to: '2026-12-31', reason: 'Pile foundations' },
   { id: 'EP-5', equipmentType: 'Concrete Mixer', projectId: 'P-102', plannedQty: 5, from: '2026-05-01', to: '2027-08-31', reason: 'Concrete supply' },
-  { id: 'EP-6', equipmentType: 'Motor Grader', projectId: 'P-101', plannedQty: 1, from: '2026-06-01', to: '2027-06-30', reason: 'Sub-grade levelling km 20–38' },
+  { id: 'EP-6', equipmentType: 'Motor Grader', projectId: 'P-101', plannedQty: 1, from: '2026-06-01', to: '2027-06-30', reason: 'Sub-grade levelling km 20â€“38' },
   { id: 'EP-7', equipmentType: 'Excavator', projectId: 'P-101', plannedQty: 1, from: '2026-03-15', to: '2027-03-31', reason: 'Drain excavation, camp B' },
 ]
 
 // TODO(backend): mock manpower plan; replace with GET /projects/{id}/people-plan.
 const PEOPLE_PLAN_RAW: PeoplePlanLine[] = [
-  { id: 'PP-1', projectId: 'P-101', role: 'Site Engineer', headcount: 6, from: '2026-02-01', to: '2027-03-31', status: 'Confirmed' },
-  { id: 'PP-2', projectId: 'P-101', role: 'Heavy vehicle operator', headcount: 18, from: '2026-02-01', to: '2027-03-31', status: 'Planned' },
-  { id: 'PP-3', projectId: 'P-101', role: 'Surveyor', headcount: 4, from: '2026-01-15', to: '2026-10-31', status: 'Fulfilled' },
+  { id: 'PP-1', projectId: 'P-101', department: 'Engineering and design', role: 'Site Engineer', headcount: 6, from: '2026-02-01', to: '2027-03-31', status: 'Confirmed' },
+  { id: 'PP-2', projectId: 'P-101', department: 'Plant and machinery', role: 'Heavy vehicle operator', headcount: 18, from: '2026-02-01', to: '2027-03-31', status: 'Planned' },
+  { id: 'PP-3', projectId: 'P-101', department: 'Projects', role: 'Surveyor', headcount: 4, from: '2026-01-15', to: '2026-10-31', status: 'Fulfilled' },
 ]
 
 // Sample cash limit matrix for demo data; the server copy comes from GET /cash-limit-rows.
@@ -403,7 +385,7 @@ const USERS_RAW: CoreUser[] = [
   { id: 'U-607', name: 'Ramesh Chandra', email: 'ramesh.chandra@veloxiq.example', phone: '9900077788', designation: 'Director, operations', employeeId: 'EMP-1007', positionId: 'R-02', loginId: 'VELOX1007', role: 'Approver', modules: [], scopeType: 'Project', scopeIds: ['P-101', 'P-102'], privileges: [], status: 'Active', mustChangePassword: true, lastLogin: null, createdAt: '2026-11-02T10:00:00' },
 ]
 
-/** Privilege catalogue per module. Placeholder until each module publishes its catalogue (PRD §6, blocking question 2). */
+/** Privilege catalogue per module. Placeholder until each module publishes its catalogue (PRD Â§6, blocking question 2). */
 export const PRIVILEGES: Record<string, { id: string; label: string }[]> = {
   HRMS: [
     { id: 'hrms.users.manage', label: 'Manage module users' }, { id: 'hrms.requests.raise', label: 'Raise requests' },
@@ -450,7 +432,7 @@ const CHAIN_SEEDS: ChainSeed[] = [
     ],
   },
   { id: 'AC-8', requestType: 'Recruitment', module: 'HRMS', raisedBy: 'Module head', scopeType: 'Company', scopeIds: [], versions: [{ ...v1([]), reason: 'Not configured yet' }] },
-  // PRD v2 §3.6 — CORE approves, HRMS executes
+  // PRD v2 Â§3.6 â€” CORE approves, HRMS executes
   { id: 'AC-9', requestType: 'Employee transfer', module: 'HRMS', raisedBy: 'HRMS', scopeType: 'Company', scopeIds: [], versions: [v1([['U-601', 24], ['U-600', 48]], '2026-11-01')] },
   { id: 'AC-10', requestType: 'Promotion', module: 'HRMS', raisedBy: 'HRMS', scopeType: 'Company', scopeIds: [], versions: [v1([['U-601', 48], ['U-600', 72]], '2026-11-01')] },
   { id: 'AC-11', requestType: 'Bonus and incentive', module: 'HRMS', raisedBy: 'HRMS', scopeType: 'Company', scopeIds: [], versions: [v1([['U-601', 48], ['U-600', 72]], '2026-11-01')] },
@@ -461,7 +443,7 @@ const CHAIN_SEEDS: ChainSeed[] = [
     ...v1([['U-607', 24], ['U-606', 48], ['U-600', 48]], '2026-10-01'),
     reason: 'Metro depot project: CFO checks every advance under the client contract',
   }] },
-  // Payments: L1 clears payments up to ₹50,000, L2 up to ₹5,00,000; anything above goes to L3.
+  // Payments: L1 clears payments up to â‚¹50,000, L2 up to â‚¹5,00,000; anything above goes to L3.
   { id: 'AC-15', requestType: 'Payments', module: 'PMS', raisedBy: 'Module head or user', scopeType: 'Company', scopeIds: [], versions: [{
     ...v1([['U-602', 24], ['U-601', 48], ['U-600', 48]]),
     levels: v1([['U-602', 24], ['U-601', 48], ['U-600', 48]]).levels.map((l, i) => ({ ...l, cashLimit: [50000, 500000][i] })),
@@ -500,13 +482,13 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     payload: { kind: 'material', materialId: 'M-409', qty: 150, neededBy: '2026-11-25', storeId: 'ST-307' },
   },
   {
-    id: 'REQ-2041', type: 'Equipment', module: 'P&M', title: '2 excavators for km 12–18 cutting', raisedBy: 'Rahul Verma', raisedById: 'U-604', raisedAt: d('2026-11-05T10:15:00'),
+    id: 'REQ-2041', type: 'Equipment', module: 'P&M', title: '2 excavators for km 12â€“18 cutting', raisedBy: 'Rahul Verma', raisedById: 'U-604', raisedAt: d('2026-11-05T10:15:00'),
     chainageId: 'CH-1', emergency: false, status: 'Pending', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Rahul Verma', action: 'Raised', at: '2026-11-05T10:15:00', comment: 'Rock strata slower than estimated.' },
-      { level: 1, by: 'Rahul Verma', action: 'Escalated', at: '2026-11-06T10:15:00', comment: 'L1 cannot approve own request — routed to L2.' },
+      { level: 1, by: 'Rahul Verma', action: 'Escalated', at: '2026-11-06T10:15:00', comment: 'L1 cannot approve own request â€” routed to L2.' },
     ],
-    payload: { kind: 'equipment', equipmentType: 'Excavator', qty: 2, from: '2026-11-15', to: '2027-01-31', justification: 'Hard rock at km 12–18; current fleet behind schedule by 3 weeks.' },
+    payload: { kind: 'equipment', equipmentType: 'Excavator', qty: 2, from: '2026-11-15', to: '2027-01-31', justification: 'Hard rock at km 12â€“18; current fleet behind schedule by 3 weeks.' },
   },
   {
     id: 'REQ-2039', type: 'Material', module: 'Stores', title: 'Cement for camp B culverts', raisedBy: 'Arun Reddy', raisedById: null, raisedAt: d('2026-11-04T14:40:00'),
@@ -518,11 +500,11 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     payload: { kind: 'material', materialId: 'M-401', qty: 400, neededBy: '2026-11-10', storeId: 'ST-302' },
   },
   {
-    id: 'REQ-2037', type: 'Advance payment', module: 'PMS', title: 'Mobilisation advance — earthwork subcontractor', raisedBy: 'Vikram Singh', raisedById: 'U-602', raisedAt: d('2026-11-03T11:00:00'),
+    id: 'REQ-2037', type: 'Advance payment', module: 'PMS', title: 'Mobilisation advance â€” earthwork subcontractor', raisedBy: 'Vikram Singh', raisedById: 'U-602', raisedAt: d('2026-11-03T11:00:00'),
     chainageId: 'CH-1', emergency: false, status: 'In review', currentLevel: 3, matrixVersion: 2,
     history: [
       { level: 0, by: 'Vikram Singh', action: 'Raised', at: '2026-11-03T11:00:00', comment: '' },
-      { level: 1, by: 'System', action: 'Escalated', at: '2026-11-03T11:00:00', comment: 'Raiser is the L1 approver — segregation of duties.' },
+      { level: 1, by: 'System', action: 'Escalated', at: '2026-11-03T11:00:00', comment: 'Raiser is the L1 approver â€” segregation of duties.' },
       { level: 2, by: 'Sunita Iyer', action: 'Approved', at: '2026-11-04T09:30:00', comment: 'Contract clause 7.2 allows 10% advance.' },
     ],
     payload: { kind: 'payment', amount: 18_50_000, payee: 'Sri Lakshmi Earthmovers', purpose: '10% mobilisation advance per subcontract SC-118' },
@@ -532,9 +514,19 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     chainageId: 'CH-6', emergency: false, status: 'Approved', currentLevel: 1, matrixVersion: 2,
     history: [
       { level: 0, by: 'Meera Das', action: 'Raised', at: '2026-11-02T16:20:00', comment: '' },
-      { level: 1, by: 'Vikram Singh', action: 'Approved', at: '2026-11-02T18:00:00', comment: 'Below threshold — PMS pays.' },
+      { level: 1, by: 'Vikram Singh', action: 'Approved', at: '2026-11-02T18:00:00', comment: 'Below threshold â€” PMS pays.' },
     ],
     payload: { kind: 'payment', amount: 75_000, payee: 'Camp B imprest', purpose: 'Petty cash for November' },
+  },
+  {
+    // pending for the Tenant Admin (U-600): L1 has approved, so the request waits at L2
+    id: 'REQ-2042', type: 'Offer letter', module: 'HRMS', title: 'Offer — QA/QC engineer', raisedBy: 'Priya Sharma', raisedById: null, raisedAt: d('2026-11-24T11:30:00'),
+    chainageId: 'CH-6', emergency: false, status: 'Pending', currentLevel: 2, matrixVersion: 1,
+    history: [
+      { level: 0, by: 'Priya Sharma', action: 'Raised', at: '2026-11-24T11:30:00', comment: '' },
+      { level: 1, by: 'Sunita Iyer', action: 'Approved', at: '2026-11-25T09:15:00', comment: 'Candidate profile checked.' },
+    ],
+    payload: { kind: 'offer', candidate: 'Anjali Sen', position: 'QA/QC engineer', ctc: 7_20_000, joining: '2026-12-15' },
   },
   {
     id: 'REQ-2033', type: 'Recruitment', module: 'HRMS', title: '3 surveyors for camp B', raisedBy: 'Meera Das', raisedById: null, raisedAt: d('2026-11-01T09:00:00'),
@@ -543,23 +535,23 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     payload: { kind: 'recruitment', position: 'Surveyor', count: 3 },
   },
   {
-    id: 'REQ-2031', type: 'Offer letter', module: 'HRMS', title: 'Offer — Site engineer (structures)', raisedBy: 'Sunita Iyer', raisedById: 'U-601', raisedAt: d('2026-10-31T12:00:00'),
+    id: 'REQ-2031', type: 'Offer letter', module: 'HRMS', title: 'Offer â€” Site engineer (structures)', raisedBy: 'Sunita Iyer', raisedById: 'U-601', raisedAt: d('2026-10-31T12:00:00'),
     chainageId: 'CH-7', emergency: false, status: 'Pending', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Sunita Iyer', action: 'Raised', at: '2026-10-31T12:00:00', comment: '' },
-      { level: 1, by: 'System', action: 'Escalated', at: '2026-10-31T12:00:00', comment: 'Raiser is the L1 approver — segregation of duties.' },
+      { level: 1, by: 'System', action: 'Escalated', at: '2026-10-31T12:00:00', comment: 'Raiser is the L1 approver â€” segregation of duties.' },
     ],
     payload: { kind: 'offer', candidate: 'Karthik Menon', position: 'Site engineer (structures)', ctc: 9_60_000, joining: '2026-12-01' },
   },
   {
-    id: 'REQ-2029', type: 'Job opening', module: 'HRMS', title: 'Opening — QA/QC engineer', raisedBy: 'Priya Sharma', raisedById: null, raisedAt: d('2026-10-29T10:00:00'),
+    id: 'REQ-2029', type: 'Job opening', module: 'HRMS', title: 'Opening â€” QA/QC engineer', raisedBy: 'Priya Sharma', raisedById: null, raisedAt: d('2026-10-29T10:00:00'),
     chainageId: 'CH-7', emergency: false, status: 'Approved', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Priya Sharma', action: 'Raised', at: '2026-10-29T10:00:00', comment: '' },
       { level: 1, by: 'Sunita Iyer', action: 'Approved', at: '2026-10-29T15:00:00', comment: '' },
       { level: 2, by: TENANT_ADMIN, action: 'Approved', at: '2026-10-30T10:00:00', comment: 'Approved.' },
     ],
-    payload: { kind: 'job', position: 'QA/QC engineer', openings: 1, ctcMin: 6_00_000, ctcMax: 8_40_000, experience: '4–6 years', route: 'Head Office posts and sends candidate', postedOnHrms: true, publishedToSite: null },
+    payload: { kind: 'job', position: 'QA/QC engineer', openings: 1, ctcMin: 6_00_000, ctcMax: 8_40_000, experience: '4â€“6 years', route: 'Head Office posts and sends candidate', postedOnHrms: true, publishedToSite: null },
   },
   {
     id: 'REQ-2027', type: 'Manpower requisition', module: 'HRMS', title: 'Additional helpers for shuttering', raisedBy: 'Ravi Kumar', raisedById: null, raisedAt: d('2026-10-28T09:30:00'),
@@ -571,11 +563,11 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     payload: { kind: 'mrf', position: 'Helper (shuttering)', count: 15, reason: 'Bridge 1 deck shuttering', requiredBy: '2026-11-20' },
   },
   {
-    id: 'REQ-2025', type: 'Onboarded employee list', module: 'HRMS', title: 'October joiners — depot location', raisedBy: 'Sunita Iyer', raisedById: 'U-601', raisedAt: d('2026-10-27T11:00:00'),
+    id: 'REQ-2025', type: 'Onboarded employee list', module: 'HRMS', title: 'October joiners â€” depot location', raisedBy: 'Sunita Iyer', raisedById: 'U-601', raisedAt: d('2026-10-27T11:00:00'),
     chainageId: 'CH-7', emergency: false, status: 'Pending', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Sunita Iyer', action: 'Raised', at: '2026-10-27T11:00:00', comment: '' },
-      { level: 1, by: 'System', action: 'Escalated', at: '2026-10-27T11:00:00', comment: 'Raiser is the L1 approver — segregation of duties.' },
+      { level: 1, by: 'System', action: 'Escalated', at: '2026-10-27T11:00:00', comment: 'Raiser is the L1 approver â€” segregation of duties.' },
     ],
     payload: { kind: 'onboarding', employees: [
       { name: 'Lakshmi Prasad', position: 'Surveyor', joining: '2026-10-20' },
@@ -584,16 +576,16 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     ] },
   },
   {
-    id: 'REQ-2051', type: 'Job opening', module: 'HRMS', title: 'Opening — Surveyor (camp B)', raisedBy: 'Sunita Iyer', raisedById: 'U-601', raisedAt: '2026-11-06T09:20:00',
+    id: 'REQ-2051', type: 'Job opening', module: 'HRMS', title: 'Opening â€” Surveyor (camp B)', raisedBy: 'Sunita Iyer', raisedById: 'U-601', raisedAt: '2026-11-06T09:20:00',
     chainageId: 'CH-6', emergency: false, status: 'Pending', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Sunita Iyer', action: 'Raised', at: '2026-11-06T09:20:00', comment: 'Requirement from camp B posted on the HRMS recruitment page.' },
-      { level: 1, by: 'System', action: 'Escalated', at: '2026-11-06T09:20:00', comment: 'Raiser is the L1 approver — segregation of duties.' },
+      { level: 1, by: 'System', action: 'Escalated', at: '2026-11-06T09:20:00', comment: 'Raiser is the L1 approver â€” segregation of duties.' },
     ],
-    payload: { kind: 'job', position: 'Surveyor', openings: 3, ctcMin: 3_60_000, ctcMax: 4_80_000, experience: '2–4 years', postedOnHrms: true },
+    payload: { kind: 'job', position: 'Surveyor', openings: 3, ctcMin: 3_60_000, ctcMax: 4_80_000, experience: '2â€“4 years', postedOnHrms: true },
   },
   {
-    id: 'REQ-2063', type: 'Job opening', module: 'HRMS', title: 'Opening — Electrician (depot)', raisedBy: 'Priya Sharma', raisedById: null, raisedAt: '2026-10-26T10:00:00',
+    id: 'REQ-2063', type: 'Job opening', module: 'HRMS', title: 'Opening â€” Electrician (depot)', raisedBy: 'Priya Sharma', raisedById: null, raisedAt: '2026-10-26T10:00:00',
     chainageId: 'CH-7', emergency: false, status: 'Approved', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Priya Sharma', action: 'Raised', at: '2026-10-26T10:00:00', comment: '' },
@@ -603,17 +595,17 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     payload: { kind: 'job', position: 'Electrician', openings: 2, ctcMin: 2_40_000, ctcMax: 3_00_000, experience: 'ITI and 3 years', route: 'Site hires directly', postedOnHrms: true, publishedToSite: null },
   },
   {
-    id: 'REQ-2065', type: 'Job opening', module: 'HRMS', title: 'Opening — Planning engineer (camp A)', raisedBy: 'Ravi Kumar', raisedById: null, raisedAt: '2026-10-20T09:00:00',
+    id: 'REQ-2065', type: 'Job opening', module: 'HRMS', title: 'Opening â€” Planning engineer (camp A)', raisedBy: 'Ravi Kumar', raisedById: null, raisedAt: '2026-10-20T09:00:00',
     chainageId: 'CH-1', emergency: false, status: 'Approved', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Ravi Kumar', action: 'Raised', at: '2026-10-20T09:00:00', comment: '' },
       { level: 1, by: 'Sunita Iyer', action: 'Approved', at: '2026-10-20T14:00:00', comment: '' },
       { level: 2, by: TENANT_ADMIN, action: 'Approved', at: '2026-10-21T10:00:00', comment: 'Head Office to post and send a candidate.' },
     ],
-    payload: { kind: 'job', position: 'Planning engineer', openings: 1, ctcMin: 7_20_000, ctcMax: 9_00_000, experience: '5–8 years', route: 'Head Office posts and sends candidate', postedOnHrms: true, publishedToSite: '2026-10-22T11:00:00' },
+    payload: { kind: 'job', position: 'Planning engineer', openings: 1, ctcMin: 7_20_000, ctcMax: 9_00_000, experience: '5â€“8 years', route: 'Head Office posts and sends candidate', postedOnHrms: true, publishedToSite: '2026-10-22T11:00:00' },
   },
   {
-    id: 'REQ-2067', type: 'Job opening', module: 'HRMS', title: 'Opening — Driver (camp B)', raisedBy: 'Meera Das', raisedById: null, raisedAt: '2026-10-18T09:00:00',
+    id: 'REQ-2067', type: 'Job opening', module: 'HRMS', title: 'Opening â€” Driver (camp B)', raisedBy: 'Meera Das', raisedById: null, raisedAt: '2026-10-18T09:00:00',
     chainageId: 'CH-6', emergency: false, status: 'Rejected', currentLevel: 1, matrixVersion: 1,
     history: [
       { level: 0, by: 'Meera Das', action: 'Raised', at: '2026-10-18T09:00:00', comment: '' },
@@ -622,13 +614,13 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     payload: { kind: 'job', position: 'Driver', openings: 2, ctcMin: 2_16_000, ctcMax: 2_64_000, experience: 'Heavy licence and 3 years', postedOnHrms: true },
   },
   {
-    id: 'REQ-2053', type: 'Employee transfer', module: 'HRMS', title: 'Transfer — Lakshmi Prasad to camp A', raisedBy: 'Meera Das', raisedById: null, raisedAt: '2026-11-05T15:00:00',
+    id: 'REQ-2053', type: 'Employee transfer', module: 'HRMS', title: 'Transfer â€” Lakshmi Prasad to camp A', raisedBy: 'Meera Das', raisedById: null, raisedAt: '2026-11-05T15:00:00',
     chainageId: 'CH-6', emergency: false, status: 'Pending', currentLevel: 1, matrixVersion: 1,
     history: [{ level: 0, by: 'Meera Das', action: 'Raised', at: '2026-11-05T15:00:00', comment: 'Raised in HRMS.' }],
-    payload: { kind: 'transfer', employee: 'Lakshmi Prasad', empId: 'EMP-2210', designation: 'Surveyor', fromSiteId: 'S-203', toSiteId: 'S-201', effective: '2026-11-16', reason: 'Camp A chainage survey for km 12–18.' },
+    payload: { kind: 'transfer', employee: 'Lakshmi Prasad', empId: 'EMP-2210', designation: 'Surveyor', fromSiteId: 'S-203', toSiteId: 'S-201', effective: '2026-11-16', reason: 'Camp A chainage survey for km 12â€“18.' },
   },
   {
-    id: 'REQ-2055', type: 'Promotion', module: 'HRMS', title: 'Promotion — Ravi Kumar to senior site engineer', raisedBy: 'Vikram Singh', raisedById: 'U-602', raisedAt: '2026-11-04T11:30:00',
+    id: 'REQ-2055', type: 'Promotion', module: 'HRMS', title: 'Promotion â€” Ravi Kumar to senior site engineer', raisedBy: 'Vikram Singh', raisedById: 'U-602', raisedAt: '2026-11-04T11:30:00',
     chainageId: 'CH-1', emergency: false, status: 'In review', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Vikram Singh', action: 'Raised', at: '2026-11-04T11:30:00', comment: '' },
@@ -637,22 +629,22 @@ const REQUESTS_RAW: Omit<ApprovalRequest, 'code'>[] = [
     payload: { kind: 'promotion', employee: 'Ravi Kumar', empId: 'EMP-1310', fromRole: 'Site engineer', toRole: 'Senior site engineer', currentCtc: 8_40_000, newCtc: 10_20_000, effective: '2026-12-01', justification: 'Led camp A mobilisation ahead of schedule.' },
   },
   {
-    id: 'REQ-2057', type: 'Bonus and incentive', module: 'HRMS', title: 'Monsoon productivity incentive — camp A', raisedBy: 'Sunita Iyer', raisedById: 'U-601', raisedAt: '2026-11-03T16:00:00',
+    id: 'REQ-2057', type: 'Bonus and incentive', module: 'HRMS', title: 'Monsoon productivity incentive â€” camp A', raisedBy: 'Sunita Iyer', raisedById: 'U-601', raisedAt: '2026-11-03T16:00:00',
     chainageId: 'CH-1', emergency: false, status: 'Pending', currentLevel: 2, matrixVersion: 1,
     history: [
       { level: 0, by: 'Sunita Iyer', action: 'Raised', at: '2026-11-03T16:00:00', comment: '' },
-      { level: 1, by: 'System', action: 'Escalated', at: '2026-11-03T16:00:00', comment: 'Raiser is the L1 approver — segregation of duties.' },
+      { level: 1, by: 'System', action: 'Escalated', at: '2026-11-03T16:00:00', comment: 'Raiser is the L1 approver â€” segregation of duties.' },
     ],
-    payload: { kind: 'bonus', basis: 'Incentive', scope: 'Camp A earthwork crew', headcount: 64, amount: 3_20_000, period: 'Jul–Sep 2026', criteria: 'Earthwork target met three months running.' },
+    payload: { kind: 'bonus', basis: 'Incentive', scope: 'Camp A earthwork crew', headcount: 64, amount: 3_20_000, period: 'Julâ€“Sep 2026', criteria: 'Earthwork target met three months running.' },
   },
   {
-    id: 'REQ-2059', type: 'Loan and advance', module: 'HRMS', title: 'Housing loan — Kiran Rao', raisedBy: 'Deepa Nair', raisedById: 'U-603', raisedAt: '2026-11-02T10:00:00',
+    id: 'REQ-2059', type: 'Loan and advance', module: 'HRMS', title: 'Housing loan â€” Kiran Rao', raisedBy: 'Deepa Nair', raisedById: 'U-603', raisedAt: '2026-11-02T10:00:00',
     chainageId: 'CH-1', emergency: false, status: 'Pending', currentLevel: 1, matrixVersion: 1,
     history: [{ level: 0, by: 'Deepa Nair', action: 'Raised', at: '2026-11-02T10:00:00', comment: 'Raised in HRMS for a store keeper.' }],
     payload: { kind: 'loan', employee: 'Kiran Rao', empId: 'EMP-1402', amount: 12_00_000, tenureMonths: 60, purpose: 'Housing loan under staff welfare scheme.' },
   },
   {
-    id: 'REQ-2061', type: 'Loan and advance', module: 'HRMS', title: 'Salary advance — Imran Shaikh', raisedBy: 'Priya Sharma', raisedById: null, raisedAt: '2026-11-06T08:10:00',
+    id: 'REQ-2061', type: 'Loan and advance', module: 'HRMS', title: 'Salary advance â€” Imran Shaikh', raisedBy: 'Priya Sharma', raisedById: null, raisedAt: '2026-11-06T08:10:00',
     chainageId: 'CH-7', emergency: true, status: 'Pending', currentLevel: 1, matrixVersion: 1,
     history: [{ level: 0, by: 'Priya Sharma', action: 'Raised', at: '2026-11-06T08:10:00', comment: 'Medical emergency in family.' }],
     payload: { kind: 'loan', employee: 'Imran Shaikh', empId: 'EMP-2231', amount: 40_000, tenureMonths: 4, purpose: 'Medical emergency.' },
@@ -709,6 +701,7 @@ const GRIEVANCES_RAW: Omit<Grievance, 'code'>[] = [
 ]
 
 const pv = <K extends PolicyVersion['key']>(key: K, version: number, effectiveFrom: string, reason: string, data: PolicyVersion<K>['data']): PolicyVersion<K> => ({
+  projectId: null,
   id: `${key}-v${version}`, key, version, effectiveFrom, reason, createdBy: TENANT_ADMIN, createdAt: `${effectiveFrom}T09:00:00`, data,
 })
 
@@ -747,12 +740,12 @@ const POLICIES_RAW: PolicyVersion[] = [
 
 const AUDIT_RAW: AuditEntry[] = [
   { id: 'AU-9007', at: '2026-10-20T11:30:00', user: TENANT_ADMIN, action: 'Geo-fence updated (step-up verified)', entity: 'Location', entityId: 'S-201', before: 'Circle 750 m at 17.14050, 79.62330', after: 'Linear, 5 pins, 250 m each side' },
-  { id: 'AU-9006', at: '2026-11-04T12:00:00', user: TENANT_ADMIN, action: 'Offer letter format replaced', entity: 'Company', entityId: 'offer-letter', before: 'Revision 2', after: 'Revision 3 · VeloxIQ-offer-letter-format.pdf' },
+  { id: 'AU-9006', at: '2026-11-04T12:00:00', user: TENANT_ADMIN, action: 'Offer letter format replaced', entity: 'Company', entityId: 'offer-letter', before: 'Revision 2', after: 'Revision 3 Â· VeloxIQ-offer-letter-format.pdf' },
   { id: 'AU-9005', at: '2026-11-04T09:30:00', user: 'Sunita Iyer', action: 'Approved L2', entity: 'Request', entityId: 'REQ-2037', before: 'Pending at L2', after: 'In review at L3' },
   { id: 'AU-9004', at: '2026-11-03T09:00:00', user: TENANT_ADMIN, action: 'Status changed', entity: 'Grievance', entityId: 'GRV-0106', before: 'UNDER_REVIEW', after: 'ESCALATED' },
   { id: 'AU-9003', at: '2026-09-14T10:20:00', user: TENANT_ADMIN, action: 'Geo-fence updated (step-up verified)', entity: 'Location', entityId: 'S-201', before: 'Radius 600 m', after: 'Radius 750 m' },
-  { id: 'AU-9002', at: '2026-08-01T09:00:00', user: TENANT_ADMIN, action: 'New policy version v2', entity: 'Policy', entityId: 'payment-threshold', before: '₹5,00,000', after: '₹10,00,000' },
-  { id: 'AU-9001', at: '2026-07-01T09:00:00', user: TENANT_ADMIN, action: 'New matrix version v2', entity: 'Approval chain', entityId: 'AC-7', before: 'L1 Vikram Singh → L2 Anil Mehta', after: 'L1 Vikram Singh → L2 Sunita Iyer → L3 Anil Mehta' },
+  { id: 'AU-9002', at: '2026-08-01T09:00:00', user: TENANT_ADMIN, action: 'New policy version v2', entity: 'Policy', entityId: 'payment-threshold', before: 'â‚¹5,00,000', after: 'â‚¹10,00,000' },
+  { id: 'AU-9001', at: '2026-07-01T09:00:00', user: TENANT_ADMIN, action: 'New matrix version v2', entity: 'Approval chain', entityId: 'AC-7', before: 'L1 Vikram Singh â†’ L2 Anil Mehta', after: 'L1 Vikram Singh â†’ L2 Sunita Iyer â†’ L3 Anil Mehta' },
 ]
 
 const TICKETS_RAW: Ticket[] = [

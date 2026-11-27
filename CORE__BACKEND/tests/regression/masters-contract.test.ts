@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
@@ -40,8 +40,7 @@ interface Resource {
 const RESOURCES: Resource[] = [
   { path: '/projects', privilege: PROJECTS_MANAGE, create: () => ({ code: code('PRJ'), name: 'Regression project' }), patch: { name: 'Renamed' }, unique: 'code' },
   { path: '/locations', privilege: PROJECTS_MANAGE, create: (f) => ({ code: code('LOC'), name: 'Regression site', projectId: f.projectId }), patch: { name: 'Renamed' }, unique: 'code' },
-  { path: '/stores', privilege: PROJECTS_MANAGE, create: (f) => ({ code: code('ST'), name: 'Regression store', locationId: f.locationId }), patch: { name: 'Renamed' }, unique: 'code' },
-  { path: '/wbs-nodes', privilege: PROJECTS_MANAGE, create: (f) => ({ code: code('W'), name: 'Regression WBS', projectId: f.projectId }), patch: { name: 'Renamed' }, unique: 'code' },
+  { path: '/stores', privilege: PROJECTS_MANAGE, create: (f) => ({ code: code('ST'), name: 'Regression store', projectId: f.projectId }), patch: { name: 'Renamed' }, unique: 'code' },
   { path: '/chainage-markers', privilege: PROJECTS_MANAGE, create: (f) => ({ code: code('CH'), projectId: f.projectId, chainageKm: 3 }), patch: { label: 'Culvert' }, unique: 'code' },
   {
     path: '/boq-items',

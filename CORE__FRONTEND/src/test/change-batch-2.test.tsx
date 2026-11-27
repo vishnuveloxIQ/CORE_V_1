@@ -1,15 +1,14 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+﻿import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAuth } from '@/modules/auth'
 import { loginPrefixFor, matchesCompanyPrefix, withCompanyPrefix } from '@/modules/auth/utils/tenants'
 import { useCore } from '@/modules/core-data'
 import { listCashLimitRows } from '@/modules/core-data/api/approvals'
-import { wbsFrom } from '@/modules/core-data/api/projectParts'
 import CustomPolicy from '@/modules/company/pages/CustomPolicy'
 import { siteSchema } from '@/modules/projects/utils/site/schema'
 
-// The second round of the 22 November change list: location coordinates, WBS status, the company login prefix,
+// The second round of the 22 November change list: location coordinates, the company login prefix,
 // custom policy deletion and the cash limit rows name. Example data is fictional.
 
 const reply = (status: number, body: unknown) =>
@@ -32,14 +31,6 @@ describe('location coordinates', () => {
     expect(issues({ latitude: 17.38, longitude: null })).toEqual(['longitude: Enter the longitude too.'])
     expect(issues({ latitude: 95, longitude: 78 })[0]).toMatch(/^latitude: Latitude is between -90 and 90/)
     expect(issues({ latitude: Number.NaN, longitude: 78 })[0]).toMatch(/^latitude: Enter a number/)
-  })
-})
-
-describe('WBS status', () => {
-  it('reads the server status as Active or Inactive', () => {
-    const base = { id: 'w1', code: '1', name: 'Earthwork', projectId: 'p1', parentWbsNodeId: null, rowVersion: 1 }
-    expect(wbsFrom({ ...base, status: 'active' }).status).toBe('Active')
-    expect(wbsFrom({ ...base, status: 'inactive' }).status).toBe('Inactive')
   })
 })
 

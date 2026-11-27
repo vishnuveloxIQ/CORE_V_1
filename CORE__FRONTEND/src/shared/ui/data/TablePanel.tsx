@@ -38,6 +38,8 @@ interface Props<T> {
   className?: string
   /** small print under the table, right-aligned */
   footNote?: string
+  /** extra filter controls shown in the toolbar, after the search box */
+  filters?: ReactNode
   /** show only the N most-used chips; the rest go in a "More" list */
   chipLimit?: number
   /** usage score per chip value (higher first); defaults to the number of rows */
@@ -49,7 +51,7 @@ interface Props<T> {
 }
 
 
-export function TablePanel<T>({ title, subtitle, columns, rows, rowKey, searchText, statusOf, action, searchPlaceholder = 'Search records…', exportName = 'veloxiq-export', className, footNote, chipLimit, chipRank, chipNoun = 'filters', initialPicked = [] }: Props<T>) {
+export function TablePanel<T>({ title, subtitle, columns, rows, rowKey, searchText, statusOf, action, searchPlaceholder = 'Search records…', exportName = 'veloxiq-export', className, footNote, filters, chipLimit, chipRank, chipNoun = 'filters', initialPicked = [] }: Props<T>) {
   const [query, setQuery] = useState('')
   /** chip filter — several can be on at once; none = all */
   const [picked, setPicked] = useState<string[]>(initialPicked)
@@ -93,8 +95,8 @@ export function TablePanel<T>({ title, subtitle, columns, rows, rowKey, searchTe
     if (!visible.length) return notify('There are no visible records to export.')
     // PRD §4: data export needs step-up authentication
     if (!(await requireStepUp(`Export ${title.toLowerCase()}`))) return
-    downloadText(`${exportName}.csv`, toCsv(columns.map((c) => c.header), shown.map((r) => columns.map((c) => (c.csv ? c.csv(r) : '')))))
-    notify('CSV exported from the visible records')
+    downloadText(`${exportName}.txt`, toCsv(columns.map((c) => c.header), shown.map((r) => columns.map((c) => (c.csv ? c.csv(r) : '')))))
+    notify('Text file downloaded from the visible records')
   }
 
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
@@ -106,10 +108,10 @@ export function TablePanel<T>({ title, subtitle, columns, rows, rowKey, searchTe
           <h2 className="card-t">{headingCase(title)}</h2>
           <div className="card-s">{subtitle}</div>
         </div>
-        <button type="button" className="text-link" onClick={exportCsv}><Icon name="download" />Export visible rows</button>
+        <button type="button" className="text-link" onClick={exportCsv}><Icon name="download" />Download</button>
       </div>
 
-      <div className="toolbar">
+      <div className="toolbar" style={filters ? { alignItems: 'flex-end' } : undefined}>
         {statusOf && (
           <div className="chips" role="group" aria-label={`Filter by ${chipNoun} (select one or more)`}>
             {chipLimit && counts.length > chipLimit && <span className="chips-label">Most used</span>}
@@ -132,6 +134,7 @@ export function TablePanel<T>({ title, subtitle, columns, rows, rowKey, searchTe
           <Icon name="search" />
           <input className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} autoComplete="off" />
         </div>
+        {filters}
         {(query || picked.length > 0) && <Button size="sm" onClick={() => { setQuery(''); setPicked([]) }}>Clear filters</Button>}
       </div>
 

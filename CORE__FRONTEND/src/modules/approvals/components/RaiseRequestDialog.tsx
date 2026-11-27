@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+﻿import { useId, useState } from 'react'
 import { useFieldArray, useWatch, type FieldError } from 'react-hook-form';
 import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -24,7 +24,6 @@ const schema = z.object({
   title: req('Title').max(200, 'Use 200 characters or fewer.'),
   amount: z.number({ error: 'Enter the amount.' }).min(0, 'Amount cannot be negative.'),
   projectId: z.string(),
-  locationId: z.string(),
   chainageMarkerId: z.string(),
   emergency: z.enum(['true', 'false']),
   /** when the request is needed by; a material request uses its own Required by date instead */
@@ -66,16 +65,15 @@ export function RaiseRequestDialog({ onClose }: { onClose: () => void }) {
   const { register, handleSubmit, setValue, control, formState: { errors: e } } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
-      requestType: REQUEST_TYPES[0], module: MODULE_OF[KIND_OF[REQUEST_TYPES[0]]], title: '', amount: 0, projectId: '', locationId: '', chainageMarkerId: '',
+      requestType: REQUEST_TYPES[0], module: MODULE_OF[KIND_OF[REQUEST_TYPES[0]]], title: '', amount: 0, projectId: '', chainageMarkerId: '',
       emergency: 'false', neededByDate: '', ...emptyPayload(),
     },
   })
   const employees = useFieldArray({ control, name: 'employees' })
-  const [requestType, projectId, locationId, emergency] = useWatch({ control, name: ['requestType', 'projectId', 'locationId', 'emergency'] })
+  const [requestType, projectId, emergency] = useWatch({ control, name: ['requestType', 'projectId', 'emergency'] })
   const kind = KIND_OF[requestType as RequestType]
 
   const project = projects.find((p) => p.id === projectId)
-  const locations = project ? sites.filter((s) => s.rowVersion !== undefined && (s.projectId === project.id || project.locationIds.includes(s.id))) : []
   const markers = (project?.chainage?.markers ?? []).filter((m) => asUuid(m.id))
 
   const options: Record<Source, Option[]> = {
@@ -104,7 +102,6 @@ export function RaiseRequestDialog({ onClose }: { onClose: () => void }) {
       amount: v.amount,
       title: v.title.trim(),
       projectId: v.projectId || undefined,
-      locationId: (v.projectId && v.locationId) || undefined,
       chainageMarkerId: (v.projectId && v.chainageMarkerId) || undefined,
       payload: kind ? buildPayload(kind, v) : undefined,
       emergency: v.emergency === 'true',
@@ -170,7 +167,7 @@ export function RaiseRequestDialog({ onClose }: { onClose: () => void }) {
     <Modal open size="wide" onOpenChange={(o) => !o && onClose()} title="New approval request" description="Raise a request for approval in CORE.">
       <form noValidate onSubmit={submit}>
         {formError && <div className="login-error" role="alert" style={{ marginBottom: 14 }}><span>{formError}</span></div>}
-        <ActionScope project={project ?? null} site={(project && locations.find((l) => l.id === locationId)) || null} />
+        <ActionScope project={project ?? null} site={null} />
         <div className="form-grid">
           <FormGroup label="Request type" required error={e.requestType?.message}>
             {(id, d) => (
@@ -214,18 +211,10 @@ export function RaiseRequestDialog({ onClose }: { onClose: () => void }) {
           <FormGroup label="Project" helper={projects.length ? 'Leave empty for a company-wide request.' : 'No project is on the server yet.'}>
             {(id) => (
               <Select id={id} {...register('projectId', {
-                onChange: () => { setValue('locationId', ''); setValue('chainageMarkerId', '') },
+                onChange: () => { setValue('chainageMarkerId', '') },
               })}>
                 <option value="">None (company-wide)</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </Select>
-            )}
-          </FormGroup>
-          <FormGroup label="Location" helper={!project ? 'Pick a project first.' : locations.length ? undefined : 'The project has no location on the server.'}>
-            {(id) => (
-              <Select id={id} disabled={!project} {...register('locationId')}>
-                <option value="">None</option>
-                {locations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </Select>
             )}
           </FormGroup>

@@ -6,20 +6,18 @@ import { FormGroup, Select } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { PageHead } from '@/modules/shell'
 import { StatTile } from '@/shared/ui/StatTile'
-import { StatusBadge } from '@/shared/ui/Status'
 import type { PeoplePlanLine, PeoplePlanStatus } from '@/modules/core-data'
 import { useEnter } from '@/shared/hooks/useMotion'
 import { bulk, saveEach } from '@/shared/lib/bulk'
 import { byId } from '@/shared/lib/core'
-import { fmtDate } from '@/shared/lib/format'
 import { notify } from '@/shared/lib/toast'
 import { newId, useCore } from '@/modules/core-data'
 import { errorText } from '@/shared/lib/api'
 import { Can, MANAGE } from '@/modules/auth'
+import { useApprovedPeople } from '@/modules/organisation'
 import { PeopleForm } from '../components/PeopleForm'
 import { PEOPLE_STATUSES as STATUSES, peopleSchema as schema } from '../utils/planning'
 
-const TONE = { Planned: 'pending', Confirmed: 'pending', Fulfilled: 'approved' } as const
 
 /** Resource planning: manpower required per project by role or trade. TODO(backend): GET/POST/PUT/DELETE /projects/{id}/people-plan (mock data today). */
 export default function PeoplePlanning() {
@@ -51,6 +49,17 @@ export default function PeoplePlanning() {
   const rows = projectId ? peoplePlan.filter((l) => l.projectId === projectId) : peoplePlan
   const total = (s?: PeoplePlanStatus) => rows.filter((l) => !s || l.status === s).reduce((n, l) => n + l.headcount, 0)
   const projectName = (id: string) => byId(projects, id)?.name ?? id
+  // people HRMS has onboarded (from the Approved list), for the chosen project or for all projects
+  const approvedPeople = useApprovedPeople((s) => s.people)
+  const chosenCode = byId(projects, projectId)?.code
+  const onboarded = approvedPeople.filter((p) => p.status === 'Onboarded' && (!projectId || p.projectCode === chosenCode)).length
+  // onboarded people on the requirement's project with the same department and role (designation)
+  const onboardedFor = (l: PeoplePlanLine) => {
+    const code = byId(projects, l.projectId)?.code
+    return approvedPeople.filter(
+      (p) => p.status === 'Onboarded' && p.projectCode === code && p.department === l.department && p.designation.trim().toLowerCase() === l.role.trim().toLowerCase(),
+    ).length
+  }
 
   return (
     <div ref={ref}>
@@ -63,19 +72,19 @@ export default function PeoplePlanning() {
         <FormGroup label="Show project">{(id) => <Select id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">All projects</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>}</FormGroup>
       </div>
       <div className="grid stats">
-        <StatTile label="Total headcount" value={total()} icon="users" tone="blue" />
-        <StatTile label="Planned" value={total('Planned')} icon="clipboard" tone="gold" />
-        <StatTile label="Confirmed" value={total('Confirmed')} icon="clipboard" tone="blue" />
-        <StatTile label="Fulfilled" value={total('Fulfilled')} icon="clipboard" tone="green" />
+        <StatTile label="Planned" value={total()} icon="users" tone="blue" />
+        <StatTile label="Confirmed" value={total('Planned')} icon="clipboard" tone="gold" />
+        <StatTile label="Onboarded" value={total('Confirmed')} icon="clipboard" tone="blue" />
+        <StatTile label="Vacent" value={onboarded} icon="users" tone="green" />
       </div>
-      <TablePanel title="Manpower requirements" subtitle="Filter by status using the chips; pick more than one to combine. Search by project or role. Headcount required per role or trade, per project."
+      <TablePanel title="Manpower requirements" subtitle=""
         rows={rows} rowKey={(l) => l.id}
         columns={[
           { header: 'Project', kind: 'c-sub', cell: (l) => <strong>{projectName(l.projectId)}</strong>, csv: (l) => projectName(l.projectId) },
-          { header: 'Role / trade', kind: 'c-id', cell: (l) => l.role, csv: (l) => l.role },
-          { header: 'Headcount', kind: 'c-amt', cell: (l) => l.headcount, csv: (l) => String(l.headcount) },
-          { header: 'Time Period', kind: 'c-more', cell: (l) => `${fmtDate(l.from)} – ${fmtDate(l.to)}`, csv: (l) => `${l.from} to ${l.to}` },
-          { header: 'Status', kind: 'c-status', cell: (l) => <StatusBadge tone={TONE[l.status]}>{l.status}</StatusBadge>, csv: (l) => l.status },
+          { header: 'Role', kind: 'c-id', cell: (l) => l.role, csv: (l) => l.role },
+          { header: 'Planned', kind: 'c-amt', cell: (l) => l.headcount, csv: (l) => String(l.headcount) },
+          { header: 'Onboarded', kind: 'c-amt', cell: (l) => onboardedFor(l), csv: (l) => String(onboardedFor(l)) },
+          { header: 'Vacant', kind: 'c-amt', cell: (l) => Math.max(0, l.headcount - onboardedFor(l)), csv: (l) => String(Math.max(0, l.headcount - onboardedFor(l))) },
         ]}
         searchText={(l) => `${projectName(l.projectId)} ${l.role}`} statusOf={(l) => l.status}
         action={(l) => <Can privilege={MANAGE.masters}><div className="row-actions"><Button size="sm" icon="pencil" onClick={() => setEdit(l)}>Edit</Button><Button size="sm" tone="danger" icon="trash" onClick={() => setRemove(l)}>Remove</Button></div></Can>}

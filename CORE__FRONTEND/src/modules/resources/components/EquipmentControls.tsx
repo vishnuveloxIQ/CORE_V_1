@@ -3,12 +3,12 @@ import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/shared/ui/Button'
-import { FormGroup, Input, Select } from '@/shared/ui/Field'
+import { FormGroup, Input, Select, Textarea } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { ApiError, errorText, idempotencyKey } from '@/shared/lib/api'
 import { notify } from '@/shared/lib/toast'
 import { a11y } from '@/shared/lib/core'
-import { isRemote, projectOf, typeIdByName, useCore, type EquipmentTypeRecord, type EquipmentUnit, type FuelNormUnit, type MeterKind } from '@/modules/core-data'
+import { isRemote, typeIdByName, useCore, type EquipmentTypeRecord, type EquipmentUnit, type FuelNormUnit, type MeterKind } from '@/modules/core-data'
 import { fetchFileContent, UNIT_DOC_KEYS, UNIT_DOC_LABEL, type UnitDocKey, type UnitUpload } from '@/modules/core-data'
 import { asUpload, DOC_ACCEPT, FILE_HINT, IMAGE_ACCEPT, isPhotoKey, PHOTO_HINT, reportFileFailures } from '../utils/unitFiles'
 
@@ -128,29 +128,38 @@ export function EquipmentTypeDialog({ type, onClose }: { type: EquipmentTypeReco
   )
 }
 
-/** Assign a quantity of this unit's equipment type to a project (one assignment row per project and type). Mounted only while open. */
+/** Assign this one unit to a project. The unit becomes In use at that project; a unit that is not Available cannot be assigned. Mounted only while open. */
 export function AssignUnitDialog({ unit, onClose }: { unit: EquipmentUnit; onClose: () => void }) {
-  const { projects, assignEquipmentRemote } = useCore()
+  const { projects, planLines, units, saveUnitRemote } = useCore()
   const remoteProjects = projects.filter(isRemote)
-  const home = projectOf(projects, unit.chainageId)
-  const [projectId, setProjectId] = useState(home && isRemote(home) ? home.id : remoteProjects[0]?.id ?? '')
-  const [qty, setQty] = useState('1')
+  const [projectId, setProjectId] = useState('')
   const [formError, setFormError] = useState('')
+  // the equipment must be in the chosen project's equipment planning; checked once a project is picked
+  const plannedHere = projectId !== '' && planLines.some((l) => l.projectId === projectId && l.equipmentType.trim().toLowerCase() === unit.type.trim().toLowerCase())
+  const planCheck = projectId === '' ? '' : plannedHere ? '' : `${unit.type} is not in this project's equipment planning. Add it to the planning first.`
+  // assigning beyond the units planned for this project and type needs a reason
+  const sameType = (t: string) => t.trim().toLowerCase() === unit.type.trim().toLowerCase()
+  const planned = planLines.filter((l) => l.projectId === projectId && sameType(l.equipmentType)).reduce((n, l) => n + l.plannedQty, 0)
+  const assignedNow = units.filter((u) => u.projectId === projectId && sameType(u.type) && u.availability === 'In use').length
+  const overPlan = plannedHere && assignedNow + 1 > planned
+  const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState<{ body: string; key: string } | null>(null)
 
   const submit = async (ev: FormEvent) => {
     ev.preventDefault()
     setFormError('')
-    const n = Number(qty)
+    if (unit.availability !== 'Available') return setFormError(`${unit.assetCode} is ${unit.availability} and cannot be assigned to a project.`)
     if (!projectId) return setFormError('Pick a project. Only projects on the server can take an assignment.')
-    if (!Number.isInteger(n) || n < 1) return setFormError('Quantity must be a whole number of 1 or more.')
-    const body = JSON.stringify({ projectId, type: unit.type, n })
+    if (!plannedHere) return setFormError(planCheck)
+    if (overPlan && reason.trim().length < 3) return setFormError('Enter the reason for assigning more units than planned.')
+    const next: EquipmentUnit = { ...unit, projectId, availability: 'In use', overPlanReason: overPlan ? reason.trim() : undefined }
+    const body = JSON.stringify(next)
     const key = pending?.body === body ? pending.key : idempotencyKey()
     setPending({ body, key })
     setBusy(true)
     try {
-      await assignEquipmentRemote({ projectId, equipmentType: unit.type, qty: n }, key)
+      await saveUnitRemote(next, key)
       setPending(null)
       notify('Equipment assigned to project')
       onClose()
@@ -163,29 +172,36 @@ export function AssignUnitDialog({ unit, onClose }: { unit: EquipmentUnit; onClo
   }
 
   return (
-    <Modal open onOpenChange={(o) => !o && onClose()} title="Assign to project" description="Assign equipment of this unit's type to a project.">
+    <Modal open onOpenChange={(o) => !o && onClose()} title="Assign to project" description="Assign this unit to a project.">
       <form noValidate onSubmit={submit}>
         {formError && <div className="login-error" role="alert" style={{ marginBottom: 14 }}><span>{formError}</span></div>}
         <p className="helper" style={{ marginBottom: 14 }}>
-          {`${unit.assetCode} · ${unit.type}. Assignments are kept per project and equipment type, not per unit.`}
+          {`${unit.assetCode} · ${unit.type}. Once assigned, the unit is In use and cannot be assigned again.`}
         </p>
         <div className="form-grid">
           <FormGroup label="Project" required>
             {(id) => (
-              <Select id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <Select id={id} value={projectId} onChange={(e) => { setProjectId(e.target.value); setFormError('') }}>
+                <option value="">Choose a project</option>
                 {remoteProjects.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </Select>
             )}
           </FormGroup>
-          <FormGroup label="Quantity" required>
-            {(id) => <Input id={id} type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} />}
-          </FormGroup>
+          {planCheck && <p role="alert" style={{ color: 'var(--red)', margin: 0 }}>{planCheck}</p>}
+          {overPlan && (
+            <>
+              <p role="alert" style={{ color: 'var(--red)', margin: 0 }}>{`${planned} ${unit.type} planned for this project and ${assignedNow} already assigned. Assigning this unit goes over the plan, so a reason is needed.`}</p>
+              <FormGroup label="Reason for assigning over the plan" required>
+                {(id) => <Textarea id={id} rows={3} value={reason} onChange={(e) => { setReason(e.target.value); setFormError('') }} />}
+              </FormGroup>
+            </>
+          )}
         </div>
         <div className="form-actions">
           <Button onClick={onClose}>Cancel</Button>
-          <Button tone="primary" type="submit" disabled={busy}>Assign</Button>
+          <Button tone="primary" type="submit" disabled={busy || (projectId !== '' && !plannedHere)}>Assign</Button>
         </div>
       </form>
     </Modal>
@@ -197,9 +213,8 @@ const unitEditSchema = z.object({
   name: z.string().trim().min(1, 'Equipment name is required.').max(200, 'Use 200 characters or fewer.'),
   regNo: z.string().trim().max(40, 'Use 40 characters or fewer.'),
   availability: z.enum(['Available', 'In use', 'Under maintenance', 'Breakdown']),
-  locationId: z.string(),
+  hireStatus: z.enum(['Active', 'Inactive']),
   owner: z.string().trim().max(100, 'Use 100 characters or fewer.'),
-  hireRef: z.string().trim().max(60, 'Use 60 characters or fewer.'),
   meterReading: z.string().trim().refine((v) => v === '' || /^\d+(\.\d+)?$/.test(v), 'Use a number.'),
   insuranceExpiry: DATE_OR_BLANK,
   pollutionExpiry: DATE_OR_BLANK,
@@ -209,10 +224,10 @@ type UnitEditValues = z.infer<typeof unitEditSchema>
 
 /**
  * Edit a registered unit. Saves the changed fields with the row version read, so a stale copy is refused (VERSION_CONFLICT).
- * Location is a server location; a unit with none is shown as unassigned. Mounted only while open.
+ * Mounted only while open.
  */
 export function EditUnitDialog({ unit, onClose }: { unit: EquipmentUnit; onClose: () => void }) {
-  const { sites, saveUnitRemote, attachUnitFiles } = useCore()
+  const { saveUnitRemote, attachUnitFiles } = useCore()
   const [formError, setFormError] = useState('')
   // replacement photo and documents chosen here; uploaded after the unit is saved
   const [photo, setPhoto] = useState<UnitUpload | null>(null)
@@ -233,9 +248,8 @@ export function EditUnitDialog({ unit, onClose }: { unit: EquipmentUnit; onClose
       name: unit.name ?? '',
       regNo: unit.regNo ?? '',
       availability: unit.availability,
-      locationId: sites.some((s) => s.id === unit.chainageId) ? unit.chainageId : '',
+      hireStatus: unit.hireStatus ?? 'Active',
       owner: unit.owner ?? '',
-      hireRef: unit.hireRef ?? '',
       meterReading: unit.meterReading ?? '',
       insuranceExpiry: unit.insuranceExpiry ?? '',
       pollutionExpiry: unit.pollutionExpiry ?? '',
@@ -250,9 +264,9 @@ export function EditUnitDialog({ unit, onClose }: { unit: EquipmentUnit; onClose
       name: v.name.trim(),
       regNo: v.regNo.trim(),
       availability: v.availability,
-      chainageId: v.locationId,
+      // only a hired unit has a hire status
+      ...(unit.ownershipType === 'Hired' ? { hireStatus: v.hireStatus } : {}),
       owner: v.owner.trim() || undefined,
-      hireRef: v.hireRef.trim() || undefined,
       meterReading: v.meterReading.trim() || undefined,
       insuranceExpiry: v.insuranceExpiry || undefined,
       pollutionExpiry: v.pollutionExpiry || undefined,
@@ -289,31 +303,7 @@ export function EditUnitDialog({ unit, onClose }: { unit: EquipmentUnit; onClose
           <FormGroup label="Registration number" error={e.regNo?.message}>
             {(id, d) => <Input {...a11y(id, d, e.regNo?.message)} {...register('regNo')} id={id} />}
           </FormGroup>
-          <FormGroup label="Availability" required>
-            {(id) => (
-              <Select id={id} {...register('availability')}>
-                <option>Available</option>
-                <option>In use</option>
-                <option>Under maintenance</option>
-                <option>Breakdown</option>
-              </Select>
-            )}
-          </FormGroup>
-          <FormGroup label="Location" helper="Server locations only. Unassigned units have no location.">
-            {(id) => (
-              <Select id={id} {...register('locationId')}>
-                <option value="">Unassigned</option>
-                {sites.map((s) => <option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}
-              </Select>
-            )}
-          </FormGroup>
-          <FormGroup label="Owner / vendor" error={e.owner?.message}>
-            {(id, d) => <Input {...a11y(id, d, e.owner?.message)} {...register('owner')} id={id} />}
-          </FormGroup>
-          <FormGroup label="Hired agreement reference" error={e.hireRef?.message}>
-            {(id, d) => <Input {...a11y(id, d, e.hireRef?.message)} {...register('hireRef')} id={id} />}
-          </FormGroup>
-          <FormGroup label="Meter reading (HMR)" error={e.meterReading?.message}>
+          <FormGroup label={`Initial meter reading (${unit.meterType === 'Odometer' ? 'km' : 'h'})`} error={e.meterReading?.message}>
             {(id, d) => <Input {...a11y(id, d, e.meterReading?.message)} {...register('meterReading')} id={id} />}
           </FormGroup>
           <FormGroup label="Insurance expiry" error={e.insuranceExpiry?.message}>
@@ -324,6 +314,29 @@ export function EditUnitDialog({ unit, onClose }: { unit: EquipmentUnit; onClose
           </FormGroup>
           <FormGroup label="Fitness expiry" error={e.fitnessExpiry?.message}>
             {(id, d) => <Input type="date" {...a11y(id, d, e.fitnessExpiry?.message)} {...register('fitnessExpiry')} id={id} />}
+          </FormGroup>
+          <FormGroup label="Availability" required>
+            {(id) => (
+              <Select id={id} {...register('availability')}>
+                <option>Available</option>
+                <option>In use</option>
+                <option>Under maintenance</option>
+                <option>Breakdown</option>
+              </Select>
+            )}
+          </FormGroup>
+          {unit.ownershipType === 'Hired' && (
+            <FormGroup label="Hire status" required helper="Inactive once the unit is off hire.">
+              {(id) => (
+                <Select id={id} {...register('hireStatus')}>
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </Select>
+              )}
+            </FormGroup>
+          )}
+          <FormGroup label="Owner / vendor" error={e.owner?.message}>
+            {(id, d) => <Input {...a11y(id, d, e.owner?.message)} {...register('owner')} id={id} />}
           </FormGroup>
         </div>
         <h3 style={{ margin: '18px 0 8px', fontSize: 14, fontWeight: 600 }}>Photos and documents</h3>

@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+﻿import type { PoolClient } from 'pg';
 import { type AuditOp, appendAuditRow } from '../../core/audit.js';
 import { AppError } from '../../core/errors.js';
 import { normaliseWeekOffDays } from '../organisation/rules.js';
@@ -11,7 +11,6 @@ import {
   zoneGeometryChanged,
 } from './rules.js';
 import {
-  ancestorWbsNodes,
   type ChainageMarkerFields,
   type ChainageMarkerRecord,
   deleteRow,
@@ -20,7 +19,6 @@ import {
   findMilestone,
   findProject,
   findStore,
-  findWbsNode,
   findZone,
   type GeoZoneFields,
   type GeoZoneRecord,
@@ -29,14 +27,12 @@ import {
   insertMilestone,
   insertProject,
   insertStore,
-  insertWbsNode,
   insertZone,
   listLocations,
   listMarkers,
   listMilestones,
   listProjects,
   listStores,
-  listWbsNodes,
   listZones,
   type LocationFields,
   type LocationRecord,
@@ -55,10 +51,7 @@ import {
   updateMilestone,
   updateProject,
   updateStore,
-  updateWbsNode,
   updateZone,
-  type WbsNodeFields,
-  type WbsNodeRecord,
 } from './repo.js';
 import type {
   ChainageMarkerInput,
@@ -73,8 +66,6 @@ import type {
   ProjectPatch,
   StoreInput,
   StorePatch,
-  WbsNodeInput,
-  WbsNodePatch,
 } from './schema.js';
 
 const AUDIT_MODULE = 'core';
@@ -94,7 +85,6 @@ const DUPLICATE_MESSAGES: Record<string, string> = {
   core_project_code_key: 'A project with this code already exists',
   core_location_code_key: 'A location with this code already exists',
   core_store_code_key: 'A store with this code already exists',
-  core_wbs_node_project_code_key: 'A WBS node with this code already exists in this project',
   core_chainage_marker_project_code_key:
     'A chainage marker with this code already exists in this project',
 };
@@ -263,19 +253,6 @@ function weekOffsOrNull(days: readonly number[] | null | undefined): number[] | 
   return days === null || days === undefined ? null : normaliseWeekOffDays(days);
 }
 
-/** A WBS node used by another row must belong to the same project (design points e and f). */
-async function requireWbsInProject(
-  client: PoolClient,
-  projectId: string,
-  wbsNodeId: string,
-): Promise<void> {
-  const node = await findWbsNode(client, wbsNodeId);
-  if (!node) throw referenceMissing();
-  if (node.projectId !== projectId) {
-    throw referenceMismatch('The WBS node belongs to a different project');
-  }
-}
-
 // Projects (design point b). Closed by status, never deleted.
 
 function projectFields(input: ProjectInput): ProjectFields {
@@ -284,6 +261,11 @@ function projectFields(input: ProjectInput): ProjectFields {
     name: input.name,
     status: input.status ?? 'active',
     client: input.client ?? null,
+    consultantName: input.consultantName ?? null,
+    state: input.state ?? null,
+    executionMode: input.executionMode ?? null,
+    department: input.department ?? null,
+    projectType: input.projectType ?? null,
     startDate: input.startDate ?? null,
     endDate: input.endDate ?? null,
     valueAmount: input.valueAmount ?? null,
@@ -410,7 +392,7 @@ function storeFields(input: StoreInput): StoreFields {
   return {
     code: input.code,
     name: input.name,
-    locationId: input.locationId,
+    projectId: input.projectId,
     status: input.status ?? 'active',
     locationText: input.locationText ?? null,
     keeper: input.keeper ?? null,
@@ -419,19 +401,19 @@ function storeFields(input: StoreInput): StoreFields {
   };
 }
 
-/** A store sits at a location, and its chainage marker must be on the same project as that location. */
+/** A store belongs to a project, and its chainage marker must be on that same project. */
 async function requireStoreReferences(
   client: PoolClient,
-  locationId: string,
+  projectId: string,
   chainageMarkerId: string | null,
 ): Promise<void> {
-  const location = await findLocation(client, locationId);
-  if (!location) throw referenceMissing();
+  const project = await findProject(client, projectId);
+  if (!project) throw referenceMissing();
   if (chainageMarkerId === null) return;
   const marker = await findMarker(client, chainageMarkerId);
   if (!marker) throw referenceMissing();
-  if (marker.projectId !== location.projectId) {
-    throw referenceMismatch('The chainage marker belongs to a different project than the location');
+  if (marker.projectId !== projectId) {
+    throw referenceMismatch('The chainage marker belongs to a different project than the store');
   }
 }
 
@@ -445,7 +427,7 @@ export async function createStore(
   input: StoreInput,
 ): Promise<StoreRecord> {
   const fields = storeFields(input);
-  await requireStoreReferences(client, fields.locationId, fields.chainageMarkerId);
+  await requireStoreReferences(client, fields.projectId, fields.chainageMarkerId);
   const id = await insertWithAudit(client, actor, PROJ_TABLE.store, () =>
     insertStore(client, fields, actor.actorId),
   );
@@ -466,86 +448,11 @@ export async function updateStoreRecord(
   );
   checkVersion(current.rowVersion, rowVersion);
   const merged = merge<StoreFields>(current, changes);
-  await requireStoreReferences(client, merged.locationId, merged.chainageMarkerId);
+  await requireStoreReferences(client, merged.projectId, merged.chainageMarkerId);
   await updateWithAudit(client, actor, PROJ_TABLE.store, id, () =>
     updateStore(client, id, current.rowVersion, merged, actor.actorId),
   );
   return notFoundIfMissing(findStore(client, id), 'STORE_NOT_FOUND', 'Store not found');
-}
-
-// WBS nodes (design point e). Deleted only when nothing refers to them.
-
-function wbsNodeFields(input: WbsNodeInput): WbsNodeFields {
-  return {
-    code: input.code,
-    name: input.name,
-    projectId: input.projectId,
-    parentWbsNodeId: input.parentWbsNodeId ?? null,
-    status: input.status ?? 'active',
-  };
-}
-
-export function listWbsNodeRecords(
-  client: PoolClient,
-  projectId: string | null,
-): Promise<WbsNodeRecord[]> {
-  return listWbsNodes(client, projectId);
-}
-
-export async function createWbsNode(
-  client: PoolClient,
-  actor: Actor,
-  input: WbsNodeInput,
-): Promise<WbsNodeRecord> {
-  const fields = wbsNodeFields(input);
-  if (fields.parentWbsNodeId !== null) {
-    await requireWbsInProject(client, fields.projectId, fields.parentWbsNodeId);
-  }
-  const id = await insertWithAudit(client, actor, PROJ_TABLE.wbsNode, () =>
-    insertWbsNode(client, fields, actor.actorId),
-  );
-  return notFoundIfMissing(findWbsNode(client, id), 'WBS_NODE_NOT_FOUND', 'WBS node not found');
-}
-
-export async function updateWbsNodeRecord(
-  client: PoolClient,
-  actor: Actor,
-  id: string,
-  patch: WbsNodePatch,
-): Promise<WbsNodeRecord> {
-  const { rowVersion, ...changes } = patch;
-  const current = await notFoundIfMissing(
-    findWbsNode(client, id, true),
-    'WBS_NODE_NOT_FOUND',
-    'WBS node not found',
-  );
-  checkVersion(current.rowVersion, rowVersion);
-  const merged = merge<WbsNodeFields>(current, changes);
-  if (merged.parentWbsNodeId !== null) {
-    await requireWbsInProject(client, merged.projectId, merged.parentWbsNodeId);
-    // The walk starts at the new parent and includes it, so a parent equal to this node is caught too.
-    const chain = await ancestorWbsNodes(client, merged.parentWbsNodeId);
-    if (chain.includes(id)) {
-      throw new AppError(
-        'PROJECTS_CYCLE',
-        400,
-        'A WBS node cannot be placed under its own children',
-      );
-    }
-  }
-  await updateWithAudit(client, actor, PROJ_TABLE.wbsNode, id, () =>
-    updateWbsNode(client, id, current.rowVersion, merged, actor.actorId),
-  );
-  return notFoundIfMissing(findWbsNode(client, id), 'WBS_NODE_NOT_FOUND', 'WBS node not found');
-}
-
-export async function deleteWbsNode(client: PoolClient, actor: Actor, id: string): Promise<void> {
-  await notFoundIfMissing(
-    findWbsNode(client, id, true),
-    'WBS_NODE_NOT_FOUND',
-    'WBS node not found',
-  );
-  await deleteWithAudit(client, actor, PROJ_TABLE.wbsNode, id);
 }
 
 // Chainage markers (design point f). Deleted only when nothing refers to them.
@@ -556,7 +463,6 @@ function markerFields(input: ChainageMarkerInput): ChainageMarkerFields {
     label: input.label ?? null,
     projectId: input.projectId,
     chainageKm: input.chainageKm,
-    wbsNodeId: input.wbsNodeId ?? null,
   };
 }
 
@@ -573,9 +479,6 @@ export async function createMarker(
   input: ChainageMarkerInput,
 ): Promise<ChainageMarkerRecord> {
   const fields = markerFields(input);
-  if (fields.wbsNodeId !== null) {
-    await requireWbsInProject(client, fields.projectId, fields.wbsNodeId);
-  }
   const id = await insertWithAudit(client, actor, PROJ_TABLE.marker, () =>
     insertMarker(client, fields, actor.actorId),
   );
@@ -600,9 +503,6 @@ export async function updateMarkerRecord(
   );
   checkVersion(current.rowVersion, rowVersion);
   const merged = merge<ChainageMarkerFields>(current, changes);
-  if (merged.wbsNodeId !== null) {
-    await requireWbsInProject(client, merged.projectId, merged.wbsNodeId);
-  }
   await updateWithAudit(client, actor, PROJ_TABLE.marker, id, () =>
     updateMarker(client, id, current.rowVersion, merged, actor.actorId),
   );

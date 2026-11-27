@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { Modal } from '@/shared/ui/Modal'
-import { RoleForm } from '@/modules/organisation/components/RoleForm'
+import { RoleForm } from '@/modules/organisation'
 import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { Button } from '@/shared/ui/Button'
 import { FormGroup, Input, Select } from '@/shared/ui/Field'
@@ -20,7 +20,7 @@ const NEW_POSITION = '__new__'
  * cannot be changed (the form was opened from that project's page).
  */
 export function PeopleForm({ line, defaultProject, lockProject, onDone }: { line?: PeoplePlanLine; defaultProject?: string; lockProject?: boolean; onDone: () => void }) {
-  const { projects, roles, savePeoplePlanRemote } = useCore()
+  const { projects, roles, departments, savePeoplePlanRemote } = useCore()
   const [formError, setFormError] = useState('')
   const [pending, setPending] = useState<{ key: string; body: string } | null>(null)
   const [addingPosition, setAddingPosition] = useState(false)
@@ -59,6 +59,7 @@ export function PeopleForm({ line, defaultProject, lockProject, onDone }: { line
         <FormGroup label="Position" required error={e.positionId?.message} helper={roles.length ? undefined : 'No positions yet. Add one on the Departments and organogram screens first.'}>
           {(id, d) => <Select {...a11y(id, d, e.positionId?.message)} {...register('positionId', { onChange: (ev: { target: HTMLSelectElement }) => { if (ev.target.value === NEW_POSITION) { setValue('positionId', '', { shouldDirty: true }); setAddingPosition(true) } } })}><option value="">Choose a position</option>{roles.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}<option value={NEW_POSITION}>+ Add a position not in the organogram</option></Select>}
         </FormGroup>
+        <FormGroup label="Department" error={e.department?.message} helper={departments.length ? 'The department the people work in.' : 'No departments yet. Add them on the Departments screen first.'}>{(id, d) => <Select {...a11y(id, d, e.department?.message)} {...register('department')}><option value="">Choose a department</option>{departments.map((x) => <option key={x.id} value={x.name}>{x.name}</option>)}</Select>}</FormGroup>
         <FormGroup label="Role / trade" required error={e.role?.message}>{(id, d) => <Input {...a11y(id, d, e.role?.message)} {...register('role')} />}</FormGroup>
         <FormGroup label="Headcount" required error={e.headcount?.message}>{(id, d) => <Input type="number" min={1} {...a11y(id, d, e.headcount?.message)} {...register('headcount', { valueAsNumber: true })} />}</FormGroup>
         <FormGroup label="From" required error={e.from?.message}>{(id, d) => <Input type="date" {...a11y(id, d, e.from?.message)} {...register('from')} />}</FormGroup>

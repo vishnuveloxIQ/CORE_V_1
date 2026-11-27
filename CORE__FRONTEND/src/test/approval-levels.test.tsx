@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+﻿import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { describe, expect, it } from 'vitest'
@@ -57,26 +57,23 @@ describe('approval chain levels', () => {
 describe('a request read from the server', () => {
   const record = (extra: Partial<RequestRecord>): RequestRecord => ({
     id: 'r1', code: 'APR-2026-0001', requestType: 'Material', module: 'stores', title: 'Cement', amount: 500, status: 'pending', emergency: false,
-    locationId: null, chainageMarkerId: null, raisedById: approver(1), raisedByName: 'Raiser', raisedAt: '2026-11-21T10:00:00Z',
+    chainageMarkerId: null, raisedById: approver(1), raisedByName: 'Raiser', raisedAt: '2026-11-21T10:00:00Z',
     chainId: 'c1', matrixVersionId: 'v1', matrixVersion: 1, currentLevel: 1, payloadJson: {}, assignedActorId: approver(2), decidedAt: null, rowVersion: 1,
     ...extra,
   })
 
   it('keeps the levels fixed when it was raised, with their own level numbers', () => {
     const req = requestFrom(record({
-      locationId: 'site-1',
       levelsSnapshot: [
         { id: 'l1', matrixVersionId: 'v1', levelNo: 1, approverUserId: approver(2), timeoutHours: 24, onTimeout: 'escalate', cashLimitInr: null, escalateToUserId: null, amountFrom: 0, amountTo: null, rowVersion: 1 },
         { id: 'l3', matrixVersionId: 'v1', levelNo: 3, approverUserId: approver(3), timeoutHours: 48, onTimeout: 'remind', cashLimitInr: null, escalateToUserId: null, amountFrom: 0, amountTo: null, rowVersion: 1 },
       ] as unknown as RequestRecord['levelsSnapshot'],
     }))
     expect(req.levelsSnapshot?.map((l) => [l.levelNo, l.approverId])).toEqual([[1, approver(2)], [3, approver(3)]])
-    expect(req.locationId).toBe('site-1')
   })
 
-  it('a request with no site and no snapshot maps to none of either', () => {
+  it('a request with no snapshot maps to none', () => {
     const req = requestFrom(record({}))
     expect(req.levelsSnapshot).toEqual([])
-    expect(req.locationId).toBeNull()
   })
 })

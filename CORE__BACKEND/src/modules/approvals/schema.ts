@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 import {
   isoDate,
   jsonObject,
@@ -92,7 +92,6 @@ export const raiseBody = z.object({
   module: text(60),
   amount: numNonNegative,
   projectId: optionalUuid,
-  locationId: optionalUuid,
   chainageMarkerId: optionalUuid,
   title: text(200),
   payload: jsonObject.optional(),
@@ -116,8 +115,8 @@ export const actionBody = z.object({
   decision: optionalText(100),
 });
 
-/** POST /approval-requests/:id/publish: publishes an approved job opening to a location. */
-export const publishRequestBody = z.object({ locationId: uuid, rowVersion: versionField }).strict();
+/** POST /approval-requests/:id/publish: publishes an approved job opening to its project. */
+export const publishRequestBody = z.object({ rowVersion: versionField }).strict();
 
 // PMS limit rows
 

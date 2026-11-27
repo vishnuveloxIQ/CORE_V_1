@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { z } from "zod";
 import { BulkUpload, type RowCheck } from "@/shared/ui/data/BulkUpload";
@@ -17,7 +17,7 @@ import { bulk, saveEach } from "@/shared/lib/bulk";
 import { a11y, ACTIVE_TONE, code, num, req } from "@/shared/lib/core";
 import { notify } from "@/shared/lib/toast";
 import { Can, MANAGE, useCanManage } from '@/modules/auth';
-import { newId, nextCode, uomLabel, useCore } from "@/modules/core-data";
+import { createUom, newId, nextCode, uomLabel, useCore } from "@/modules/core-data";
 import { ApiError, errorText, fieldErrors, idempotencyKey } from "@/shared/lib/api";
 
 const CATEGORIES = [
@@ -36,9 +36,26 @@ const CATEGORIES = [
   "Paint",
   "Other",
 ];
+/** The unit each category is measured in. A category listed here has its unit fixed by the category. */
+const CATEGORY_UNIT: Partial<Record<string, string>> = {
+  Cement: "Bag (50 kg)",
+  Steel: "MT",
+  Aggregates: "Cum",
+  Sand: "Cum",
+  Bitumen: "MT",
+  Fuel: "LTR",
+  Admixtures: "LTR",
+  Formwork: "NOS",
+  Electrical: "NOS",
+  Plumbing: "NOS",
+  Safety: "NOS",
+  Consumables: "NOS",
+  Paint: "LTR",
+};
+
 /** Units of measure come from GET /uoms (read only); a unit the server does not list cannot be picked. */
 const UOM_HELP =
-  "Units come from the server's list. A unit that is not listed cannot be added here; ask an administrator to add it.";
+  "";
 /** The server unit written as `raw` (its code or name, ignoring case), as its code. */
 const uomCodeFor = (uoms: UomRecord[], raw: string) => {
   const t = raw.trim().toLowerCase();
@@ -66,6 +83,11 @@ export default function Materials() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "materials");
   const { materials, stores, stock, uoms, saveMaterialRemote } = useCore();
+  // a material belongs to a project when it is available in a store that serves that project
+  const [projectId, setProjectId] = useState("");
+  const shownMaterials = projectId
+    ? materials.filter((m) => m.storeIds.some((id) => stores.find((s) => s.id === id)?.projectId === projectId))
+    : materials;
   const [edit, setEdit] = useState<Material | "new" | null>(null);
   const canManage = useCanManage(MANAGE.masters);
   const [upload, setUpload] = useState(false);
@@ -169,10 +191,20 @@ export default function Materials() {
           tone="rose"
         />
       </div>
+      <div style={{ marginBottom: 16, maxWidth: 320 }}>
+        <FormGroup label="Show project">
+          {(id) => (
+            <Select id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">All projects</option>
+              {useCore.getState().projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </Select>
+          )}
+        </FormGroup>
+      </div>
       <TablePanel
         title="All materials"
         subtitle="Filter by status using the chips; pick more than one to combine. Search by material code, name, category or HSN."
-        rows={materials}
+        rows={shownMaterials}
         rowKey={(m) => m.id}
         chipNoun="statuses"
         columns={[
@@ -334,21 +366,49 @@ export default function Materials() {
   );
 }
 
-function MaterialForm({
+export function MaterialForm({
   material,
   onDone,
+  onSaved,
 }: {
   material?: Material;
   onDone: () => void;
+  /** called with the saved material, so a form that opened this one can select it */
+  onSaved?: (m: Material) => void;
 }) {
-  const { materials, stores, uoms, uomsError, saveMaterialRemote } = useCore();
+  const { materials, stores, uoms, uomsError, saveMaterialRemote, loadUoms } = useCore();
   const [formError, setFormError] = useState("");
+  // a unit typed for a category with no fixed unit: added to the shared unit list, then selected
+  const [addingUnit, setAddingUnit] = useState(false);
+  const [newUnit, setNewUnit] = useState({ code: "", name: "" });
+  const [unitError, setUnitError] = useState("");
+  const [savingUnit, setSavingUnit] = useState(false);
+  const addUnit = async () => {
+    const code = newUnit.code.trim();
+    const name = newUnit.name.trim();
+    if (!code || !name) return setUnitError("Enter the unit code and its name.");
+    setSavingUnit(true);
+    setUnitError("");
+    try {
+      const made = await createUom(code, name, idempotencyKey());
+      await loadUoms();
+      setValue("uom", made.code, { shouldValidate: true });
+      setAddingUnit(false);
+      setNewUnit({ code: "", name: "" });
+    } catch (err) {
+      setUnitError(err instanceof ApiError && err.code === "CONFLICT" ? "A unit with this code already exists. Pick it from the list." : errorText(err));
+    } finally {
+      setSavingUnit(false);
+    }
+  };
   // one Idempotency-Key per action; only a retry of the same values after a lost connection reuses it
   const [pending, setPending] = useState<{ key: string; body: string } | null>(null);
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
+    watch,
     formState: { errors: e },
   } = useForm({
     resolver: zodResolver(schema),
@@ -363,6 +423,13 @@ function MaterialForm({
       status: "Active" as const,
     },
   });
+  // the category decides the unit when it has a fixed one; the unit is then set from it and shown read-only
+  const category = watch("category");
+  const fixedUnit = CATEGORY_UNIT[category];
+  const fixedCode = fixedUnit ? uoms.find((u) => u.code === fixedUnit || u.name === fixedUnit)?.code : undefined;
+  useEffect(() => {
+    if (fixedCode) setValue("uom", fixedCode, { shouldValidate: true });
+  }, [fixedCode, setValue]);
   const submit = handleSubmit(async (v) => {
     setFormError("");
     if (materials.some((m) => m.code === v.code && m.id !== material?.id))
@@ -372,9 +439,10 @@ function MaterialForm({
     const key = pending?.body === body ? pending.key : idempotencyKey();
     setPending({ key, body });
     try {
-      await saveMaterialRemote(next, key);
+      const saved = await saveMaterialRemote(next, key);
       setPending(null);
       notify(material ? "Material saved" : "Material created");
+      onSaved?.(saved);
       onDone();
     } catch (err) {
       if (!(err instanceof ApiError) || err.code !== "NETWORK_ERROR") setPending(null);
@@ -438,12 +506,18 @@ function MaterialForm({
           error={e.uom?.message}
           helper={uomsError ? `The server's units could not be read: ${uomsError}` : UOM_HELP}
         >
-          {(id) => (
-            <Select id={id} {...register("uom")}>
+          {(id, d) => fixedCode ? (
+            <>
+              <Input id={id} value={uomLabel(uoms.find((u) => u.code === fixedCode)!)} readOnly aria-describedby={d} />
+              <input type="hidden" {...register("uom")} />
+            </>
+          ) : (
+            <Select id={id} {...register("uom", { onChange: (ev) => { if (ev.target.value === "__new__") { setValue("uom", ""); setAddingUnit(true) } } })}>
               <option value="">Choose a unit</option>
               {uoms.map((u) => (
                 <option key={u.id} value={u.code}>{uomLabel(u)}</option>
               ))}
+              <option value="__new__">+ Add a unit not in the list</option>
             </Select>
           )}
         </FormGroup>
@@ -500,6 +574,17 @@ function MaterialForm({
       <Note title="Owned by Stores" icon="info">
         Stores module reads this master and cannot edit it.
       </Note>
+      <Modal open={addingUnit} onOpenChange={(o) => { if (!o && !savingUnit) setAddingUnit(false) }} title="Add a unit of measure" description="The unit is added to the company's unit list and selected for this material.">
+        <div className="form-grid">
+          <FormGroup label="Unit code" required>{(id) => <Input id={id} value={newUnit.code} placeholder="e.g. PKT" onChange={(ev) => setNewUnit({ ...newUnit, code: ev.target.value })} />}</FormGroup>
+          <FormGroup label="Unit name" required>{(id) => <Input id={id} value={newUnit.name} placeholder="e.g. Packet" onChange={(ev) => setNewUnit({ ...newUnit, name: ev.target.value })} />}</FormGroup>
+        </div>
+        {unitError && <div className="login-error" role="alert" style={{ marginTop: 12 }}><span>{unitError}</span></div>}
+        <div className="form-actions">
+          <Button onClick={() => setAddingUnit(false)} disabled={savingUnit}>Cancel</Button>
+          <Button tone="primary" onClick={() => void addUnit()} disabled={savingUnit}>{savingUnit ? "Adding…" : "Add unit"}</Button>
+        </div>
+      </Modal>
       <div className="form-actions">
         <Button onClick={onDone}>Cancel</Button>
         <Button type="submit" tone="primary">

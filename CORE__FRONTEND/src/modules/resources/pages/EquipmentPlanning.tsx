@@ -7,6 +7,7 @@ import { TablePanel } from "@/shared/ui/data/TablePanel";
 import { Button } from "@/shared/ui/Button";
 import { FormGroup, Input, Select, Textarea } from "@/shared/ui/Field";
 import { Modal } from "@/shared/ui/Modal";
+import { EquipmentRateTable } from "@/modules/company";
 import { PageHead } from "@/modules/shell";
 import { StatTile } from "@/shared/ui/StatTile";
 import { CAPACITY_OPTIONS, COMPANY_EQUIPMENT_TYPE, EQUIPMENT_TYPES, PLAN_EQUIPMENT_TYPES } from "@/modules/core-data";
@@ -29,14 +30,14 @@ const schema = z
     capacity: z.string().trim().max(100, "Keep it under 100 characters.").optional(),
     model: z.string().trim().max(100, "Keep it under 100 characters.").optional(),
     from: z.string().min(1, "Pick a start date."),
-    reason: z.string().trim().min(3, "Say what the units are for."),
+    reason: z.string().trim().refine((v) => v === "" || v.length >= 3, "Say what the units are for, or leave it empty."),
   });
 
 /** 3.5 Equipment planning: CORE decides units needed per type per site or project. */
 export default function EquipmentPlanning() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "eq-planning");
-  const { planLines, projects, saveEquipmentPlanRemote, cancelPlanRemote } = useCore();
+  const { planLines, projects, units, saveEquipmentPlanRemote, cancelPlanRemote } = useCore();
   const [edit, setEdit] = useState<PlanLine | "new" | null>(null);
   const [upload, setUpload] = useState(false);
   const [projectId, setProjectId] = useState("");
@@ -106,6 +107,17 @@ export default function EquipmentPlanning() {
   const where = (l: PlanLine) =>
     projects.find((p) => p.id === l.projectId)?.name ?? l.projectId;
   const totalOf = (g: PlanGroup) => g.lines.reduce((n, l) => n + l.plannedQty, 0);
+  // units assigned to this row's project and type (they are In use at the project)
+  const assignedOf = (g: PlanGroup) => {
+    const { projectId: pid, equipmentType } = g.lines[0]!;
+    return units.filter((u) => u.projectId === pid && u.type.trim().toLowerCase() === equipmentType.trim().toLowerCase() && u.availability === "In use").length;
+  };
+  // why units were assigned beyond the plan: the reasons given on this row's project and type
+  const overReasons = (g: PlanGroup) => {
+    const { projectId: pid, equipmentType } = g.lines[0]!;
+    const found = units.filter((u) => u.projectId === pid && u.type.trim().toLowerCase() === equipmentType.trim().toLowerCase() && u.overPlanReason);
+    return found.map((u) => `${u.assetCode}: ${u.overPlanReason}`).join("; ");
+  };
   const earliest = (g: PlanGroup) => g.lines.map((l) => l.from).filter(Boolean).sort()[0] ?? "";
   const distinct = (g: PlanGroup, pick: (l: PlanLine) => string | undefined) =>
     Array.from(new Set(g.lines.map((l) => pick(l)?.trim()).filter(Boolean))).join(", ");
@@ -179,7 +191,7 @@ export default function EquipmentPlanning() {
             csv: (g) => g.lines[0]!.equipmentType,
           },
           {
-            header: "Needed at",
+            header: "Required at",
             kind: "c-sub",
             cell: (g) => (
               <>
@@ -208,7 +220,19 @@ export default function EquipmentPlanning() {
             csv: (g) => String(totalOf(g)),
           },
           {
-            header: "Needed from",
+            header: "Assigned",
+            kind: "c-amt",
+            cell: (g) => assignedOf(g),
+            csv: (g) => String(assignedOf(g)),
+          },
+          {
+            header: "Over-plan reason",
+            kind: "c-more",
+            cell: (g) => overReasons(g) || "—",
+            csv: (g) => overReasons(g),
+          },
+          {
+            header: "Required from",
             kind: "c-more",
             cell: (g) => fmtDate(earliest(g)),
             csv: (g) => earliest(g),
@@ -237,6 +261,9 @@ export default function EquipmentPlanning() {
         )}
         exportName="core-equipment-plan"
       />
+      <div style={{ marginTop: 18 }}>
+        <EquipmentRateTable projectId={projectId} />
+      </div>
       <Modal
         open={!!managed}
         onOpenChange={(o) => !o && setManage(null)}
@@ -306,7 +333,7 @@ export default function EquipmentPlanning() {
           {
             key: "purpose",
             label: "What the units are for",
-            required: true,
+            required: false,
             example: "Bituminous surfacing",
           },
         ]}
@@ -466,7 +493,7 @@ export function PlanForm({
               {typeNames.map((t) => (
                 <option key={t}>{t}</option>
               ))}
-              <option value={OTHER_TYPE}>Other…</option>
+              <option value={OTHER_TYPE}>+ Add an equipment type not in the list</option>
             </Select>
           )}
         </FormGroup>
@@ -548,7 +575,7 @@ export function PlanForm({
             />
           )}
         </FormGroup>
-        <FormGroup label="Purpose" required full error={e.reason?.message}>
+        <FormGroup label="Purpose" full error={e.reason?.message}>
           {(id, d) => (
             <Textarea
               rows={2}

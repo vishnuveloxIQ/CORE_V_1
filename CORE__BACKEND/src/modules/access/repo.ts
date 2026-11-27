@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+﻿import type { PoolClient } from 'pg';
 
 export type AccessType = 'role' | 'privilege' | 'module_head' | 'suspension';
 
@@ -10,7 +10,6 @@ export interface AccessRecord {
   roleId: string | null;
   privilege: string | null;
   module: string | null;
-  locationId: string | null;
   projectId: string | null;
   storeId: string | null;
   reason: string | null;
@@ -30,21 +29,20 @@ export interface NewAccessRow {
   roleId: string | null;
   privilege: string | null;
   module: string | null;
-  locationId: string | null;
   projectId: string | null;
   storeId: string | null;
   reason: string | null;
 }
 
 const COLUMNS = `id, user_id AS "userId", access_type AS "accessType", role_id AS "roleId",
-  privilege, module, location_id AS "locationId", project_id AS "projectId",
+  privilege, module, project_id AS "projectId",
   store_id AS "storeId", reason, restored_at AS "restoredAt", created_at AS "createdAt"`;
 
 /** Every row of the user: grants, and suspensions active or restored. Read on each guarded request. */
 export async function listAccessRows(client: PoolClient, userId: string): Promise<GrantRecord[]> {
   const { rows } = await client.query<GrantRecord>(
     `SELECT a.id, a.user_id AS "userId", a.access_type AS "accessType", a.role_id AS "roleId",
-            a.privilege, a.module, a.location_id AS "locationId", a.project_id AS "projectId",
+            a.privilege, a.module, a.project_id AS "projectId",
             a.store_id AS "storeId", a.reason, a.restored_at AS "restoredAt",
             a.created_at AS "createdAt", r.code AS "roleCode", r.is_system AS "roleIsSystem"
      FROM core_user_access a
@@ -86,9 +84,9 @@ export async function insertAccessRow(
 ): Promise<AccessRecord> {
   const { rows } = await client.query<AccessRecord>(
     `INSERT INTO core_user_access
-       (user_id, access_type, role_id, privilege, module, location_id, project_id, store_id,
+       (user_id, access_type, role_id, privilege, module, project_id, store_id,
         reason, created_by, updated_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
      RETURNING ${COLUMNS}`,
     [
       row.userId,
@@ -96,7 +94,6 @@ export async function insertAccessRow(
       row.roleId,
       row.privilege,
       row.module,
-      row.locationId,
       row.projectId,
       row.storeId,
       row.reason,
@@ -162,7 +159,6 @@ export function auditSnapshot(row: AccessRecord): Record<string, unknown> {
     role_id: row.roleId,
     privilege: row.privilege,
     module: row.module,
-    location_id: row.locationId,
     project_id: row.projectId,
     store_id: row.storeId,
     reason: row.reason,
@@ -183,8 +179,10 @@ export interface UserRecord {
   status: string | null;
   phone: string | null;
   designation: string | null;
-  /** UI role; a user created before 0024 reads as approver. */
+  /** Primary UI role: module_head when the user holds it, else approver (kept for the v1 `role` field). */
   role: string;
+  /** Every UI role the user holds (migration 0047); a user created before 0024 reads as approver. */
+  roles: string[];
   modules: string[];
   /** company or project; a user created before 0024 reads as company. */
   scopeType: string;
@@ -199,7 +197,9 @@ export interface UserRecord {
 }
 
 const USER_COLUMNS = `id, login_id::text AS "loginId", email::text AS email, name, status,
-  phone, designation, COALESCE(user_role, 'approver') AS role, modules,
+  phone, designation, COALESCE(user_role, 'approver') AS role,
+  (CASE WHEN cardinality(user_roles) = 0 THEN ARRAY[COALESCE(user_role, 'approver')] ELSE user_roles END)::text[] AS roles,
+  modules,
   COALESCE(scope, 'company') AS "scopeType", scope_ids::text[] AS "scopeIds",
   EXISTS (
     SELECT 1 FROM core_user_access sa
@@ -214,7 +214,10 @@ export interface UserProfileRow {
   email: string | null;
   phone: string | null;
   designation: string | null;
+  /** Primary role, written to user_role for readers that expect one value. */
   role: string;
+  /** Every UI role, written to user_roles (migration 0047). */
+  roles: string[];
   modules: string[];
   scopeType: string;
   scopeIds: string[];
@@ -233,10 +236,10 @@ export async function insertUserRow(
 ): Promise<string> {
   const { rows } = await client.query<{ id: string }>(
     `INSERT INTO core_user
-       (login_id, name, email, phone, designation, user_role, modules, scope, scope_ids, status,
+       (login_id, name, email, phone, designation, user_role, user_roles, modules, scope, scope_ids, status,
         password_hash, password_set_at, must_change_password, failed_count, created_by, updated_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9::uuid[], 'active',
-             $10, now(), true, 0, $11, $11)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::text[], $8::text[], $9, $10::uuid[], 'active',
+             $11, now(), true, 0, $12, $12)
      RETURNING id`,
     [
       loginId,
@@ -245,6 +248,7 @@ export async function insertUserRow(
       profile.phone,
       profile.designation,
       profile.role,
+      profile.roles,
       profile.modules,
       profile.scopeType,
       profile.scopeIds,
@@ -267,8 +271,8 @@ export async function updateUserProfileRow(
 ): Promise<boolean> {
   const { rowCount } = await client.query(
     `UPDATE core_user
-     SET name = $3, email = $4, phone = $5, designation = $6, user_role = $7, modules = $8::text[],
-         scope = $9, scope_ids = $10::uuid[], updated_by = $11, updated_at = now(),
+     SET name = $3, email = $4, phone = $5, designation = $6, user_role = $7, user_roles = $8::text[],
+         modules = $9::text[], scope = $10, scope_ids = $11::uuid[], updated_by = $12, updated_at = now(),
          row_version = row_version + 1
      WHERE id = $1 AND row_version = $2`,
     [
@@ -279,6 +283,7 @@ export async function updateUserProfileRow(
       profile.phone,
       profile.designation,
       profile.role,
+      profile.roles,
       profile.modules,
       profile.scopeType,
       profile.scopeIds,

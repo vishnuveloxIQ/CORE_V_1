@@ -356,6 +356,17 @@ export function listMaterialRecords(
   return listMaterials(client, status);
 }
 
+/** Makes the material available in exactly these stores: rows for the others are removed, missing ones added. */
+async function replaceMaterialStores(client: PoolClient, materialId: string, storeIds: string[], actorId: string | null): Promise<void> {
+  await client.query('DELETE FROM core_material_store WHERE material_id = $1 AND NOT (store_id = ANY($2::uuid[]))', [materialId, storeIds]);
+  for (const storeId of storeIds) {
+    await client.query(
+      'INSERT INTO core_material_store (material_id, store_id, created_by, updated_by) VALUES ($1, $2, $3, $3) ON CONFLICT (material_id, store_id) DO NOTHING',
+      [materialId, storeId, actorId],
+    );
+  }
+}
+
 export async function createMaterial(
   client: PoolClient,
   actor: Actor,
@@ -363,9 +374,12 @@ export async function createMaterial(
 ): Promise<MaterialRecord> {
   const fields = materialFields(input);
   await requireReference(client, 'uom', fields.uomId);
+  const storeIds = input.storeIds ?? [];
+  for (const storeId of storeIds) await requireReference(client, 'store', storeId);
   const id = await insertWithAudit(client, actor, MASTERS_TABLE.material, () =>
     insertMaterial(client, fields, actor.actorId),
   );
+  await replaceMaterialStores(client, id, storeIds, actor.actorId);
   return notFoundIfMissing(findMaterial(client, id), 'MATERIAL_NOT_FOUND', 'Material not found');
 }
 
@@ -384,9 +398,13 @@ export async function updateMaterialRecord(
   checkVersion(current.rowVersion, rowVersion);
   const merged = merge<MaterialFields>(current, changes);
   await requireReference(client, 'uom', merged.uomId);
+  if (changes.storeIds !== undefined) {
+    for (const storeId of changes.storeIds) await requireReference(client, 'store', storeId);
+  }
   await updateWithAudit(client, actor, MASTERS_TABLE.material, id, () =>
     updateMaterial(client, id, current.rowVersion, merged, actor.actorId),
   );
+  if (changes.storeIds !== undefined) await replaceMaterialStores(client, id, changes.storeIds, actor.actorId);
   return notFoundIfMissing(findMaterial(client, id), 'MATERIAL_NOT_FOUND', 'Material not found');
 }
 
@@ -615,6 +633,7 @@ function planLineFields(input: PlanLineInput): PlanLineFields {
     equipmentTypeId: input.equipmentTypeId ?? null,
     positionId: input.positionId ?? null,
     role: input.role ?? null,
+    department: input.department ?? null,
     materialId: input.materialId ?? null,
     uomId: input.uomId ?? null,
     storeId: input.storeId ?? null,

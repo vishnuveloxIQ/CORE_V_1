@@ -1,0 +1,32 @@
+npm notice run veloxiq-core@1.0.0 npx
+npm notice run eslint .
+
+C:\VELOX_IQ\CORE\CORE__V__0.4\veloxiq-core\src\modules\company\components\CustomPolicyEditor.tsx
+   28:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+   37:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  340:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  481:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\VELOX_IQ\CORE\CORE__V__0.4\veloxiq-core\src\modules\organisation\components\RolesSection.tsx
+  369:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  377:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  382:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  387:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\VELOX_IQ\CORE\CORE__V__0.4\veloxiq-core\src\modules\resources\pages\EquipmentRegister.tsx
+  350:13  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\VELOX_IQ\CORE\CORE__V__0.4\veloxiq-core\src\modules\resources\pages\EquipmentRegister.tsx:350:13
+  348 |   }
+  349 |
+> 350 |   const v = watch()
+      |             ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  351 |   const shown = (s?: string) => s?.trim() || '—'
+  352 |   const dateOut = (s?: string) => (s?.trim() ? fmtDate(s) : '—')
+  353 |   const projectCode = projects.find((p) => p.id === v.projectId)?.code ?? '—'  react-hooks/incompatible-library
+
+✖ 9 problems (0 errors, 9 warnings)
+
+exit=0

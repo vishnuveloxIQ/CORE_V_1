@@ -13,19 +13,21 @@ const path = (base: string, id: string) => `${base}/${encodeURIComponent(id)}`
 export interface MaterialRecord {
   id: string; code: string; name: string; uomId: string; status: 'active' | 'inactive'; hsn: string | null
   reorderLevel: number | null; category: string | null; subCategory: string | null; rowVersion: number
+  /** the stores this material is available in */
+  storeIds: string[]
 }
 
-/** `storeIds` is not in the API, so it is kept from the row already on screen. The unit text is the uom's code from GET /uoms. */
-export const materialFrom = (r: MaterialRecord, uoms: UomRecord[], known?: Material): Material => ({
+/** The unit text is the uom's code from GET /uoms. */
+export const materialFrom = (r: MaterialRecord, uoms: UomRecord[]): Material => ({
   id: r.id, code: r.code, name: r.name, category: r.category ?? '', uom: uomCodeOf(uoms, r.uomId), hsn: r.hsn ?? '',
-  reorderLevel: r.reorderLevel ?? 0, storeIds: known?.storeIds ?? [], // TODO(backend): field storeIds not in API
+  reorderLevel: r.reorderLevel ?? 0, storeIds: r.storeIds ?? [],
   status: r.status === 'inactive' ? 'Inactive' : 'Active', uomId: r.uomId, rowVersion: r.rowVersion,
 })
 
 export type MaterialDetails = Omit<Material, 'id' | 'uomId' | 'rowVersion'>
 const materialBody = (v: MaterialDetails, uomId: string) => ({
   code: v.code, name: v.name, uomId, status: v.status === 'Inactive' ? 'inactive' : 'active',
-  hsn: v.hsn || null, reorderLevel: v.reorderLevel, category: v.category || null,
+  hsn: v.hsn || null, reorderLevel: v.reorderLevel, category: v.category || null, storeIds: v.storeIds,
 })
 
 export const listMaterials = () => api<MaterialRecord[]>('GET', '/materials')

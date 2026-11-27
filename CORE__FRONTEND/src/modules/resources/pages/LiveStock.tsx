@@ -1,17 +1,14 @@
-import { useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { TablePanel } from "@/shared/ui/data/TablePanel";
 import { Button } from "@/shared/ui/Button";
 import { Note } from "@/shared/ui/Extras";
-import { FormGroup } from "@/shared/ui/Field";
-import { SearchSelect } from "@/shared/ui/SearchSelect";
+import { FormGroup, Select } from "@/shared/ui/Field";
 import { PageHead } from "@/modules/shell";
 import { StatTile } from "@/shared/ui/StatTile";
 import { StatusBadge } from "@/shared/ui/Status";
-import { Card } from "@/shared/ui/Card";
 import { useEnter } from "@/shared/hooks/useMotion";
 import { byId } from "@/shared/lib/core";
-import { fmtDateTime } from "@/shared/lib/format";
 import { STOCK_TONE, useCore } from "@/modules/core-data";
 
 type Level = "Out of Stock" | "Low Stock" | "Available Stock";
@@ -21,11 +18,10 @@ export default function LiveStock() {
   const ref = useRef<HTMLDivElement>(null);
   useEnter(ref, "stock");
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
-  const storeId = params.get("store") ?? "";
-  const { stock, stockSource, stores, materials } = useCore();
+  const [projectId, setProjectId] = useState("");
+  const { stock, stockSource, stores, materials, projects } = useCore();
   const rows = stock
-    .filter((s) => !storeId || s.storeId === storeId)
+    .filter((s) => !projectId || byId(stores, s.storeId)?.projectId === projectId)
     .map((s) => {
       const m = byId(materials, s.materialId);
       const free = s.qty - s.reserved;
@@ -44,10 +40,6 @@ export default function LiveStock() {
         level,
       };
     });
-  const latest = stock.reduce(
-    (m, s) => (s.updatedAt > m ? s.updatedAt : m),
-    "",
-  );
 
   return (
     <div ref={ref}>
@@ -67,6 +59,16 @@ export default function LiveStock() {
           </Button>
         }
       />
+      <div style={{ marginBottom: 16, maxWidth: 320 }}>
+        <FormGroup label="Show project">
+          {(id) => (
+            <Select id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">All projects</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </Select>
+          )}
+        </FormGroup>
+      </div>
       <div className="grid stats">
         <StatTile
           label="Items tracked"
@@ -93,36 +95,13 @@ export default function LiveStock() {
           tone="rose"
         />
       </div>
-      <Card
-        title="Store"
-        subtitle={latest ? `Last update ${fmtDateTime(latest)}` : undefined}
-        className="mb-4"
-      >
-        <div className="form-grid">
-          <FormGroup label="Show stock for">
-            {(id) => (
-              <SearchSelect
-                id={id}
-                placeholder="All stores"
-                searchPlaceholder="Search stores…"
-                value={storeId}
-                onSelect={(v) => setParams(v ? { store: v } : {})}
-                options={[
-                  { value: "", label: "All stores" },
-                  ...stores.map((s) => ({ value: s.id, label: s.name })),
-                ]}
-              />
-            )}
-          </FormGroup>
-        </div>
         {stockSource !== "api" && (
           <Note title="Stock not loaded" icon="alert">
             Live stock could not be read from CORE, so no figures are shown.
           </Note>
         )}
-      </Card>
       <TablePanel
-        key={storeId}
+        key={projectId}
         title="Stock by store and material"
         subtitle="Filter by stock level using the chips; pick more than one to combine. Search by material or store. Free stock is the quantity on hand less the quantity reserved."
         rows={rows}

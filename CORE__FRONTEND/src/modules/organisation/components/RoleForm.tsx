@@ -20,7 +20,7 @@ export function RoleForm({ role, preset, onDone }: { role?: Role; preset?: Parti
     ? { ...role, grade: role.grade as RoleValues['grade'], reportsToId: role.reportsToId ?? '' }
     : { title: '', code: '', departmentId: '', grade: 'S2', reportsToId: '', positions: 1, holder: '', description: '', status: 'Active', ...preset }
   const { register, handleSubmit, setError, control, formState: { errors: e } } = useForm<RoleValues>({ resolver: zodResolver(roleSchema), defaultValues: defaults })
-  const [positions, departmentId] = useWatch({ control, name: ['positions', 'departmentId'] })
+  const departmentId = useWatch({ control, name: 'departmentId' })
   const below = role ? descendants(roles, role.id) : new Set<string>()
   const bosses = roles.filter((r) => r.id !== role?.id && !below.has(r.id) && r.status === 'Active')
   const deptName = (id: string) => departments.find((d) => d.id === id)?.name ?? ''
@@ -58,9 +58,6 @@ export function RoleForm({ role, preset, onDone }: { role?: Role; preset?: Parti
         </FormGroup>
         <FormGroup label="Planned positions" required error={e.positions?.message} helper="How many people this role needs.">
           {(id, d) => <Input type="number" min={1} {...a11y(id, d, e.positions?.message)} {...register('positions', { valueAsNumber: true })} />}
-        </FormGroup>
-        <FormGroup label="Held by" error={e.holder?.message} helper={positions === 1 ? 'Optional. Leave empty if the role is vacant.' : 'Only for single-position roles. People are managed in HRMS.'}>
-          {(id, d) => <Input placeholder={positions === 1 ? 'Enter role holder name' : 'Multiple holders assigned'} readOnly={positions !== 1} {...a11y(id, d, e.holder?.message)} {...register('holder')} />}
         </FormGroup>
         <FormGroup label="What the role does" full error={e.description?.message}>{(id, d) => <Textarea rows={2} placeholder="Enter a brief description of this role" {...a11y(id, d, e.description?.message)} {...register('description')} />}</FormGroup>
         <FormGroup label="Status" error={e.status?.message}>{(id, d) => <Select {...a11y(id, d, e.status?.message)} {...register('status')}><option>Active</option><option>Inactive</option></Select>}</FormGroup>

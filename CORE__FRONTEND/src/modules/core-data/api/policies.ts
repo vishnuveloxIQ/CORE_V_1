@@ -18,7 +18,7 @@ const q = (name: string, id: string) => `?${name}=${encodeURIComponent(id)}`
 export type PolicyKind = 'general' | 'attendance' | 'leave' | 'overtime' | 'conduct' | 'other'
 export interface PolicyRecord { id: string; kind: PolicyKind; code: string; name: string; description: string | null; rowVersion: number }
 export interface PolicyVersionRecord {
-  id: string; policyId: string; versionNo: number; body: { data?: unknown }; effectiveFrom: string
+  id: string; policyId: string; versionNo: number; projectId: string | null; body: { data?: unknown }; effectiveFrom: string
   publishedAt: string | null; reason: string | null; rowVersion: number; createdAt: string
 }
 export interface PolicyRuleRecord { id: string; policyVersionId: string; title: string; category: string; body: string; ackRequired: boolean; rowVersion: number }
@@ -26,22 +26,25 @@ export interface RuleAck { id: string; [k: string]: unknown }
 
 const KIND: Record<PolicyKey, PolicyKind> = {
   shifts: 'attendance', holidays: 'attendance', overtime: 'overtime', leave: 'leave', 'payment-threshold': 'general', rules: 'conduct',
+  'equipment-rates': 'general', 'material-rates': 'general',
 }
 const NAME: Record<PolicyKey, string> = {
   shifts: 'Shift timings', holidays: 'Holidays', overtime: 'Overtime', leave: 'Leave', 'payment-threshold': 'Payment threshold', rules: 'Company rules',
+  'equipment-rates': 'Fleet and equipment rates', 'material-rates': 'Material management rates',
 }
 export const isPolicyKeyCode = (c: string): c is PolicyKey => c in KIND
 
 // TODO(backend): created-by is not on a policy version, so the UI shows a blank author for versions read from the API
 export const policyVersionFrom = (key: PolicyKey, r: PolicyVersionRecord): PolicyVersion =>
-  ({ id: r.id, key, version: r.versionNo, effectiveFrom: r.effectiveFrom, reason: r.reason ?? '', createdBy: '', createdAt: r.createdAt, data: r.body.data as PolicyData[PolicyKey] }) as PolicyVersion
+  ({ id: r.id, key, version: r.versionNo, projectId: r.projectId ?? null, effectiveFrom: r.effectiveFrom, reason: r.reason ?? '', createdBy: '', createdAt: r.createdAt, data: r.body.data as PolicyData[PolicyKey] }) as PolicyVersion
 
 export const listPolicies = () => api<PolicyRecord[]>('GET', '/policies')
 export const listPolicyVersions = () => api<PolicyVersionRecord[]>('GET', '/policy-versions')
 export const createPolicy = (key: PolicyKey, idempotencyKey?: string) =>
   api<PolicyRecord>('POST', '/policies', { body: { kind: KIND[key], code: key, name: NAME[key] }, idempotencyKey })
-export const createPolicyVersion = (policyId: string, v: { data: unknown; effectiveFrom: string; reason: string }, idempotencyKey?: string) =>
-  api<PolicyVersionRecord>('POST', '/policy-versions', { body: { policyId, body: { data: v.data }, effectiveFrom: v.effectiveFrom, reason: v.reason || null }, idempotencyKey })
+/** A new version. A projectId makes it the version for that project only; without one it is the company-wide default. */
+export const createPolicyVersion = (policyId: string, v: { data: unknown; effectiveFrom: string; reason: string; projectId?: string | null }, idempotencyKey?: string) =>
+  api<PolicyVersionRecord>('POST', '/policy-versions', { body: { policyId, projectId: v.projectId ?? null, body: { data: v.data }, effectiveFrom: v.effectiveFrom, reason: v.reason || null }, idempotencyKey })
 /** Freezes a version (POST /policy-versions/{id}/publish). Its rules cannot change afterwards. */
 export const publishPolicyVersion = (id: string, rowVersion: number, idempotencyKey?: string) =>
   api<PolicyVersionRecord>('POST', `${path('/policy-versions', id)}/publish`, { body: { rowVersion }, idempotencyKey })

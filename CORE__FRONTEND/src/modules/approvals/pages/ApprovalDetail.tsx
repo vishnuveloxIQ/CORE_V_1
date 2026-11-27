@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+﻿import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Who } from '@/shared/ui/Avatar'
 import { Button } from '@/shared/ui/Button'
 import { Card } from '@/shared/ui/Card'
@@ -18,7 +18,8 @@ import { notify } from '@/shared/lib/toast'
 import { useRemoteSave } from '@/shared/hooks/useRemoteSave'
 import { useAuth } from '@/modules/auth'
 import { PublishJobDialog } from '../components/PublishJobDialog'
-import { canPublishJob, jobRouteOf, publishedTo } from '../utils/jobs'
+import { canPublishJob, isPublished, jobRouteOf } from '../utils/jobs'
+import { displayPCM, displayRaiser } from '../utils/raiser'
 import { chainFor, policyState, projectOf, stopLevel, useCore } from '@/modules/core-data'
 
 /** Still waiting on someone: an approver, or the raiser while a clarification is open. */
@@ -35,30 +36,33 @@ type JobRoute = 'Site hires directly' | 'Head Office posts and sends candidate'
 export default function ApprovalDetail() {
   const ref = useRef<HTMLDivElement>(null)
   const { id = '' } = useParams()
+  // petty cash requests (under /petty-cash) keep their own list and crumb
+  const pcmView = useLocation().pathname.startsWith('/petty-cash')
+  const crumb = pcmView ? 'Petty cash management' : 'Approvals'
+  const backPath = pcmView ? '/approvals/petty-cash' : '/approvals'
   useEnter(ref, `approval-${id}`)
   const navigate = useNavigate()
   const req = useCore((s) => s.requests.find((r) => r.id === id))
   const loadActions = useCore((s) => s.loadRequestActions)
   useEffect(() => { void loadActions(id) }, [id, loadActions])
-  const back = <Button icon="chevL" onClick={() => navigate('/approvals')}>Back to approvals</Button>
+  const back = <Button icon="chevL" onClick={() => navigate(backPath)}>{pcmView ? 'Back to petty cash' : 'Back to approvals'}</Button>
 
   if (!req) {
     return (
       <div ref={ref}>
-        <PageHead crumb="Approvals" title="Request not found" desc={`No request with ID ${id}.`} actions={back} />
+        <PageHead crumb={crumb} title="Request not found" desc={`No request with ID ${id}.`} actions={back} />
         <Card><EmptyState icon="approvals" title="Nothing to show">Check the ID or go back to the approvals list.</EmptyState></Card>
       </div>
     )
   }
   return (
     <div ref={ref}>
-      <PageHead crumb="Approvals" title={req.code || req.id} desc={`${req.type}: ${req.title}`}
-        actions={<>{back}{isOpen(req.status)
-          ? <Button tone="primary" icon="check" onClick={() => { const el = document.getElementById('decision'); el?.scrollIntoView({ behavior: 'smooth', block: 'start' }); el?.querySelector<HTMLElement>('textarea,input,select')?.focus({ preventScroll: true }) }}>Go to decision</Button>
-          : <Button tone="primary" icon="approvals" onClick={() => navigate('/approvals')}>Next request</Button>}</>} />
+      <PageHead crumb={crumb} title={req.code || req.id} desc={pcmView ? undefined : `${req.type}: ${req.title}`}
+        actions={<>{back}{!isOpen(req.status)
+          && <Button tone="primary" icon="approvals" onClick={() => navigate('/approvals')}>Next request</Button>}</>} />
       <div className="grid dash-grid">
         <div className="stack">
-          <Summary req={req} />
+          <Summary req={req} pcmView={pcmView} />
           <TypeChecks req={req} />
         </div>
         <div className="stack">
@@ -70,30 +74,28 @@ export default function ApprovalDetail() {
   )
 }
 
-function Summary({ req }: { req: ApprovalRequest }) {
+function Summary({ req, pcmView }: { req: ApprovalRequest; pcmView: boolean }) {
   const projects = useCore((s) => s.projects)
-  const sites = useCore((s) => s.sites)
   const users = useCore((s) => s.users)
   const project = projectOf(projects, req.chainageId)
-  const site = req.locationId ? sites.find((x) => x.id === req.locationId) : undefined
   // who acts next: the level's approver, or the raiser while a clarification is open
-  const next = isOpen(req.status) && req.assignedActorId ? byId(users, req.assignedActorId)?.name ?? 'Assigned approver' : null
+  const next = isOpen(req.status) && req.assignedActorId ? displayRaiser(byId(users, req.assignedActorId)?.name ?? 'Assigned approver') : null
   const marker = project?.chainage?.markers?.find((m) => m.id === req.chainageId)
   return (
-    <Card title="Request" subtitle={`Raised in ${req.module}`}>
+    <Card title="Request" subtitle={`Raised in ${displayPCM(req.module)}`}>
       <div className="detail-grid">
         <KV k="Status"><StatusBadge tone={REQUEST_TONE[req.status]}>{req.status}</StatusBadge></KV>
         <KV k="Type"><span className="cell-pill">{req.type}</span></KV>
-        <KV k="Raised by"><Who name={req.raisedBy} sub={req.raisedById ? 'Module head' : 'Module user'} /></KV>
+        <KV k="Raised by"><Who name={displayRaiser(req.raisedBy)} sub={pcmView ? undefined : req.raisedById ? 'Module head' : 'Module user'} /></KV>
         <KV k="Raised on"><strong>{fmtDateTime(req.raisedAt)}</strong></KV>
-        <KV k="Chainage"><strong>{marker ? `${marker.label} (${marker.id})` : req.chainageId}</strong></KV>
+        {!pcmView && <KV k="Chainage"><strong>{marker ? marker.label : '—'}</strong></KV>}
         <KV k="Project"><strong>{project?.name ?? 'Company-wide'}</strong>{!project && <Muted> (not tied to one project)</Muted>}</KV>
-        <KV k="Site"><strong>{site ? `${site.name} (${site.code})` : req.locationId ? 'A site not loaded here' : 'Head office / whole company'}</strong></KV>
         <KV k="Emergency">{req.emergency ? <span className="warn-text">Yes</span> : <strong>No</strong>}</KV>
-        <KV k="Needed by"><strong>{req.neededBy ? fmtDate(req.neededBy) : req.emergency ? 'As soon as possible (emergency)' : 'Not given'}</strong></KV>
+        <KV k={pcmView ? "Required by" : "Needed by"}><strong>{req.neededBy ? fmtDate(req.neededBy) : req.emergency ? 'As soon as possible (emergency)' : 'Not given'}</strong></KV>
         <KV k="Matrix version"><strong>v{req.matrixVersion}</strong> <Muted>(fixed when raised)</Muted></KV>
         <KV k="Current level"><strong>{req.status === 'Approved' || req.status === 'Rejected' ? 'Decided' : `L${req.currentLevel}`}</strong></KV>
         {next && <KV k="Waiting on"><strong>{next}</strong></KV>}
+        {pcmView && <KV k="Description" full><strong>{req.type}: {req.title}</strong></KV>}
       </div>
       {req.emergency && <Note title="Emergency flag" icon="siren">The emergency flag raises priority only. It never bypasses approval.</Note>}
     </Card>
@@ -212,7 +214,7 @@ function ThresholdCheck({ kind, amount, lines }: { kind: 'payment' | 'loan'; amo
         [ho ? <strong key="b">At or above the threshold</strong> : 'At or above the threshold', 'Approved through the approval chain', 'Released by Head Office'],
       ]} />
       <Note title={ho ? 'This request is at or above the threshold' : 'This request is below the threshold'} icon={ho ? 'building' : 'rupee'}>
-        {ho ? 'Head Office will release the payment after final approval.' : 'The location will pay through PMS after final approval.'}
+        {ho ? 'Head Office will release the payment after final approval.' : 'The location will pay through PCM after final approval.'}
         {kind === 'loan' ? ' HRMS sets up the recovery schedule after approval. Whether loans and advance payments are the same record is yet to be confirmed (PRD v2, Q6).' : ''}
       </Note>
     </Card>
@@ -236,21 +238,20 @@ function TransferCheck({ p }: { p: Extract<RequestPayload, { kind: 'transfer' }>
 }
 
 function JobCheck({ req, p }: { req: ApprovalRequest; p: Extract<RequestPayload, { kind: 'job' }> }) {
-  const sites = useCore((s) => s.sites)
   const [publishing, setPublishing] = useState(false)
   const route = jobRouteOf(req)
-  const published = publishedTo(req)
+  const published = isPublished(req)
   return (
     <Card title="Job opening" subtitle="Posted on the HRMS recruitment page (PRD v2, 3.11)"
-      action={canPublishJob(req) ? <Button size="sm" tone="primary" icon="upload" onClick={() => setPublishing(true)}>Publish to location</Button> : undefined}>
+      action={canPublishJob(req) ? <Button size="sm" tone="primary" icon="upload" onClick={() => setPublishing(true)}>Publish</Button> : undefined}>
       <div className="detail-grid">
         <KV k="Position"><strong>{p.position}</strong></KV><KV k="Openings"><strong>{p.openings}</strong></KV>
         <KV k="CTC range"><strong className="amount">{money(p.ctcMin)} – {money(p.ctcMax)}</strong></KV><KV k="Experience"><strong>{p.experience}</strong></KV>
         <KV k="HRMS recruitment page"><strong>{p.postedOnHrms ? 'Requirement posted' : 'Not posted'}</strong></KV>
         <KV k="Who fills it"><strong>{route ?? 'Not decided'}</strong></KV>
         {published && (
-          <KV k="Published to">
-            <strong>{byId(sites, published)?.name ?? published}</strong>
+          <KV k="Published">
+            <strong>Published</strong>
             {req.publishedAt && <Muted> · {fmtDateTime(req.publishedAt)}</Muted>}
           </KV>
         )}
@@ -290,13 +291,13 @@ function Chain({ req }: { req: ApprovalRequest }) {
   const levels = fromSnapshot
     ? req.levelsSnapshot!
     : (chain?.versions.find((v) => v.version === req.matrixVersion)?.levels ?? []).map((l, i) => ({ ...l, levelNo: i + 1 }))
-  const nameOf = (uid: string) => byId(users, uid)?.name ?? ''
+  const nameOf = (uid: string) => displayRaiser(byId(users, uid)?.name ?? '')
   // Payments: a cash limit lets a small amount stop at a lower level.
   const isPayments = req.type === 'Payments'
   const amount = req.payload.kind === 'payment' ? req.payload.amount : undefined
   const stop = isPayments ? stopLevel(levels, amount) : levels.length
   return (
-    <Card title="Approval chain" subtitle={`${chain ? `${chain.id} · ${scopeText(chain.scopeType, chain.scopeIds, projects)} · matrix v${req.matrixVersion}` : `Matrix v${req.matrixVersion} for ${req.type}`}${fromSnapshot ? ' · levels as fixed when raised' : ''}`}>
+    <Card title="Approval chain" subtitle={`${chain ? `${scopeText(chain.scopeType, chain.scopeIds, projects)} · matrix v${req.matrixVersion}` : `Matrix v${req.matrixVersion} for ${req.type}`}${fromSnapshot ? ' · levels as fixed when raised' : ''}`}>
       {isPayments && amount !== undefined && (
         <Note title="Cash limit" icon="info" className="mt-0">
           For {money(amount)}, approval stops at Level {stop}. Levels below {stop + 1} are needed; the rest are not needed for this amount.
@@ -330,9 +331,8 @@ function DecisionCard({ req }: { req: ApprovalRequest }) {
   const clarifyRemote = useCore((s) => s.clarifyRemote)
   const me = useAuth((s) => s.profile?.id)
   const loadRequests = useCore((s) => s.loadRequests)
-  const { stores, stock, projects, sites, users } = useCore()
+  const { stores, stock, projects, users } = useCore()
   const project = projectOf(projects, req.chainageId)
-  const site = req.locationId ? sites.find((x) => x.id === req.locationId) : undefined
   // POST /approval-requests/{id}/actions; a version conflict re-reads the requests
   const { run, error: saveError, saving } = useRemoteSave(loadRequests)
   const [comment, setComment] = useState('')
@@ -352,7 +352,7 @@ function DecisionCard({ req }: { req: ApprovalRequest }) {
   // A level that names a role as well may have other approvers, so it is left to the server.
   const level = req.levelsSnapshot?.find((l) => l.levelNo === req.currentLevel)
   const notApprover = !!level?.approverId && !level.approverRoleId && !!me && level.approverId !== me
-  const approverName = level?.approverId ? byId(users, level.approverId)?.name ?? 'the assigned approver' : ''
+  const approverName = level?.approverId ? displayRaiser(byId(users, level.approverId)?.name ?? 'the assigned approver') : ''
   // while a clarification is open the request waits on the raiser: approve, reject and return are refused (409)
   const clarifying = req.status === 'Clarification requested'
   const question = [...req.history].reverse().find((h) => h.action === 'Clarification requested')
@@ -418,7 +418,7 @@ function DecisionCard({ req }: { req: ApprovalRequest }) {
 
   return (
     <Card title={clarifying ? 'Clarification requested' : 'Your decision'} subtitle={`Acting at L${req.currentLevel}`}>
-      <ActionScope project={project ? { name: project.name, code: project.code } : null} site={site ? { name: site.name, code: site.code } : req.locationId ? { name: 'A site not loaded here' } : null} />
+      <ActionScope project={project ? { name: project.name, code: project.code } : null} site={null} />
       {clarifying ? (
         <div className="stack" style={{ gap: 14 }}>
           <Note title={`Question from ${question?.by || 'the approver'}`} icon="chatq" className="mt-0">
@@ -482,8 +482,8 @@ function DecisionCard({ req }: { req: ApprovalRequest }) {
             <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
               <legend className="section-t" style={{ marginTop: 0 }}>Who fills this opening? <span className="required">*</span></legend>
               <div className="radio-cards">
-                <label className="radio-card"><input type="radio" name="job-route" checked={decision.route === 'Site hires directly'} onChange={() => { setDecision({ kind: 'job', route: 'Site hires directly' }); setError('') }} /><div><strong>Site hires directly</strong><span>The location recruits from the HRMS posting</span></div></label>
-                <label className="radio-card"><input type="radio" name="job-route" checked={decision.route === 'Head Office posts and sends candidate'} onChange={() => { setDecision({ kind: 'job', route: 'Head Office posts and sends candidate' }); setError('') }} /><div><strong>Head Office posts and sends a candidate</strong><span>CORE publishes the opening to the location after approval</span></div></label>
+                <label className="radio-card"><input type="radio" name="job-route" checked={decision.route === 'Site hires directly'} onChange={() => { setDecision({ kind: 'job', route: 'Site hires directly' }); setError('') }} /><div><strong>Direct site hiring</strong><span>The location recruits from the HRMS posting</span></div></label>
+                <label className="radio-card"><input type="radio" name="job-route" checked={decision.route === 'Head Office posts and sends candidate'} onChange={() => { setDecision({ kind: 'job', route: 'Head Office posts and sends candidate' }); setError('') }} /><div><strong>Head Office hiring</strong><span>CORE publishes the opening to the location after approval</span></div></label>
               </div>
             </fieldset>
           )}
@@ -492,17 +492,18 @@ function DecisionCard({ req }: { req: ApprovalRequest }) {
           </FormGroup>
         </div>
       )}
-      <div className="form-actions">
-        {clarifying && isRaiser ? (
+      {/* only the buttons the signed-in user can use are shown: the raiser's reply while a clarification is open, or the decision for the level's approver */}
+      {clarifying && isRaiser ? (
+        <div className="form-actions">
           <Button tone="primary" icon="send" disabled={saving} onClick={() => void ask('respond')}>{saving ? 'Sending…' : 'Send response'}</Button>
-        ) : (
-          <>
-            <Button tone="danger" icon="xc" disabled={selfApproval || notApprover || clarifying || saving} onClick={reject}>Reject</Button>
-            <Button tone="secondary" icon="chatq" disabled={selfApproval || notApprover || clarifying || saving} onClick={() => void ask('clarify')}>Clarify</Button>
-            <Button tone="success" icon="check" disabled={selfApproval || notApprover || clarifying || saving} onClick={approve}>{saving ? 'Saving…' : 'Approve'}</Button>
-          </>
-        )}
-      </div>
+        </div>
+      ) : !clarifying && !selfApproval && !notApprover ? (
+        <div className="form-actions">
+          <Button tone="danger" icon="xc" disabled={saving} onClick={reject}>Reject</Button>
+          <Button tone="secondary" icon="chatq" disabled={saving} onClick={() => void ask('clarify')}>Clarify</Button>
+          <Button tone="success" icon="check" disabled={saving} onClick={approve}>{saving ? 'Saving…' : 'Approve'}</Button>
+        </div>
+      ) : null}
       <Modal open={!!confirming} onOpenChange={(o) => !o && setConfirming(null)}
         title={confirming?.action === 'Approved' ? `Approve ${req.code}?` : `Reject ${req.code}?`}
         description={confirming?.action === 'Approved'

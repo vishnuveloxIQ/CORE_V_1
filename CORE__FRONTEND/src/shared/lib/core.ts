@@ -1,4 +1,4 @@
-import { z } from 'zod'
+﻿import { z } from 'zod'
 import type { StatusTone } from '@/shared/ui/Status'
 
 /** id → label lookup over any list with `id` */
@@ -17,7 +17,7 @@ export const pin = z.string().trim().regex(/^\d{6}$/, 'PIN code is 6 digits.')
 export const code = (label: string) => z.string().trim().min(2, `${label} is required.`).max(16, 'Keep it under 16 characters.').regex(/^[A-Z0-9-]+$/, 'Use capitals, digits and hyphens only.')
 export const num = (label: string, min = 0) => z.number({ error: `Enter ${label.toLowerCase()}.` }).min(min, `${label} must be at least ${min}.`)
 
-/** Unique id for nested rows (milestones, WBS items, markers). */
+/** Unique id for nested rows (milestones, markers). */
 export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 /** yyyy-MM-dd that is a real calendar date */

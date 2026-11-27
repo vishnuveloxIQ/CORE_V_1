@@ -5,6 +5,9 @@ import { page } from '@/shared/lib/route'
 export const orgRoutes: AppRoute[] = [
   { path: '/organogram', Component: page(() => import('./pages/Organogram')) },
   { path: '/departments', Component: page(() => import('./pages/Departments')) },
+  { path: '/approved-list', Component: page(() => import('./pages/ApprovedList')) },
+  { path: '/approved-list/compare', Component: page(() => import('./pages/ApprovedCompare')) },
+  { path: '/manpower-availability', Component: page(() => import('./pages/ManpowerAvailability')) },
 ]
 
 // 3.6 users

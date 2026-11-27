@@ -66,8 +66,8 @@ export default function ReadModels({ embedded = false }: { embedded?: boolean } 
   return (
     <div ref={ref}>
       {embedded
-        ? <p className="helper" style={{ margin: '0 0 16px' }}>The latest copy CORE holds of records owned by HRMS, P&M, PMS and Stores, kept up to date from their messages.</p>
-        : <PageHead crumb="Shared records" title="Shared records" desc="The latest copy CORE holds of records owned by HRMS, P&M, PMS and Stores, kept up to date from their messages." />}
+        ? <p className="helper" style={{ margin: '0 0 16px' }}>The latest copy CORE holds of records owned by HRMS, P&M, PCM and Stores, kept up to date from their messages.</p>
+        : <PageHead crumb="Shared records" title="Shared records" desc="The latest copy CORE holds of records owned by HRMS, P&M, PCM and Stores, kept up to date from their messages." />}
       <Card title="Sync by module" subtitle="How many records Core holds and when each kind last changed. Local time; hover for UTC.">
         <MiniTable label="Sync by module" head={['Module', 'Record type', 'Records', 'Last sequence', 'Last synced']} empty="No records have been received from the other modules yet."
           rows={status.map((s) => [
@@ -79,7 +79,7 @@ export default function ReadModels({ embedded = false }: { embedded?: boolean } 
         </Note>
       </Card>
       {state === 'error' && <div className="login-error" role="alert" style={{ margin: '16px 0' }}><span>The shared records could not be loaded: {loadError}</span></div>}
-      <div className="form-grid" style={{ margin: '16px 0 12px' }}>
+      <div className="filter-bar" style={{ margin: '16px 0 12px' }}>
         <FormGroup label="Module">
           {(id) => (
             <Select id={id} name="module" value={sourceModule} onChange={(e) => setFilter({ module: e.target.value })}>

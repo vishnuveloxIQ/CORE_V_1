@@ -18,8 +18,7 @@ import {
   type AuditAction, type AuditFilter, type AuditEntry,
 } from '@/modules/core-data'
 import { SignInHistory } from '../components/SignInHistory'
-import EventMonitor from '@/modules/integrations/pages/EventMonitor'
-import ReadModels from '@/modules/integrations/pages/ReadModels'
+import { EventMonitor, ReadModels } from '@/modules/integrations'
 
 /** Rows per page, sent as the limit; Previous and Next move the offset by one page. */
 const PAGE = 50
@@ -47,10 +46,10 @@ type View = (typeof VIEWS)[number]
 /** The address parameter that opens each tab (the old sign-in, events and read-model links use these). */
 const VIEW_PARAM: Record<View, string> = { Activity: '', 'Sign-ins': 'sign-in', 'Data exchange log': 'messages', 'Shared records': 'data' }
 const DESC: Record<View, string> = {
-  Activity: 'What people did in CORE and in the other modules (HRMS, P&M, PMS, Stores): who did what, and when. Entries cannot be edited or deleted.',
+  Activity: 'What people did in CORE and in the other modules (HRMS, P&M, PCM, Stores): who did what, and when. Entries cannot be edited or deleted.',
   'Sign-ins': 'Sign-ins, failed attempts, lockouts, ended sessions, passkeys and refused access in CORE and in the other modules.',
-  'Data exchange log': 'Messages CORE sends to and receives from HRMS, P&M, PMS and Stores: what is waiting, sent, received or failed.',
-  'Shared records': 'The latest copy CORE holds of records owned by HRMS, P&M, PMS and Stores.',
+  'Data exchange log': 'Messages CORE sends to and receives from HRMS, P&M, PCM and Stores: what is waiting, sent, received or failed.',
+  'Shared records': 'The latest copy CORE holds of records owned by HRMS, P&M, PCM and Stores.',
 }
 
 /**
@@ -68,7 +67,7 @@ export default function AuditTrail() {
   return (
     <div ref={ref}>
       <PageHead crumb="Activity log" title="Activity log" desc={DESC[view]}
-        actions={view === 'Activity' ? <Button tone="primary" icon="download" onClick={() => void exportChanges.current?.()}>Export all entries</Button> : undefined} />
+        actions={view === 'Activity' ? <Button tone="primary" icon="download" onClick={() => void exportChanges.current?.()}>Download all entries</Button> : undefined} />
       <div style={{ marginBottom: 16 }} data-enter>
         <Tabs label="Activity log view" value={view} items={VIEWS}
           onChange={(v) => setParams(VIEW_PARAM[v] ? { view: VIEW_PARAM[v] } : {}, { replace: true })} />
@@ -224,7 +223,7 @@ function ChangeHistory({ exportRef }: { exportRef: { current: (() => Promise<voi
       </div>
       </div>
       {loadError && <div className="login-error" role="alert" style={{ marginBottom: 16 }}><span>The audit trail could not be read: {loadError}</span></div>}
-      <TablePanel title="All activity" subtitle="Filters above are applied on the server. Search below only narrows the rows on this page. Most recent changes first." rows={entries} rowKey={(a) => a.id} className="fit-table"
+      <TablePanel title="All activity" subtitle="Filters above are applied on the server. Search below only narrows the rows on this page. Most recent changes first." rows={entries} rowKey={(a) => a.id} className="fit-table audit-table"
         columns={[
           { header: 'Date/Time', kind: 'c-sub', cell: (a) => { const [day, time] = fmtDateTime(a.at).split(' · '); return <span style={{ whiteSpace: 'nowrap' }}><strong>{day}</strong><span className="sub">{time ?? ''}</span></span> }, csv: (a) => a.at },
           { header: 'Module', kind: 'c-status', cell: (a) => <span className="cell-pill">{auditModuleLabel(a.module ?? 'core')}</span>, csv: (a) => auditModuleLabel(a.module ?? 'core') },

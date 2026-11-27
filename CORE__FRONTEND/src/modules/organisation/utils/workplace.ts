@@ -16,7 +16,7 @@ export function workplaceOf(u: Pick<CoreUser, 'scopeType' | 'scopeIds'>, project
   if (u.scopeType === 'Company') return { companyWide: true, projects: [], locations: [] }
   const mine = u.scopeIds.map((id) => projects.find((p) => p.id === id)).filter((p): p is Project => !!p)
   const ids = new Set(mine.map((p) => p.id))
-  const locations = sites.filter((s) => (s.projectId && ids.has(s.projectId)) || mine.some((p) => p.locationIds.includes(s.id)))
+  const locations = sites.filter((s) => !!s.projectId && ids.has(s.projectId))
   return { companyWide: false, projects: mine, locations }
 }
 

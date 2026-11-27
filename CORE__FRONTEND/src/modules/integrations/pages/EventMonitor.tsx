@@ -21,7 +21,7 @@ const STATUS_OPTIONS: Array<[EventStatusApi, string]> = [
   ['pending', 'Queued or retrying'], ['published', 'Sent'], ['received', 'Received'], ['processed', 'Processed'], ['dead_lettered', 'Dead-letter'],
 ]
 
-const MODULES: Record<string, string> = { core: 'CORE', hrms: 'HRMS', pm: 'P&M', pms: 'PMS', stores: 'Stores' }
+const MODULES: Record<string, string> = { core: 'CORE', hrms: 'HRMS', pm: 'P&M', pms: 'PCM', stores: 'Stores' }
 const moduleName = (m: string | null) => (m ? MODULES[m] ?? m.toUpperCase() : 'Unknown module')
 /** "employeeCode" or "stock_receipt" as plain words: "Employee code", "Stock receipt". */
 const words = (key: string) => {
@@ -121,7 +121,7 @@ export default function EventMonitor({ embedded = false }: { embedded?: boolean 
     <div ref={ref}>
       {embedded
         ? <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 16px' }}>
-            <p className="helper" style={{ margin: 0 }}>Messages CORE sends to and receives from the other modules (HRMS, P&M, PMS and Stores): waiting, sent, received and failed.</p>
+            <p className="helper" style={{ margin: 0 }}>Messages CORE sends to and receives from the other modules (HRMS, P&M, PCM and Stores): waiting, sent, received and failed.</p>
             <Button tone="primary" icon="refresh" onClick={refresh} disabled={state === 'loading'}>Refresh</Button>
           </div>
         : <PageHead crumb="Data exchange log" title="Data exchange log"
@@ -142,7 +142,7 @@ export default function EventMonitor({ embedded = false }: { embedded?: boolean 
           <span>The events could not be loaded: {loadError}. {loadedAt && 'The figures shown may be out of date.'}</span>
         </div>
       )}
-      <div className="form-grid" style={{ marginBottom: 12 }}>
+      <div className="filter-bar" style={{ marginBottom: 12 }}>
         <FormGroup label="Direction">
           {(id) => (
             <Select id={id} name="direction" value={direction} onChange={(e) => { setOffset(0); setState('loading'); setDirection(e.target.value as EventDirection | '') }}>

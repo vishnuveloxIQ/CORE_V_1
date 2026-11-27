@@ -3,6 +3,7 @@ import { Button } from '@/shared/ui/Button'
 import { Modal } from '@/shared/ui/Modal'
 import { cn } from '@/shared/lib/cn'
 import { csvRecords, downloadText, toCsv } from '@/shared/lib/csv'
+import { spreadsheetRecords } from '@/shared/lib/spreadsheet'
 import { notify } from '@/shared/lib/toast'
 import { Icon } from '@/shared/ui/icons'
 
@@ -62,12 +63,15 @@ function BulkBody<T>({ noun, fields, examples = [], validate, onImport, onOpenCh
   const read = (f: File | undefined) => {
     setError('')
     if (!f) return
-    if (!/\.csv$/i.test(f.name)) return setError('Choose a .csv file. In Excel, use File → Save as → CSV UTF-8.')
+    if (!/\.(csv|xlsx|xls)$/i.test(f.name)) return setError('Choose a .csv or .xlsx file.')
     if (f.size > MAX_BYTES) return setError('The file is larger than 1 MB. Split it into smaller files.')
     const reader = new FileReader()
     reader.onerror = () => setError('The file could not be read. Try again.')
     reader.onload = () => {
-      const { keys, records } = csvRecords(String(reader.result ?? ''))
+      const isSheet = /\.(xlsx|xls)$/i.test(f.name)
+      const { keys, records } = isSheet
+        ? spreadsheetRecords(reader.result as ArrayBuffer)
+        : csvRecords(String(reader.result ?? ''))
       const missing = fields.filter((x) => x.required && !keys.includes(x.key)).map((x) => x.key)
       if (missing.length) return setError(`Missing column${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}. Download the template to see the exact headings.`)
       if (!records.length) return setError('The file has headings but no rows.')
@@ -75,7 +79,8 @@ function BulkBody<T>({ noun, fields, examples = [], validate, onImport, onOpenCh
       setFile({ name: f.name, rows: validate(records) })
       setShow('all')
     }
-    reader.readAsText(f)
+    if (/\.(xlsx|xls)$/i.test(f.name)) reader.readAsArrayBuffer(f)
+    else reader.readAsText(f)
   }
 
   const onDrop = (e: DragEvent) => { e.preventDefault(); setDrag(false); read(e.dataTransfer.files?.[0]) }
@@ -85,12 +90,12 @@ function BulkBody<T>({ noun, fields, examples = [], validate, onImport, onOpenCh
       <>
         <div className="bulk-steps">
           <div><span className="step-n">1</span><div><strong>Get the template</strong><span>Fill one row per record. Keep the headings as they are.</span></div><Button size="sm" icon="download" onClick={template}>Download template</Button></div>
-          <div><span className="step-n">2</span><div><strong>Upload the filled file</strong><span>CSV, up to 1 MB and {MAX_ROWS} rows. Every row is checked before anything is added.</span></div></div>
+          <div><span className="step-n">2</span><div><strong>Upload the filled file</strong><span>CSV or Excel (.xlsx), up to 1 MB and {MAX_ROWS} rows. Every row is checked before anything is added.</span></div></div>
         </div>
         <label className={cn('drop-zone', drag && 'is-drag')} onDragOver={(e) => { e.preventDefault(); setDrag(true) }} onDragLeave={() => setDrag(false)} onDrop={onDrop}>
-          <input ref={input} type="file" accept=".csv,text/csv" className="sr-only" aria-label={`CSV file of ${noun}`} onChange={(e) => { read(e.target.files?.[0]); e.target.value = '' }} />
+          <input ref={input} type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" aria-label={`CSV file of ${noun}`} onChange={(e) => { read(e.target.files?.[0]); e.target.value = '' }} />
           <span className="drop-ico"><Icon name="upload" /></span>
-          <strong>Drop the CSV file here</strong>
+          <strong>Drop the CSV or Excel file here</strong>
           <span>or <u>choose a file</u> from this computer</span>
         </label>
         {error && <p className="login-error" role="alert" style={{ marginTop: 12 }}><Icon name="alert" />{error}</p>}

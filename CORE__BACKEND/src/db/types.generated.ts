@@ -35,6 +35,22 @@ export interface AuditRowChangeRow {
   updated_by: string | null;
 }
 
+/** tenant_<id>.core_advert_mail */
+export interface CoreAdvertMailRow {
+  advert_id: string;
+  body: string;
+  created_at: Date;
+  created_by: string | null;
+  id: string;
+  row_version: number;
+  status: string;
+  sub_contractor_id: string;
+  subject: string;
+  to_address: string;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
 /** tenant_<id>.core_approval_action */
 export interface CoreApprovalActionRow {
   acted_at: Date;
@@ -91,14 +107,12 @@ export interface CoreApprovalRequestRow {
   id: string;
   last_reminded_at: Date | null;
   levels_snapshot: unknown;
-  location_id: string | null;
   matrix_version: number | null;
   matrix_version_id: string;
   module: string;
   needed_by: Date | null;
   payload_json: unknown;
   published_at: Date | null;
-  published_location_id: string | null;
   raised_at: Date;
   raised_by_id: string | null;
   raised_by_name: string | null;
@@ -107,6 +121,24 @@ export interface CoreApprovalRequestRow {
   source_record_id: string | null;
   status: string;
   title: string;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
+/** tenant_<id>.core_approved_person */
+export interface CoreApprovedPersonRow {
+  created_at: Date;
+  created_by: string | null;
+  department: string;
+  designation: string;
+  id: string;
+  joining_date: Date;
+  name: string;
+  project_id: string;
+  reason: string | null;
+  reason_requested_at: Date | null;
+  row_version: number;
+  status: string;
   updated_at: Date;
   updated_by: string | null;
 }
@@ -132,6 +164,23 @@ export interface CoreAuthActivityRow {
   user_id: string | null;
 }
 
+/** tenant_<id>.core_billing_plan */
+export interface CoreBillingPlanRow {
+  created_at: Date;
+  created_by: string | null;
+  id: string;
+  name: string;
+  price: string;
+  projects: number;
+  row_version: number;
+  sites: number;
+  storage_gb: number;
+  support: string;
+  updated_at: Date;
+  updated_by: string | null;
+  users: number;
+}
+
 /** tenant_<id>.core_boq_item */
 export interface CoreBoqItemRow {
   amount: string | null;
@@ -148,7 +197,6 @@ export interface CoreBoqItemRow {
   uom_id: string;
   updated_at: Date;
   updated_by: string | null;
-  wbs_node_id: string | null;
 }
 
 /** tenant_<id>.core_chainage_marker */
@@ -164,7 +212,6 @@ export interface CoreChainageMarkerRow {
   row_version: number;
   updated_at: Date;
   updated_by: string | null;
-  wbs_node_id: string | null;
 }
 
 /** tenant_<id>.core_company_profile */
@@ -175,6 +222,7 @@ export interface CoreCompanyProfileRow {
   cin: string | null;
   city: string | null;
   code: string | null;
+  company_type: string | null;
   contact_email: string | null;
   contact_name: string | null;
   contact_phone: string | null;
@@ -196,6 +244,25 @@ export interface CoreCompanyProfileRow {
   updated_at: Date;
   updated_by: string | null;
   website: string | null;
+}
+
+/** tenant_<id>.core_contractor_interest */
+export interface CoreContractorInterestRow {
+  advert_id: string;
+  contact_name: string | null;
+  created_at: Date;
+  created_by: string | null;
+  firm_name: string | null;
+  id: string;
+  mail_id: string | null;
+  phone: string | null;
+  reason: string | null;
+  row_version: number;
+  source: string;
+  status: string;
+  sub_contractor_id: string | null;
+  updated_at: Date;
+  updated_by: string | null;
 }
 
 /** tenant_<id>.core_custom_policy */
@@ -293,6 +360,24 @@ export interface CoreEquipmentAssignmentRow {
   updated_by: string | null;
 }
 
+/** tenant_<id>.core_equipment_rate */
+export interface CoreEquipmentRateRow {
+  amount: string | null;
+  created_at: Date;
+  created_by: string | null;
+  equipment_type: string;
+  id: string;
+  policy_version_id: string | null;
+  project_id: string;
+  rate: string;
+  rate_basis: string;
+  remarks: string | null;
+  row_version: number;
+  unit: string;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
 /** tenant_<id>.core_equipment_type */
 export interface CoreEquipmentTypeRow {
   active: boolean;
@@ -315,6 +400,7 @@ export interface CoreEquipmentTypeRow {
 export interface CoreEquipmentUnitRow {
   agreement_end: Date | null;
   agreement_start: Date | null;
+  approval_request_id: string | null;
   asset_code: string;
   availability: string;
   capacity: string | null;
@@ -331,6 +417,8 @@ export interface CoreEquipmentUnitRow {
   fuel_norm: string | null;
   fuel_type: string | null;
   hire_ref: string | null;
+  hire_status: string | null;
+  hired_from: string | null;
   id: string;
   insurance_expiry: Date | null;
   insurance_no: string | null;
@@ -339,7 +427,6 @@ export interface CoreEquipmentUnitRow {
   last_ping_at: Date | null;
   lat: string | null;
   lng: string | null;
-  location_id: string | null;
   make_model: string | null;
   manufacturer: string | null;
   meter_reading: string | null;
@@ -347,10 +434,12 @@ export interface CoreEquipmentUnitRow {
   mfg_year: string | null;
   model: string | null;
   name: string | null;
+  over_plan_reason: string | null;
   owner: string | null;
   ownership_type: string | null;
   photo_file_id: string | null;
   pollution_expiry: Date | null;
+  project_id: string | null;
   puc_no: string | null;
   reg_expiry: Date | null;
   reg_no: string | null;
@@ -497,6 +586,33 @@ export interface CoreImportRowRow {
   validated_values: unknown | null;
 }
 
+/** tenant_<id>.core_interest_step */
+export interface CoreInterestStepRow {
+  created_at: Date;
+  created_by: string | null;
+  id: string;
+  interest_id: string;
+  remarks: string;
+  row_version: number;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
+/** tenant_<id>.core_invoice */
+export interface CoreInvoiceRow {
+  amount: string;
+  created_at: Date;
+  created_by: string | null;
+  id: string;
+  invoice_date: Date;
+  invoice_no: string;
+  period: string;
+  row_version: number;
+  status: string;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
 /** tenant_<id>.core_leave_policy */
 export interface CoreLeavePolicyRow {
   code: string;
@@ -629,6 +745,36 @@ export interface CoreMaterialRow {
   updated_by: string | null;
 }
 
+/** tenant_<id>.core_material_rate */
+export interface CoreMaterialRateRow {
+  amount: string | null;
+  created_at: Date;
+  created_by: string | null;
+  id: string;
+  material_code: string | null;
+  material_name: string;
+  policy_version_id: string | null;
+  project_id: string;
+  rate: string;
+  remarks: string | null;
+  row_version: number;
+  uom: string;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
+/** tenant_<id>.core_material_store */
+export interface CoreMaterialStoreRow {
+  created_at: Date;
+  created_by: string | null;
+  id: string;
+  material_id: string;
+  row_version: number;
+  store_id: string;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
 /** tenant_<id>.core_matrix_level */
 export interface CoreMatrixLevelRow {
   amount_from: string;
@@ -756,6 +902,7 @@ export interface CorePlanLineRow {
   capacity: string | null;
   created_at: Date;
   created_by: string | null;
+  department: string | null;
   equipment_type_id: string | null;
   from_date: Date | null;
   id: string;
@@ -846,6 +993,7 @@ export interface CorePolicyVersionRow {
   effective_from: Date;
   id: string;
   policy_id: string;
+  project_id: string | null;
   published_at: Date | null;
   reason: string | null;
   row_version: number;
@@ -880,14 +1028,19 @@ export interface CoreProjectRow {
   chainage_start_km: string | null;
   client: string | null;
   code: string;
+  consultant_name: string | null;
   created_at: Date;
   created_by: string | null;
+  department: string | null;
   description: string | null;
   end_date: Date | null;
+  execution_mode: string | null;
   id: string;
   name: string;
+  project_type: string | null;
   row_version: number;
   start_date: Date | null;
+  state: string | null;
   status: string | null;
   updated_at: Date;
   updated_by: string | null;
@@ -907,6 +1060,29 @@ export interface CoreProjectMilestoneRow {
   updated_at: Date;
   updated_by: string | null;
   weight: string | null;
+}
+
+/** tenant_<id>.core_quotation */
+export interface CoreQuotationRow {
+  amount: string;
+  buyer_name: string;
+  created_at: Date;
+  created_by: string | null;
+  decided_at: Date | null;
+  destination: string | null;
+  document: unknown;
+  id: string;
+  payment_terms: string | null;
+  project_name: string | null;
+  quotation_date: Date;
+  reason: string | null;
+  ref: string;
+  row_version: number;
+  status: string;
+  updated_at: Date;
+  updated_by: string | null;
+  valid_until: Date | null;
+  vendor_name: string;
 }
 
 /** tenant_<id>.core_record_timeline */
@@ -991,18 +1167,79 @@ export interface CoreStoreRow {
   created_by: string | null;
   id: string;
   keeper: string | null;
-  location_id: string;
+  location_id: string | null;
   location_text: string | null;
   name: string;
   phone: string | null;
+  project_id: string | null;
   row_version: number;
   status: string | null;
   updated_at: Date;
   updated_by: string | null;
 }
 
+/** tenant_<id>.core_sub_contractor */
+export interface CoreSubContractorRow {
+  address: string | null;
+  agreement_file_id: string | null;
+  consumables_terms: string | null;
+  created_at: Date;
+  created_by: string | null;
+  firm_name: string;
+  gst_number: string | null;
+  id: string;
+  mail_id: string | null;
+  other_conditions: string | null;
+  owner_name: string;
+  pan_number: string | null;
+  phone: string | null;
+  project_id: string;
+  project_name: string | null;
+  row_version: number;
+  safety_items: string | null;
+  scope_annexure: string | null;
+  shed_tent_material: string | null;
+  site_name: string | null;
+  status: string;
+  updated_at: Date;
+  updated_by: string | null;
+  work_contract_period: string | null;
+  work_contract_title: string;
+  work_order_date: Date | null;
+}
+
+/** tenant_<id>.core_subscription */
+export interface CoreSubscriptionRow {
+  account_id: string;
+  account_manager: string | null;
+  auto_renew: boolean;
+  base_amount: string;
+  billing_cycle: string;
+  billing_email: string | null;
+  created_at: Date;
+  created_by: string | null;
+  gst_rate: string;
+  id: string;
+  limit_projects: number | null;
+  limit_sites: number | null;
+  limit_storage_gb: number | null;
+  limit_users: number | null;
+  modules: unknown;
+  next_invoice_date: Date | null;
+  payment_method: string | null;
+  plan: string;
+  renewal_date: Date;
+  row_version: number;
+  start_date: Date;
+  status: string;
+  support_tier: string | null;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
 /** tenant_<id>.core_ticket */
 export interface CoreTicketRow {
+  answer: string | null;
   category: string;
   code: string;
   created_at: Date;
@@ -1060,6 +1297,7 @@ export interface CoreUserRow {
   updated_at: Date;
   updated_by: string | null;
   user_role: string | null;
+  user_roles: string[];
 }
 
 /** tenant_<id>.core_user_access */
@@ -1069,7 +1307,6 @@ export interface CoreUserAccessRow {
   created_at: Date;
   created_by: string | null;
   id: string;
-  location_id: string | null;
   module: string | null;
   privilege: string | null;
   project_id: string | null;
@@ -1139,20 +1376,40 @@ export interface CoreVendorRow {
   verified_at: Date | null;
 }
 
-/** tenant_<id>.core_wbs_node */
-export interface CoreWbsNodeRow {
-  aggregate_seq: string | null;
+/** tenant_<id>.core_workforce_advert */
+export interface CoreWorkforceAdvertRow {
+  closed_at: Date | null;
+  closed_reason: string | null;
+  closes_at: Date | null;
   code: string;
   created_at: Date;
   created_by: string | null;
+  description: string | null;
   id: string;
-  name: string;
-  parent_wbs_node_id: string | null;
   project_id: string;
+  published_at: Date | null;
+  required_from: Date;
+  required_to: Date | null;
   row_version: number;
-  status: string | null;
+  state: string | null;
+  status: string;
+  title: string;
   updated_at: Date;
   updated_by: string | null;
+}
+
+/** tenant_<id>.core_workforce_advert_requirement */
+export interface CoreWorkforceAdvertRequirementRow {
+  advert_id: string;
+  created_at: Date;
+  created_by: string | null;
+  id: string;
+  notes: string | null;
+  row_version: number;
+  trade: string;
+  updated_at: Date;
+  updated_by: string | null;
+  worker_type: string;
 }
 
 /** tenant_<id>.integ_aggregate_sequence */
@@ -1225,7 +1482,6 @@ export interface IntegOfflineOperationRow {
   created_at: Date;
   created_by: string | null;
   id: string;
-  location_id: string | null;
   operation_type: string | null;
   payload: unknown | null;
   project_id: string | null;

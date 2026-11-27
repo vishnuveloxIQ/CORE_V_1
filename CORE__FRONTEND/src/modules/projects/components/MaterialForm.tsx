@@ -1,5 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
+import { Modal } from '@/shared/ui/Modal'
+import { MaterialMasterForm } from '@/modules/resources'
 import { useGuardedForm as useForm } from '@/shared/lib/useGuardedForm';
 import { Button } from '@/shared/ui/Button'
 import { FormGroup, Input, Select } from '@/shared/ui/Field'
@@ -14,8 +16,12 @@ import { MATERIAL_STATUSES, materialSchema as schema, storesForProject } from '.
  * Add or edit one material line. `defaultProject` pre-selects the project; with `lockProject` the project
  * cannot be changed (the form was opened from that project's page).
  */
+/** The material list's last choice: opens the material master form, so a material not in the list is created there. */
+const NEW_MATERIAL = '__new__'
+
 export function MaterialForm({ line, defaultProject, lockProject, onDone }: { line?: MaterialPlanLine; defaultProject?: string; lockProject?: boolean; onDone: () => void }) {
-  const { materials, stores, sites, projects, uoms, uomsError, saveMaterialPlanRemote } = useCore()
+  const { materials, stores, projects, uoms, uomsError, saveMaterialPlanRemote } = useCore()
+  const [addingMaterial, setAddingMaterial] = useState(false)
   const [formError, setFormError] = useState('')
   const [pending, setPending] = useState<{ key: string; body: string } | null>(null)
   const { register, handleSubmit, setValue, watch, formState: { errors: e } } = useForm({
@@ -45,7 +51,7 @@ export function MaterialForm({ line, defaultProject, lockProject, onDone }: { li
   const mats = materials.filter((m) => m.status === 'Active' || m.id === line?.materialId)
   // the target store is one of the stores assigned to the chosen project (a store at one of its locations)
   const projectId = watch('projectId')
-  const projectStores = storesForProject(stores, sites, projectId)
+  const projectStores = storesForProject(stores, projectId)
   const sts = projectStores.filter((s) => s.status === 'Active' || s.id === line?.storeId)
   // a project with exactly one store has its target store chosen for it, as the project itself is
   const onlyStore = sts.length === 1 ? sts[0] : undefined
@@ -66,7 +72,7 @@ export function MaterialForm({ line, defaultProject, lockProject, onDone }: { li
         {locked
           ? <FormGroup label="Project" full>{(id) => <><Input id={id} value={locked.name} readOnly /><input type="hidden" {...register('projectId')} /></>}</FormGroup>
           : <FormGroup label="Project" required full error={e.projectId?.message}>{(id, d) => <Select {...a11y(id, d, e.projectId?.message)} {...register('projectId', { onChange: () => setValue('storeId', '') })}><option value="">Choose…</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>}</FormGroup>}
-        <FormGroup label="Material" required error={e.materialId?.message}>{(id, d) => <Select {...a11y(id, d, e.materialId?.message)} {...register('materialId', { onChange: (ev) => setValue('uom', byId(materials, ev.target.value)?.uom ?? '') })}><option value="">Choose…</option>{mats.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</Select>}</FormGroup>
+        <FormGroup label="Material" required error={e.materialId?.message}>{(id, d) => <Select {...a11y(id, d, e.materialId?.message)} {...register('materialId', { onChange: (ev) => { if (ev.target.value === NEW_MATERIAL) { setValue('materialId', ''); setAddingMaterial(true); return } setValue('uom', byId(materials, ev.target.value)?.uom ?? '') } })}><option value="">Choose…</option>{mats.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}<option value={NEW_MATERIAL}>+ Add a material not in the list</option></Select>}</FormGroup>
         {onlyStore
           ? <FormGroup label="Target store" helper="The only store assigned to this project.">{(id) => <><Input id={id} value={onlyStore.name} readOnly /><input type="hidden" {...register('storeId')} /></>}</FormGroup>
           : <FormGroup label="Target store" required error={e.storeId?.message} helper={storeHelper}>{(id, d) => <Select {...a11y(id, d, e.storeId?.message)} {...register('storeId')}><option value="">Choose…</option>{sts.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>}</FormGroup>}
@@ -77,6 +83,17 @@ export function MaterialForm({ line, defaultProject, lockProject, onDone }: { li
         <FormGroup label="Required by" required error={e.requiredBy?.message}>{(id, d) => <Input type="date" {...a11y(id, d, e.requiredBy?.message)} {...register('requiredBy')} />}</FormGroup>
         <FormGroup label="Status">{(id) => <Select id={id} {...register('status')}>{MATERIAL_STATUSES.map((s) => <option key={s}>{s}</option>)}</Select>}</FormGroup>
       </div>
+      <Modal open={addingMaterial} onOpenChange={setAddingMaterial} title="Add a material" description="Creates the material in the material master, then selects it here.">
+        {addingMaterial && (
+          <MaterialMasterForm
+            onDone={() => setAddingMaterial(false)}
+            onSaved={(m) => {
+              setValue('materialId', m.id, { shouldValidate: true, shouldDirty: true });
+              setValue('uom', m.uom ?? '');
+            }}
+          />
+        )}
+      </Modal>
       <div className="form-actions"><Button onClick={onDone}>Cancel</Button><Button type="submit" tone="primary">Save material line</Button></div>
     </form>
   )

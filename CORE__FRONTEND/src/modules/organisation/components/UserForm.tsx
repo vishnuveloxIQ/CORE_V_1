@@ -27,7 +27,9 @@ const schema = z
       LOGIN_ID_RE,
       "Enter exactly 4 digits after the company prefix, for example .",
     ),
-    role: z.enum(["Module head", "Approver"]),
+    roles: z
+      .array(z.enum(["Module head", "Approver"]))
+      .min(1, "Choose at least one role."),
     modules: z.array(z.enum(["HRMS", "PMS", "Stores", "P&M"])),
     scopeType: z.enum(["Company", "Project"]),
     scopeIds: z.array(z.string()),
@@ -39,7 +41,7 @@ const schema = z
         path: ["scopeIds"],
         message: `Choose at least one ${v.scopeType.toLowerCase()}.`,
       });
-    if (v.role === "Module head" && v.modules.length === 0)
+    if (v.roles.includes("Module head") && v.modules.length === 0)
       ctx.addIssue({
         code: "custom",
         path: ["modules"],
@@ -88,7 +90,7 @@ export function UserForm({
           phone: user.phone,
           designation: user.designation,
           loginId: user.loginId,
-          role: user.role,
+          roles: user.roles ?? [user.role],
           modules: user.modules,
           scopeType: user.scopeType,
           scopeIds: user.scopeIds,
@@ -99,22 +101,23 @@ export function UserForm({
           phone: "",
           designation: "",
           loginId: "",
-          role: "Module head" as const,
+          roles: ["Module head"] as ("Module head" | "Approver")[],
           modules: [] as ModuleName[],
           scopeType: "Company" as const,
           scopeIds: [] as string[],
         },
   });
-  const [role, scopeType] = useWatch({
+  const [roles, scopeType] = useWatch({
     control,
-    name: ["role", "scopeType"],
+    name: ["roles", "scopeType"],
   });
+  const headSelected = (roles ?? []).includes("Module head");
   /** module → its active head, other than this user */
   const headOf = (m: ModuleName) =>
     users.find(
       (u) =>
         u.id !== user?.id &&
-        u.role === "Module head" &&
+        (u.roles ?? [u.role]).includes("Module head") &&
         u.status === "Active" &&
         u.modules.includes(m),
     );
@@ -140,7 +143,7 @@ export function UserForm({
       return setError("loginId", {
         message: "Another user has this login ID.",
       });
-    const isHead = v.role === "Module head";
+    const isHead = v.roles.includes("Module head");
     if (isHead && user?.status !== "Inactive") {
       const clashes = v.modules
         .map((m) => [m, headOf(m)] as const)
@@ -155,12 +158,12 @@ export function UserForm({
       email: v.email,
       phone: v.phone,
       designation: v.designation,
-      role: v.role,
+      roles: v.roles as ("Module head" | "Approver")[],
       modules: isHead ? MODULES.filter((m) => v.modules.includes(m)) : [],
       scopeType: v.scopeType,
       scopeIds: v.scopeType === "Project" ? v.scopeIds : [],
     };
-    const fields = ["name", "email", "phone", "designation", "loginId", "role", "modules", "scopeType", "scopeIds"] as const;
+    const fields = ["name", "email", "phone", "designation", "loginId", "roles", "modules", "scopeType", "scopeIds"] as const;
     const onField = (f: string, message: string) => {
       const name = fields.find((x) => x === f);
       if (!name) return false;
@@ -296,10 +299,10 @@ export function UserForm({
       </div>
 
       <h3 className="section-t">Role</h3>
-      <div className="radio-cards" role="radiogroup" aria-label="Role">
+      <div className="radio-cards" role="group" aria-label="Roles">
         {(["Module head", "Approver"] as const).map((r) => (
           <label className="radio-card" key={r}>
-            <input type="radio" value={r} {...register("role")} />
+            <input type="checkbox" value={r} {...register("roles")} />
             <div>
               <strong>{r === "Approver" ? "High-level approver" : r}</strong>
               <span>{ROLE_INFO[r]}</span>
@@ -307,14 +310,19 @@ export function UserForm({
           </label>
         ))}
       </div>
+      {e.roles?.message && (
+        <p role="alert" style={{ color: "var(--red)", margin: "6px 0 0" }}>
+          {e.roles.message}
+        </p>
+      )}
 
       <h3 className="section-t">
-        {role === "Module head"
+        {headSelected
           ? "Modules and scope"
           : "Approval scope"}
       </h3>
       <div className="form-grid">
-        {role === "Module head" && (
+        {headSelected && (
           <fieldset
             className="form-group full"
             style={{ border: 0, padding: 0, margin: 0 }}
@@ -405,11 +413,11 @@ export function UserForm({
           approve a request they raised.
         </Note>
       )} */}
-      {role === "Module head" && (
+      {/* {role === "Module head" && (
         <Note title="Privileges" icon="shield">
           Module privileges are granted one by one on the user’s page after the user is saved; that needs step-up verification.
         </Note>
-      )}
+      )} */}
       {!user && (
         <Note title="Sign-in" icon="key">
           A temporary password is shown once after the user is created. They must change it at the first sign-in.
@@ -425,7 +433,7 @@ export function UserForm({
         <Button
           type="submit"
           tone="primary"
-          icon={role === "Module head" ? "shield" : "check"}
+          icon={headSelected ? "shield" : "check"}
           disabled={saving}
         >
           {saving ? "Saving…" : user ? "Save changes" : "Create user"}

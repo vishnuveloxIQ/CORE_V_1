@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { filterUuid, optionalUuid, text, uuid, versionField } from '../../core/resource.js';
+﻿import { z } from 'zod';
+import { filterUuid, text, uuid, versionField } from '../../core/resource.js';
 
 /** The status vocabulary of a BOQ item. Migration 0035 holds the same list in a CHECK. */
 export const BOQ_STATUS_VALUES = ['draft', 'approved'] as const;
@@ -11,7 +11,6 @@ const MAX_RATE = 999_999_999_999.99;
 const boqFields = {
   itemCode: text(40),
   description: text(500),
-  wbsNodeId: optionalUuid,
   uomId: uuid,
   quantity: z.number().min(0).max(MAX_QUANTITY),
   rate: z.number().min(0).max(MAX_RATE),
@@ -25,5 +24,4 @@ export const boqCreateBody = z.object({ projectId: uuid, ...boqFields }).strict(
 export const boqPatchBody = z.object(boqFields).partial().extend({ rowVersion: versionField }).strict();
 
 export const boqProjectFilter = filterUuid;
-export const boqWbsFilter = filterUuid;
 export const boqStatusFilter = z.enum(BOQ_STATUS_VALUES);

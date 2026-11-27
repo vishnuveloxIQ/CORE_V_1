@@ -1,6 +1,9 @@
 import type { CoreApp } from '../../http/app.js';
 import type { Pool } from 'pg';
 import { inTenant } from '../../core/resource.js';
+import { AppError } from '../../core/errors.js';
+import { findCompany } from './repo.js';
+import { checkOneTimeCode } from '../registration/service.js';
 import { ok } from '../../core/response.js';
 import { rowById } from '../../core/detail.js';
 import { parseInput } from '../../core/validation.js';
@@ -97,10 +100,27 @@ export function registerOrganisationRoutes(
   );
 
   app.put('/organisation/company-profile', { ...write, config: { openapi: { summary: 'PUT /organisation/company-profile', body: companyProfileBody } } }, async (request, reply) => {
-    const body = parseInput(companyProfileBody, request.body);
-    const result = await inTenant(options, request, (client, actor) =>
-      putCompany(client, actor, body),
-    );
+    const { mobileCode, ...body } = parseInput(companyProfileBody, request.body);
+    const result = await inTenant(options, request, async (client, actor) => {
+      // A change to the owner or director (name, email or mobile) is proved with a code sent to the mobile number.
+      // The number is India's (+91). Other changes need no code.
+      const current = await findCompany(client);
+      const ownerChanged =
+        (body.contactName ?? null) !== (current?.contactName ?? null) ||
+        (body.contactEmail ?? null) !== (current?.contactEmail ?? null) ||
+        (body.contactPhone ?? null) !== (current?.contactPhone ?? null);
+      const mobile = body.contactPhone ?? null;
+      if (mobile && ownerChanged) {
+        if (!mobileCode) {
+          throw new AppError('MOBILE_CODE_REQUIRED', 400, 'Send a code to the mobile number and enter it to save.');
+        }
+        const matches = await checkOneTimeCode(options.pool, 'mobile', `+91${mobile}`, mobileCode);
+        if (!matches) {
+          throw new AppError('REGISTRATION_CODE_INVALID', 400, 'The mobile code is wrong or has expired. Request a new code.');
+        }
+      }
+      return putCompany(client, actor, body);
+    });
     return reply.code(result.created ? 201 : 200).send(ok(result.profile));
   });
 

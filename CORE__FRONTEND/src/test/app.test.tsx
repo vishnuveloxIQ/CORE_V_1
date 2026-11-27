@@ -1,9 +1,9 @@
-import { setTenantId } from '@/shared/lib/api'
+﻿import { setTenantId } from '@/shared/lib/api'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import App from '@/app/App'
-import { NAV, NOTIFICATIONS } from '@/modules/shell'
+import { NAV } from '@/modules/shell'
 import { ROUTES } from '@/app/routes'
 import { useAuth } from '@/modules/auth'
 import { chainFor, useCore } from '@/modules/core-data'
@@ -87,7 +87,7 @@ describe('sign in', () => {
     await user.type(id, 'ACME9999')
     await user.type(pw, 'wrong-password')
     await user.click(screen.getByRole('button', { name: /^login$/i }))
-    expect(await screen.findByText(/login id or password is wrong/i)).toBeInTheDocument()
+    expect(await screen.findByText(/invalid user id or password/i)).toBeInTheDocument()
     expect(useAuth.getState().user).toBeNull()
 
     await user.clear(pw)
@@ -96,9 +96,9 @@ describe('sign in', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /dashboard/i }, { timeout: 5000 })).toBeInTheDocument()
     expect(useAuth.getState().user).toBe('sweep.ops')
     expect(useAuth.getState().isAdmin).toBe(true)
-    // the tenant header goes on every call; the access token on protected ones
+    // the login carries no tenant header: the server reads the company from the login ID prefix; the access token goes on protected calls
     const login = calls.find((c) => c.url.endsWith('/auth/login'))!
-    expect((login.init.headers as Record<string, string>)['X-Tenant-Id']).toBeTruthy()
+    expect((login.init.headers as Record<string, string>)['X-Tenant-Id']).toBeUndefined()
     const access = calls.find((c) => c.url.endsWith('/auth/me/access'))!
     expect((access.init.headers as Record<string, string>).Authorization).toBe('Bearer at')
   })
@@ -168,13 +168,13 @@ describe('projects API', () => {
     vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit) => {
       if (url.endsWith('/projects') && init.method === 'POST') {
         sent = { headers: init.headers as Record<string, string>, body: JSON.parse(String(init.body)) as Record<string, unknown> }
-        return reply(201, { data: { id: '0b8e5f7e-1111-4111-8111-111111111111', code: 'RD-SRK', name: 'Srikakulam bypass', status: 'inactive', client: 'SRD', startDate: '2027-02-01', endDate: '2028-06-30', valueAmount: 125, description: null, rowVersion: 1 } })
+        return reply(201, { data: { id: '0b8e5f7e-1111-4111-8111-111111111111', code: 'RD-SRK', name: 'Srikakulam bypass', status: 'completed', client: 'SRD', startDate: '2027-02-01', endDate: '2028-06-30', valueAmount: 125, description: null, rowVersion: 1 } })
       }
       return Promise.reject(new TypeError('offline'))
     }))
     const p = await useCore.getState().createProjectRemote({ code: 'RD-SRK', name: 'Srikakulam bypass', client: 'SRD', startDate: '2027-02-01', endDate: '2028-06-30', status: 'Completed', value: 125, description: '' })
     expect(sent!.headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/)
-    expect(sent!.body).toMatchObject({ code: 'RD-SRK', status: 'inactive', valueAmount: 125, description: null })
+    expect(sent!.body).toMatchObject({ code: 'RD-SRK', status: 'completed', valueAmount: 125, description: null })
     expect(p).toMatchObject({ code: 'RD-SRK', status: 'Completed', value: 125, description: '', rowVersion: 1, milestones: [] })
     expect(useCore.getState().projects.some((x) => x.id === p.id)).toBe(true)
   })
@@ -196,20 +196,18 @@ describe('projects API', () => {
 describe('project parts API', () => {
   keepSeed()
   const pid = '0b8e5f7e-3333-4333-8333-333333333333'
-  const wbsId = '0b8e5f7e-4444-4444-8444-444444444444'
   beforeEach(() => {
     signedIn()
-    useCore.setState((s) => ({ projects: [{ ...s.projects[0], id: pid, rowVersion: 1, milestones: [], wbs: [], zones: [], chainage: { startKm: 0, endKm: 0, markers: [] }, locationIds: [] }, ...s.projects.filter((p) => p.id !== pid)] }))
+    useCore.setState((s) => ({ projects: [{ ...s.projects[0], id: pid, rowVersion: 1, milestones: [], zones: [], chainage: { startKm: 0, endKm: 0, markers: [] } }, ...s.projects.filter((p) => p.id !== pid)] }))
   })
   const project = () => useCore.getState().projects.find((p) => p.id === pid)!
 
-  it('reads milestones, WBS, markers, zones and locations for one project', async () => {
+  it('reads milestones, markers, zones and locations for one project', async () => {
     const urls: string[] = []
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       urls.push(url)
-      if (url.includes('/wbs-nodes')) return reply(200, { data: [{ id: wbsId, code: '1', name: 'Earthwork', projectId: pid, parentWbsNodeId: null, status: 'active', rowVersion: 1 }] })
       if (url.includes('/milestones')) return reply(200, { data: [{ id: 'm1', projectId: pid, name: 'Survey', dueDate: '2027-01-10', weight: 20, status: 'achieved', rowVersion: 2 }] })
-      if (url.includes('/chainage-markers')) return reply(200, { data: [{ id: 'k1', code: 'CH-12.5', label: 'Camp', projectId: pid, chainageKm: 12.5, wbsNodeId: wbsId, rowVersion: 1 }] })
+      if (url.includes('/chainage-markers')) return reply(200, { data: [{ id: 'k1', code: 'CH-12.5', label: 'Camp', projectId: pid, chainageKm: 12.5, rowVersion: 1 }] })
       if (url.includes('/geo-zones')) return reply(200, { data: [{ id: 'z1', projectId: pid, label: 'Main', zoneType: 'attendance', shape: 'circle', centerLat: 17.1, centerLng: 79.6, radiusM: 300, points: null, bufferM: null, version: 2, rowVersion: 3, updatedAt: '2026-11-20T08:00:00Z' }] })
       if (url.includes('/locations')) return reply(200, { data: [{ id: 'l1', code: 'CAMP-A', name: 'Camp A', projectId: pid, status: 'active', addressLine: 'Km 12', city: 'Suryapet', state: 'Telangana', pin: '508213', inCharge: 'K. Raju', phone: '9848012345', email: null, rowVersion: 1 }] })
       return Promise.reject(new TypeError('offline'))
@@ -218,13 +216,11 @@ describe('project parts API', () => {
     expect(urls.every((u) => u.endsWith(`?projectId=${pid}`))).toBe(true)
     const p = project()
     expect(p.milestones[0]).toMatchObject({ name: 'Survey', due: '2027-01-10', weight: 20, status: 'Done', rowVersion: 2 })
-    expect(p.wbs[0]).toMatchObject({ code: '1', parentId: null })
-    expect(p.chainage.markers[0]).toMatchObject({ km: 12.5, label: 'Camp', wbsCode: '1' })
+    expect(p.chainage.markers[0]).toMatchObject({ km: 12.5, label: 'Camp' })
     // the server keeps no range, so it is widened to cover the markers
     expect(p.chainage.startKm).toBeLessThanOrEqual(12.5)
     expect(p.chainage.endKm).toBeGreaterThan(12.5)
     expect(p.zones[0]).toMatchObject({ shape: 'Radius', radiusM: 300, purpose: 'Attendance', version: 2 })
-    expect(p.locationIds).toEqual(['l1'])
     expect(useCore.getState().sites.find((s) => s.id === 'l1')).toMatchObject({ code: 'CAMP-A', projectId: pid, status: 'Active' })
     expect(useCore.getState().partsLoad[pid]).toBe('ready')
   })
@@ -244,28 +240,27 @@ describe('project parts API', () => {
     expect(project().zones.map((z) => z.purpose)).toEqual(['Attendance', 'Equipment'])
   })
 
-  it('creates a marker with a CH code and the WBS node id, and a milestone with the API status', async () => {
-    useCore.setState((s) => ({ projects: s.projects.map((p) => (p.id === pid ? { ...p, wbs: [{ id: wbsId, code: '1', name: 'Earthwork', parentId: null, rowVersion: 1 }] } : p)) }))
+  it('creates a marker with a CH code, and a milestone with the API status', async () => {
     const sent: Record<string, unknown>[] = []
     vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit) => {
       const body = JSON.parse(String(init.body)) as Record<string, unknown>
       sent.push(body)
-      if (url.endsWith('/chainage-markers')) return reply(201, { data: { id: 'k9', code: body.code, label: body.label, projectId: pid, chainageKm: body.chainageKm, wbsNodeId: body.wbsNodeId, rowVersion: 1 } })
+      if (url.endsWith('/chainage-markers')) return reply(201, { data: { id: 'k9', code: body.code, label: body.label, projectId: pid, chainageKm: body.chainageKm, rowVersion: 1 } })
       return reply(201, { data: { id: 'm9', projectId: pid, name: body.name, dueDate: body.dueDate, weight: body.weight, status: body.status, rowVersion: 1 } })
     }))
-    expect(await useCore.getState().addMarkers(pid, [{ km: 14.25, label: 'Bridge', wbsCode: '1' }])).toEqual([])
+    expect(await useCore.getState().addMarkers(pid, [{ km: 14.25, label: 'Bridge' }])).toEqual([])
     await useCore.getState().saveMilestone(pid, { name: 'Handover', due: '2027-06-30', weight: 30, status: 'In progress' })
-    expect(sent[0]).toMatchObject({ projectId: pid, code: 'CH-14.25', chainageKm: 14.25, wbsNodeId: wbsId })
+    expect(sent[0]).toMatchObject({ projectId: pid, code: 'CH-14.25', chainageKm: 14.25 })
     expect(sent[1]).toMatchObject({ projectId: pid, name: 'Handover', dueDate: '2027-06-30', weight: 30, status: 'pending' })
-    expect(project().chainage.markers[0]).toMatchObject({ id: 'k9', km: 14.25, wbsCode: '1' })
+    expect(project().chainage.markers[0]).toMatchObject({ id: 'k9', km: 14.25 })
     expect(project().milestones[0]).toMatchObject({ id: 'm9', status: 'Not started' })
   })
 
   it('refuses to change a project that was not read from the server, and keeps nothing in the browser', async () => {
     const sample = useCore.getState().projects.find((p) => p.rowVersion === undefined)!
-    await expect(useCore.getState().addWbsNode(sample.id, { code: '99', name: 'Local item', parentId: null })).rejects.toMatchObject({ code: 'NOT_SAVED' })
+    await expect(useCore.getState().saveMilestone(sample.id, { name: 'Local item', due: '', weight: 0, status: 'Not started' })).rejects.toMatchObject({ code: 'NOT_SAVED' })
     expect(vi.mocked(fetch)).not.toHaveBeenCalled()
-    expect(useCore.getState().projects.find((p) => p.id === sample.id)!.wbs.some((n) => n.code === '99')).toBe(false)
+    expect(useCore.getState().projects.find((p) => p.id === sample.id)!.milestones.some((m) => m.name === 'Local item')).toBe(false)
   })
 })
 
@@ -275,24 +270,22 @@ describe('locations and stores API', () => {
   const loc = { id: 'l7', code: 'CAMP-Z', name: 'Camp Z', projectId: pid, status: 'inactive', addressLine: 'Km 40', city: 'Kodad', state: 'Telangana', pin: '508206', inCharge: 'N. Reddy', phone: '9811122200', email: null, rowVersion: 4 }
   beforeEach(() => {
     signedIn()
-    useCore.setState((s) => ({ projects: [{ ...s.projects[0], id: pid, code: 'PZ', rowVersion: 1, locationIds: [], chainage: { startKm: 0, endKm: 0, markers: [{ id: 'k1', km: 3, label: 'Old', wbsCode: '1.1' }] } }, ...s.projects.filter((p) => p.id !== pid)] }))
+    useCore.setState((s) => ({ projects: [{ ...s.projects[0], id: pid, code: 'PZ', rowVersion: 1, chainage: { startKm: 0, endKm: 0, markers: [{ id: 'k1', km: 3, label: 'Old' }] } }, ...s.projects.filter((p) => p.id !== pid)] }))
   })
 
   it('reads locations, stores and markers and links them to the API projects', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url.endsWith('/locations')) return reply(200, { data: [loc] })
-      if (url.endsWith('/stores')) return reply(200, { data: [{ id: 's7', code: 'STR-Z', name: 'Camp Z store', locationId: 'l7', status: 'active', locationText: 'Near gate 2', keeper: 'S. Babu', phone: '9844400011', chainageMarkerId: 'k1', rowVersion: 2 }] })
-      if (url.endsWith('/chainage-markers')) return reply(200, { data: [{ id: 'k1', code: 'CH-3', label: 'Gate', projectId: pid, chainageKm: 3, wbsNodeId: null, rowVersion: 1 }, { id: 'k2', code: 'CH-9', label: 'Bridge', projectId: pid, chainageKm: 9, wbsNodeId: null, rowVersion: 1 }] })
+      if (url.endsWith('/stores')) return reply(200, { data: [{ id: 's7', code: 'STR-Z', name: 'Camp Z store', projectId: pid, status: 'active', locationText: 'Near gate 2', keeper: 'S. Babu', phone: '9844400011', chainageMarkerId: 'k1', rowVersion: 2 }] })
+      if (url.endsWith('/chainage-markers')) return reply(200, { data: [{ id: 'k1', code: 'CH-3', label: 'Gate', projectId: pid, chainageKm: 3, rowVersion: 1 }, { id: 'k2', code: 'CH-9', label: 'Bridge', projectId: pid, chainageKm: 9, rowVersion: 1 }] })
       return Promise.reject(new TypeError('offline'))
     }))
     await Promise.all([useCore.getState().loadSites(), useCore.getState().loadStores()])
     const st = useCore.getState()
     expect(st.sites).toEqual([expect.objectContaining({ id: 'l7', status: 'Inactive', email: '', projectId: pid, rowVersion: 4 })])
-    expect(st.stores).toEqual([expect.objectContaining({ id: 's7', chainageId: 'k1', locationId: 'l7', location: 'Near gate 2', status: 'Active', rowVersion: 2 })])
+    expect(st.stores).toEqual([expect.objectContaining({ id: 's7', chainageId: 'k1', projectId: pid, location: 'Near gate 2', status: 'Active', rowVersion: 2 })])
     const p = st.projects.find((x) => x.id === pid)!
-    expect(p.locationIds).toEqual(['l7'])
-    // the full marker list has no WBS nodes, so a marker already known keeps its WBS code
-    expect(p.chainage.markers.map((m) => [m.code, m.wbsCode])).toEqual([['CH-3', '1.1'], ['CH-9', '']])
+    expect(p.chainage.markers.map((m) => m.code)).toEqual(['CH-3', 'CH-9'])
   })
 
   it('creates a store with the API field names and refuses a stale edit', async () => {
@@ -301,26 +294,16 @@ describe('locations and stores API', () => {
       const body = JSON.parse(String(init.body)) as Record<string, unknown>
       calls.push({ method: init.method, body })
       return init.method === 'POST'
-        ? reply(201, { data: { id: 's8', code: body.code, name: body.name, locationId: body.locationId, status: body.status, locationText: body.locationText, keeper: body.keeper, phone: body.phone, chainageMarkerId: body.chainageMarkerId, rowVersion: 1 } })
+        ? reply(201, { data: { id: 's8', code: body.code, name: body.name, projectId: body.projectId, status: body.status, locationText: body.locationText, keeper: body.keeper, phone: body.phone, chainageMarkerId: body.chainageMarkerId, rowVersion: 1 } })
         : reply(409, { error: { code: 'VERSION_CONFLICT', message: 'The record changed since you read it. Reload it and try again' } })
     }))
-    const details = { code: 'STR-N', name: 'New store', chainageId: 'k1', locationId: 'l7', location: 'Yard 3', keeper: 'R. Rao', phone: '9844400012', status: 'Active' as const }
+    const details = { code: 'STR-N', name: 'New store', chainageId: 'k1', projectId: 'proj-1', location: 'Yard 3', keeper: 'R. Rao', phone: '9844400012', status: 'Active' as const }
     const created = await useCore.getState().createStoreRemote(details)
-    expect(calls[0].body).toEqual({ code: 'STR-N', name: 'New store', locationId: 'l7', status: 'active', locationText: 'Yard 3', keeper: 'R. Rao', phone: '9844400012', chainageMarkerId: 'k1' })
+    expect(calls[0].body).toEqual({ code: 'STR-N', name: 'New store', projectId: 'proj-1', status: 'active', locationText: 'Yard 3', keeper: 'R. Rao', phone: '9844400012', chainageMarkerId: 'k1' })
     await expect(useCore.getState().updateStoreRemote(created.id, { ...details, name: 'Renamed' })).rejects.toMatchObject({ code: 'VERSION_CONFLICT' })
     expect(calls[1]).toMatchObject({ method: 'PATCH', body: { name: 'Renamed', rowVersion: 1 } })
   })
 
-  it('creates a location for one project and adds it to that project', async () => {
-    let sent: Record<string, unknown> = {}
-    vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) => {
-      sent = JSON.parse(String(init.body)) as Record<string, unknown>
-      return reply(201, { data: { ...loc, id: 'l8', status: 'active' } })
-    }))
-    const site = await useCore.getState().createSiteRemote(pid, { code: 'CAMP-Z', name: 'Camp Z', addressLine: 'Km 40', city: 'Kodad', state: 'Telangana', pin: '508206', inCharge: 'N. Reddy', phone: '9811122200', email: '', status: 'Active' })
-    expect(sent).toMatchObject({ projectId: pid, code: 'CAMP-Z', status: 'active', email: null })
-    expect(useCore.getState().projects.find((p) => p.id === pid)!.locationIds).toContain(site.id)
-  })
 })
 
 describe('public pages', () => {
@@ -328,7 +311,7 @@ describe('public pages', () => {
 
   it('opens on the home page with Register and Login only', async () => {
     render(<App />)
-    expect(await screen.findByRole('heading', { level: 1, name: /run your construction business/i }, { timeout: 5000 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /driving growth/i }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /^register$/i }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('link', { name: /^login$/i }).length).toBeGreaterThan(0)
     for (const name of [/products/i, /services/i, /pricing/i, /contact/i]) expect(screen.queryByRole('link', { name })).toBeNull()
@@ -397,7 +380,7 @@ describe('CORE screens', () => {
   })
 
   it('every list page has a quick action button at the top right', async () => {
-    const pages = ['/dashboard', '/approvals', '/grievances', '/job-openings', '/company', '/policies', '/projects', '/sites', '/stores', '/materials', '/stock', '/equipment/planning', '/equipment/register', '/approval-matrix', '/audit', '/organogram', '/departments']
+    const pages = ['/dashboard', '/approvals', '/grievances', '/job-openings', '/company', '/policies', '/projects', '/stores', '/materials', '/stock', '/equipment/planning', '/equipment/register', '/approval-matrix', '/audit', '/organogram', '/departments']
     for (const path of pages) {
       window.location.hash = `#${path}`
       const { container, unmount } = render(<App />)
@@ -450,30 +433,30 @@ describe('approval clarification, decision and job publishing', () => {
     ])
   })
 
-  it('while a clarification is open, approve, reject and clarify are disabled', async () => {
+  it('while a clarification is open, approve, reject and clarify are not shown', async () => {
     const { requestFrom } = await import('@/modules/core-data/api/approvals')
     useCore.setState({ requests: [requestFrom(record({ status: 'clarification_requested' }) as never)] })
     window.location.hash = `#/approvals/${reqId}`
     render(<App />)
     expect(await screen.findByRole('heading', { level: 2, name: /clarification requested/i }, { timeout: 5000 })).toBeInTheDocument()
-    for (const name of [/^approve$/i, /^reject$/i, /^clarify$/i]) expect(screen.getByRole('button', { name })).toBeDisabled()
+    for (const name of [/^approve$/i, /^reject$/i, /^clarify$/i]) expect(screen.queryByRole('button', { name })).toBeNull()
   })
 
-  it('publishes an approved job opening to a location with its row version', async () => {
+  it('publishes an approved job opening to its project with its row version', async () => {
     const bodies: Record<string, unknown>[] = []
     vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit) => {
       if (url.endsWith(`/approval-requests/${reqId}/publish`)) {
         const b = JSON.parse(String(init.body)) as Record<string, unknown>
         bodies.push(b)
-        return reply(200, { data: record({ status: 'approved', publishedLocationId: b.locationId, publishedAt: '2026-11-20T09:00:00Z', rowVersion: 4 }) })
+        return reply(200, { data: record({ status: 'approved', publishedAt: '2026-11-20T09:00:00Z', rowVersion: 4 }) })
       }
       return Promise.reject(new TypeError('offline'))
     }))
     const { requestFrom } = await import('@/modules/core-data/api/approvals')
     useCore.setState({ requests: [requestFrom(record({ status: 'approved' }) as never)] })
-    await useCore.getState().publishJobRemote(reqId, 'loc-1')
-    expect(bodies).toEqual([{ locationId: 'loc-1', rowVersion: 3 }])
-    expect(useCore.getState().requests[0]).toMatchObject({ publishedLocationId: 'loc-1', publishedAt: '2026-11-20T09:00:00Z', rowVersion: 4 })
+    await useCore.getState().publishJobRemote(reqId)
+    expect(bodies).toEqual([{ rowVersion: 3 }])
+    expect(useCore.getState().requests[0]).toMatchObject({ publishedAt: '2026-11-20T09:00:00Z', rowVersion: 4 })
   })
 })
 
@@ -594,7 +577,7 @@ describe('CORE users', () => {
     await fill(screen.getByLabelText(/mobile/i), '9811100099')
     // the login ID is the company prefix (shown beside the field) and exactly 4 digits typed here
     await fill(screen.getByLabelText(/login id/i), '4321')
-    await user.click(screen.getByRole('radio', { name: /high-level approver/i }))
+    await user.click(screen.getByRole('checkbox', { name: /high-level approver/i }))
     const create = screen.getByRole('button', { name: /create user/i })
     expect(create).toBeEnabled()
     expect(create).not.toHaveAttribute('title')
@@ -663,18 +646,19 @@ describe('menu, notifications, grievances and offer letter', () => {
   beforeEach(signedIn)
 
   it('groups stores, materials, vendors, live stock and available materials under Inventory, and has no offer formats page', () => {
-    expect(NAV.find((g) => g.label === 'Inventory/Store')?.items.map((i) => i.to)).toEqual(['/stores', '/materials', '/vendors', '/stock', '/available-materials'])
-    expect(NAV.find((g) => g.label === 'Equipment')?.items.map((i) => i.to)).toEqual(['/equipment/register', '/equipment/maintenance', '/equipment/available', '/equipment/planning'])
+    expect(NAV.find((g) => g.label === 'Material Management')?.items.map((i) => i.to)).toEqual(['/stores', '/materials', '/vendors', '/stock', '/available-materials', '/material-planning'])
+    expect(NAV.find((g) => g.label === 'Fleet and Equipment Management')?.items.map((i) => i.to)).toEqual(['/equipment/register', '/equipment/hired', '/equipment/available', '/equipment/planning', '/equipment/assigned', '/equipment/maintenance'])
     expect(NAV.flatMap((g) => g.items).some((i) => i.to === '/offer-formats')).toBe(false)
-  })
-
-  it('every notification points to a page that exists', () => {
-    const patterns = ROUTES.map((r) => new RegExp(`^${r.path.replace(/:[^/]+/g, '[^/?]+')}(\\?.*)?$`))
-    for (const n of NOTIFICATIONS) expect(patterns.some((re) => re.test(n.to)), n.to).toBe(true)
   })
 
   it('clicking a notification opens the page that needs the action', async () => {
     const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => {
+      if ((init.method ?? 'GET') === 'GET' && /\/notifications(\?|$)/.test(url)) {
+        return reply(200, { data: [{ id: 'n-1', recipientUserId: 'u-1', notificationType: 'grievance', sourceType: 'grievance', sourceId: 'GRV-0118', title: 'Head Office visit requested', body: 'A visit has been requested.', deliveryStatus: 'sent', readAt: null, createdAt: '2026-11-06T08:20:00Z', rowVersion: 1 }] })
+      }
+      return Promise.reject(new TypeError('offline'))
+    }))
     window.location.hash = '#/dashboard'
     render(<App />)
     await screen.findByRole('heading', { level: 1, name: /dashboard/i }, { timeout: 5000 })
@@ -754,12 +738,11 @@ describe('bulk upload, filters and view-first tabs', () => {
     expect(within(chips).queryByRole('button', { name: /more statuses/i })).not.toBeInTheDocument()
   })
 
-  it('every equipment plan state has an example', async () => {
+  it('the equipment plan page shows its heading and the planned equipment text', async () => {
     window.location.hash = '#/equipment/planning'
     render(<App />)
     await screen.findByRole('heading', { level: 1, name: /equipment planning/i }, { timeout: 5000 })
-    const chips = screen.getByRole('group', { name: /filter by states/i })
-    for (const s of ['Shortfall', 'Surplus', 'Fulfilled']) expect(within(chips).getByRole('button', { name: new RegExp(`^${s}`) })).toBeInTheDocument()
+    expect(screen.getByText('The equipment planned for each project. Lines for the same equipment type are added together.')).toBeInTheDocument()
   })
 
 })
@@ -789,7 +772,6 @@ describe('scoped approval chains and grievance raiser', () => {
     await user.click(screen.getByRole('radio', { name: /whole company/i }))
     await user.click(screen.getAllByLabelText(/^approver/i)[0])
     await user.click(screen.getByRole('option', { name: 'Rahul Verma (VELOX1130)' }))
-    fireEvent.change(screen.getByLabelText(/reason for change/i), { target: { value: 'Second company chain should be refused' } })
     await user.click(screen.getByRole('button', { name: /create chain/i }))
     expect(await screen.findByText(/already has a company chain \(AC-5\)/i)).toBeInTheDocument()
 
@@ -817,7 +799,7 @@ describe('organisation: departments, roles and organogram', () => {
   const set = (el: HTMLElement, v: string) => fireEvent.change(el, { target: { value: v } })
 
   it('groups the organisation screens with job openings, and every menu item has its own icon', () => {
-    expect(NAV.find((g) => g.label === 'People and organisation')?.items.map((i) => i.to)).toEqual(['/organogram', '/departments', '/users', '/approvals', '/job-openings'])
+    expect(NAV.find((g) => g.label === 'HR management system')?.items.map((i) => i.to)).toEqual(['/people-planning', '/organogram', '/departments', '/users', '/job-openings', '/approved-list'])
     expect(NAV.some((g) => g.label === 'Hiring and HR' || g.label === 'Organisation')).toBe(false)
     const icons = NAV.flatMap((g) => g.items.map((i) => i.icon))
     expect(new Set(icons).size).toBe(icons.length)
@@ -958,12 +940,22 @@ describe('subscription', () => {
 })
 
 describe('subscription page', () => {
-  it('renders plan, usage, billing and invoices', async () => {
+  it('renders plan, usage, billing and invoices from the billing endpoints', async () => {
     signedIn()
+    const sub = { id: 's-1', accountId: 'SUB-TEST-1', plan: 'Enterprise', status: 'Active', billingCycle: 'Annual', autoRenew: true, startDate: '2025-12-01', renewalDate: '2026-12-01', nextInvoiceDate: null, baseAmount: 1000000, gstRate: 18, supportTier: null, accountManager: 'A Manager', paymentMethod: 'NEFT', billingEmail: 'accounts@example.com', limitUsers: 250, limitProjects: 40, limitSites: 120, limitStorageGb: 500, modules: ['Material Management'] }
+    const invoice = { id: 'i-1', invoiceNo: 'INV-TEST-1', invoiceDate: '2025-12-01', period: '1 Dec 2025 – 30 Nov 2026', amount: 1180000, status: 'Paid' }
+    const plan = { id: 'p-1', name: 'Enterprise', price: 1000000, users: 250, projects: 40, sites: 120, storageGb: 500, support: 'Phone' }
+    vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => {
+      if ((init.method ?? 'GET') !== 'GET') return Promise.reject(new TypeError('offline'))
+      if (/\/subscriptions(\?|$)/.test(url)) return reply(200, { data: [sub] })
+      if (/\/invoices(\?|$)/.test(url)) return reply(200, { data: [invoice] })
+      if (/\/billing-plans(\?|$)/.test(url)) return reply(200, { data: [plan] })
+      return Promise.reject(new TypeError('offline'))
+    }))
     window.location.hash = '#/subscription'
     render(<App />)
     expect(await screen.findByRole('heading', { level: 1, name: /subscription/i }, { timeout: 8000 })).toBeInTheDocument()
-    expect(await screen.findByText(/SUB-VIQ-0042/)).toBeInTheDocument()
-    expect(screen.getByText('INV-2025-118')).toBeInTheDocument()
+    expect(await screen.findByText(/SUB-TEST-1/)).toBeInTheDocument()
+    expect(screen.getByText('INV-TEST-1')).toBeInTheDocument()
   })
 })

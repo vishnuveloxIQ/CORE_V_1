@@ -103,6 +103,14 @@ export async function updateUnitRecord(
   const current = await findUnit(client, id, true);
   if (!current) throw notFound();
   if (current.rowVersion !== rowVersion) throw versionConflict();
+  // a unit that is In use at a project cannot be assigned to another one
+  if (
+    typeof changes.projectId === 'string' &&
+    current.availability === 'In use' &&
+    changes.projectId !== current.projectId
+  ) {
+    throw new AppError(`${PREFIX}_IN_USE`, 409, 'This equipment unit is in use and cannot be assigned to a project');
+  }
 
   await requireFiles(client, changes);
   const sent = definedOnly(changes);

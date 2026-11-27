@@ -51,8 +51,6 @@ export function RolesSection() {
   const [upload, setUpload] = useState(false);
   const dept = (r: Role) => byId(departments, r.departmentId);
   const boss = (r: Role) => byId(roles, r.reportsToId);
-  const reports = (r: Role) =>
-    roles.filter((x) => x.reportsToId === r.id && x.status === "Active").length;
   const active = roles.filter((r) => r.status === "Active");
   const preset = departments
     .filter((d) => d.id === params.get("dept"))
@@ -178,7 +176,7 @@ export function RolesSection() {
             csv: (r) => r.code,
           },
           {
-            header: "Role / department",
+            header: "Role and department",
             kind: "c-sub",
             cell: (r) => (
               <>
@@ -195,7 +193,7 @@ export function RolesSection() {
             csv: (r) => `${r.title} (${dept(r)?.code ?? ""})`,
           },
           {
-            header: "Held by",
+            header: "Positions",
             kind: "c-amt",
             cell: (r) => (
               <span className={isVacant(r) ? "warn-text" : undefined}>
@@ -225,18 +223,12 @@ export function RolesSection() {
             header: "Grade",
             kind: "c-more",
             cell: (r) => (
-              <>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                 <span className="cell-pill">{r.grade}</span>
                 <span className="sub">{gradeBand(r.grade)}</span>
-              </>
+              </span>
             ),
             csv: (r) => r.grade,
-          },
-          {
-            header: "Direct reports",
-            kind: "c-more",
-            cell: (r) => reports(r) || "—",
-            csv: (r) => String(reports(r)),
           },
           {
             header: "Status",

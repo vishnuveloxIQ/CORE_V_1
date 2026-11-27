@@ -10,10 +10,10 @@ export const projectRoutes: AppRoute[] = [
   { path: '/material-planning', Component: page(() => import('./pages/MaterialPlanning')) },
 ]
 
-// 3.3 sites
+// 3.3 geofences
 export const siteRoutes: AppRoute[] = [
-  { path: '/sites', Component: page(() => import('./pages/Sites')) },
   { path: '/geofences', Component: page(() => import('./pages/Geofences')) },
-  { path: '/sites/new', Component: page(() => import('./pages/SiteNew')) },
-  { path: '/sites/:id', sample: '/sites/S-201', Component: page(() => import('./pages/SiteDetail')) },
+  { path: '/sub-contractors', Component: page(() => import('./pages/SubContractors')) },
+  { path: '/workforce-adverts', Component: page(() => import('./pages/WorkforceAdverts')) },
+  { path: '/workforce-adverts/:id', sample: '/workforce-adverts/WA-2026-0001', Component: page(() => import('./pages/WorkforceAdvertDetail')) },
 ]

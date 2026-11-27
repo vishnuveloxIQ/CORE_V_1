@@ -42,3 +42,33 @@ export const CAPACITY_OPTIONS: Record<string, readonly string[]> = {
   'Wheel Loader': ['1.5 m³ bucket', '2 m³ bucket', '3 m³ bucket'],
   Roller: ['8-ton', '10-ton', '12-ton', '14-ton'],
 }
+
+/** Equipment categories for the register: the category is the unit's equipment type. "Other" is typed on the form. */
+export const EQUIPMENT_CATEGORIES = [
+  'Excavator', 'Wheel Loader', 'Backhoe Loader', 'Motor Grader', 'Dozer', 'Crane', 'Sensor Paver', 'Tandem Roller',
+  'Soil Compactor', 'Pad Foot Roller', 'Bitumen Sprayer', 'Tipper', 'Mini Truck', 'Transit Mixer', 'Water Tanker',
+  'Diesel Tanker / Bowser', 'Service Van', 'Trailer', 'LMV (Light Motor Vehicle)',
+] as const
+
+/** Manufacturers (OEM) offered for each category. A manufacturer not listed is typed on the form. Sample list; edit as needed. */
+export const EQUIPMENT_MANUFACTURERS: Record<string, readonly string[]> = {
+  Excavator: ['Caterpillar', 'Komatsu', 'Hitachi', 'Tata Hitachi', 'Volvo CE', 'JCB', 'Hyundai', 'Doosan', 'Kobelco', 'Liebherr', 'L&T'],
+  'Wheel Loader': ['Caterpillar', 'Komatsu', 'Volvo CE', 'JCB', 'Hyundai', 'SDLG', 'Liugong', 'L&T'],
+  'Backhoe Loader': ['JCB', 'Case', 'New Holland', 'Caterpillar', 'Mahindra', 'Escorts Kubota'],
+  'Motor Grader': ['Caterpillar', 'Komatsu', 'John Deere', 'Volvo CE', 'Liebherr', 'XCMG', 'SANY'],
+  Dozer: ['Caterpillar', 'Komatsu', 'Shantui', 'Liebherr', 'John Deere', 'Case'],
+  Crane: ['Liebherr', 'Tadano', 'Grove', 'Escorts Kubota', 'XCMG', 'Manitowoc'],
+  'Sensor Paver': ['Vogele', 'Caterpillar', 'Volvo CE', 'Ammann'],
+  'Tandem Roller': ['Dynapac', 'Bomag', 'Hamm', 'Caterpillar', 'Volvo CE', 'Sakai'],
+  'Soil Compactor': ['Dynapac', 'Bomag', 'Hamm', 'Caterpillar', 'Ammann'],
+  'Pad Foot Roller': ['Dynapac', 'Bomag', 'Hamm', 'Caterpillar', 'Ammann'],
+  'Bitumen Sprayer': ['Vogele', 'Ammann', 'Dynapac', 'Bitelli'],
+  Tipper: ['Tata Motors', 'Ashok Leyland', 'BharatBenz', 'Eicher', 'Mahindra', 'Volvo'],
+  'Mini Truck': ['Tata Motors', 'Mahindra', 'Ashok Leyland', 'Maruti Suzuki', 'Piaggio'],
+  'Transit Mixer': ['Schwing Stetter', 'Putzmeister', 'Liebherr', 'Ashok Leyland', 'Tata Motors', 'BharatBenz'],
+  'Water Tanker': ['Tata Motors', 'Ashok Leyland', 'BharatBenz', 'Eicher', 'Mahindra'],
+  'Diesel Tanker / Bowser': ['Tata Motors', 'Ashok Leyland', 'BharatBenz', 'Eicher'],
+  'Service Van': ['Tata Motors', 'Mahindra', 'Maruti Suzuki', 'Force Motors', 'Toyota'],
+  Trailer: ['Tata Motors', 'Ashok Leyland', 'Mahindra'],
+  'LMV (Light Motor Vehicle)': ['Maruti Suzuki', 'Mahindra', 'Tata Motors', 'Toyota', 'Hyundai', 'Honda'],
+}

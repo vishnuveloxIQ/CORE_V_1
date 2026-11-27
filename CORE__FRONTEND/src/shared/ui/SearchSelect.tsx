@@ -12,6 +12,8 @@ export interface SearchOption {
   short?: string
   /** two-letter country code; shows that country's flag image before the text */
   flag?: string
+  /** an action such as "+ Add a position": always listed at the bottom, whatever the search text */
+  action?: boolean
 }
 
 /** Flag image (Windows can't draw flag emoji). Decorative: the text beside it names the country. */
@@ -30,6 +32,8 @@ interface Props {
   /** id for the button, so a <label htmlFor> can point at it */
   id?: string
   className?: string
+  /** class for the popup, which is portalled to the page body, so a form cannot reach it through its own class */
+  popupClassName?: string
   searchPlaceholder?: string
   disabled?: boolean
   invalid?: boolean
@@ -42,7 +46,7 @@ interface Props {
 }
 
 /** Dropdown with a search box, for lists too long to scan. The button always shows a chevron. */
-export function SearchSelect({ options, onSelect, placeholder, value, ariaLabel, id: triggerId, className, searchPlaceholder = 'Search…', disabled, invalid, describedBy, onBlur, triggerRef, placement = 'auto' }: Props) {
+export function SearchSelect({ options, onSelect, placeholder, value, ariaLabel, id: triggerId, className, popupClassName, searchPlaceholder = 'Search…', disabled, invalid, describedBy, onBlur, triggerRef, placement = 'auto' }: Props) {
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
   const pop = useRef<HTMLDivElement>(null)
@@ -53,10 +57,13 @@ export function SearchSelect({ options, onSelect, placeholder, value, ariaLabel,
   const [pos, setPos] = useState<{ left: number; top: number; width: number; up: boolean } | null>(null)
   const [portal, setPortal] = useState<HTMLElement | null>(null)
 
-  const shown = useMemo(() => {
+  // the matching choices, then the action options, which stay listed whatever the search text is
+  const matches = useMemo(() => {
     const s = q.trim().toLowerCase()
-    return s ? options.filter((o) => o.label.toLowerCase().includes(s)) : options
+    const plain = options.filter((o) => !o.action)
+    return s ? plain.filter((o) => o.label.toLowerCase().includes(s)) : plain
   }, [options, q])
+  const shown = useMemo(() => [...matches, ...options.filter((o) => o.action)], [matches, options])
 
   // The list is position:fixed (not absolute) so a modal's overflow:auto cannot clip it,
   // and it stays in the DOM so a Radix dialog's focus trap keeps the search box focusable.
@@ -120,7 +127,7 @@ export function SearchSelect({ options, onSelect, placeholder, value, ariaLabel,
       {open && portal && createPortal(
         <div
           ref={pop}
-          className="ss-pop"
+          className={cn('ss-pop', popupClassName)}
           onKeyDown={onKey}
           style={{
             left: pos?.left ?? 0,
@@ -142,7 +149,7 @@ export function SearchSelect({ options, onSelect, placeholder, value, ariaLabel,
               </li>
             ))}
           </ul>
-          {shown.length === 0 && <div className="ss-empty">No matches</div>}
+          {matches.length === 0 && <div className="ss-empty">No matches</div>}
         </div>,
         portal,
       )}

@@ -1,7 +1,9 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const status = z.enum(['active', 'inactive']);
+/** A project has more statuses than a location or store: planning, on hold and completed are its own. */
+const projectStatus = z.enum(['planning', 'active', 'on_hold', 'completed']);
 /** Optimistic lock: the row version the client read. Every PATCH carries it. */
 const versionField = z.number().int().min(1);
 const latitude = z.number().min(-90).max(90);
@@ -21,8 +23,13 @@ export const projectFilterQuery = z.object({ projectId: z.uuid().optional() });
 const projectFields = z.object({
   code: text(40),
   name: text(200),
-  status: status.optional(),
+  status: projectStatus.optional(),
   client: text(200).nullable().optional(),
+  consultantName: text(200).nullable().optional(),
+  state: text(100).nullable().optional(),
+  executionMode: z.enum(['self', 'hybrid', 'back_to_back_subcontracting']).nullable().optional(),
+  department: text(100).nullable().optional(),
+  projectType: z.enum(['direct', 'nominated_sub_contractor', 'sub_contractor', 'risk_and_cost_basis']).nullable().optional(),
   startDate: z.iso.date().nullable().optional(),
   endDate: z.iso.date().nullable().optional(),
   /** numeric(14,2): zero or more. */
@@ -69,7 +76,7 @@ export const locationPatchBody = locationFields
 const storeFields = z.object({
   code: text(40),
   name: text(200),
-  locationId: z.uuid(),
+  projectId: z.uuid(),
   status: status.optional(),
   locationText: text(300).nullable().optional(),
   keeper: text(200).nullable().optional(),
@@ -79,21 +86,6 @@ const storeFields = z.object({
 export const storeCreateBody = storeFields;
 export const storePatchBody = storeFields.partial().extend({ rowVersion: versionField });
 
-// WBS nodes (design point e). Deleted only when nothing refers to them.
-
-const wbsNodeFields = z.object({
-  code: text(40),
-  name: text(200),
-  projectId: z.uuid(),
-  parentWbsNodeId: z.uuid().nullable().optional(),
-  status: status.optional(),
-});
-export const wbsNodeCreateBody = wbsNodeFields;
-export const wbsNodePatchBody = wbsNodeFields
-  .omit({ projectId: true })
-  .partial()
-  .extend({ rowVersion: versionField })
-  .strict();
 
 // Chainage markers (design point f). Deleted only when nothing refers to them.
 
@@ -102,7 +94,6 @@ const chainageMarkerFields = z.object({
   label: text(200).nullable().optional(),
   projectId: z.uuid(),
   chainageKm,
-  wbsNodeId: z.uuid().nullable().optional(),
 });
 export const chainageMarkerCreateBody = chainageMarkerFields;
 export const chainageMarkerPatchBody = chainageMarkerFields
@@ -154,8 +145,6 @@ export type LocationInput = z.infer<typeof locationCreateBody>;
 export type LocationPatch = z.infer<typeof locationPatchBody>;
 export type StoreInput = z.infer<typeof storeCreateBody>;
 export type StorePatch = z.infer<typeof storePatchBody>;
-export type WbsNodeInput = z.infer<typeof wbsNodeCreateBody>;
-export type WbsNodePatch = z.infer<typeof wbsNodePatchBody>;
 export type ChainageMarkerInput = z.infer<typeof chainageMarkerCreateBody>;
 export type ChainageMarkerPatch = z.infer<typeof chainageMarkerPatchBody>;
 export type GeoZoneInput = z.infer<typeof geoZoneCreateBody>;

@@ -18,7 +18,7 @@ import {
 import { useEnter } from "@/shared/hooks/useMotion";
 import { bulk, saveEach } from "@/shared/lib/bulk";
 import { idempotencyKey, tenantId } from "@/shared/lib/api";
-import { loginPrefixFor, MANAGE, matchesCompanyPrefix, useCanManage } from '@/modules/auth';
+import { loginPrefixFor, MANAGE, matchesCompanyPrefix, useAuth, useCanManage } from '@/modules/auth';
 import { ACTIVE_TONE, email, phone } from "@/shared/lib/core";
 import { ago } from "@/shared/lib/format";
 import { LOGIN_ID_RE, newId, nextLoginId, nowISO, useCore } from "@/modules/core-data";
@@ -47,7 +47,9 @@ export default function Users() {
   const { users: allUsers, projects, createUserRemote } = useCore();
   // tenant admins are not listed here: their details are not shown on this tab. Login IDs are still checked
   // against every user (allUsers), so an admin's login ID cannot be reused.
-  const users = useMemo(() => allUsers.filter((u) => !/tenant admin/i.test(u.designation)), [allUsers]);
+  // the administrator who is signed in is not a person in this list (admins are not listed as employees)
+  const signedInId = useAuth((s) => s.profile?.id);
+  const users = useMemo(() => allUsers.filter((u) => !/tenant admin/i.test(u.designation) && u.id !== signedInId), [allUsers, signedInId]);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [upload, setUpload] = useState(false);
   // logins and one-time passwords from a CSV upload: held only while the dialog is open
@@ -61,7 +63,7 @@ export default function Users() {
       async (u) => {
         const res = await createUserRemote(
           u.loginId,
-          { name: u.name, email: u.email, phone: u.phone, designation: u.designation, role: u.role, modules: u.modules, scopeType: u.scopeType, scopeIds: u.scopeIds },
+          { name: u.name, email: u.email, phone: u.phone, designation: u.designation, roles: [u.role], modules: u.modules, scopeType: u.scopeType, scopeIds: u.scopeIds },
           idempotencyKey(),
         );
         created.push({ loginId: res.loginId, name: u.name, temporaryPassword: res.temporaryPassword });
@@ -296,11 +298,15 @@ export default function Users() {
               csv: (u) => u.loginId,
             },
             {
-              header: "Name / email",
+              header: "Name",
               kind: "c-sub",
-              cell: (u) => (
-                <Who name={u.name} sub={`${u.designation} · ${u.email}`} />
-              ),
+              cell: (u) => {
+                // a name written as "Arun Babu (HRMS module head)" shows the bracketed part under the name
+                const m = /^(.*?)\s*\(([^)]+)\)\s*$/.exec(u.name);
+                const name = m ? m[1] : u.name;
+                const sub = m ? m[2] : u.designation;
+                return <Who name={name} sub={sub} />;
+              },
               csv: (u) => `${u.name} (${u.email})`,
             },
             {

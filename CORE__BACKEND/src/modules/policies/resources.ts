@@ -99,6 +99,7 @@ export const policyVersionSpec: ResourceSpec = {
   fields: [
     field('policyId', 'uuid'),
     field('versionNo', 'int'),
+    field('projectId', 'uuid'),
     field('body', 'json'),
     field('effectiveFrom', 'date'),
     field('publishedAt', 'ts'),
@@ -106,7 +107,10 @@ export const policyVersionSpec: ResourceSpec = {
   ],
   create: policyVersionCreateBody,
   patch: policyVersionPatchBody,
-  filters: { policyId: { column: 'policy_id', schema: filterUuid } },
+  filters: {
+    policyId: { column: 'policy_id', schema: filterUuid },
+    projectId: { column: 'project_id', schema: filterUuid },
+  },
   orderBy: 'policy_id, version_no',
   check: policyVersionIssue,
   // Publish goes through updateRecord with publishedAt set; every other write to a published version is refused.

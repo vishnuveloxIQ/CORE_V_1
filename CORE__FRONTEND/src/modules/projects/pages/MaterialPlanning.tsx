@@ -4,6 +4,7 @@ import { TablePanel } from '@/shared/ui/data/TablePanel'
 import { Button } from '@/shared/ui/Button'
 import { FormGroup, Select } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
+import { MaterialRateTable } from '@/modules/company'
 import { PageHead } from '@/modules/shell'
 import { StatTile } from '@/shared/ui/StatTile'
 import { StatusBadge } from '@/shared/ui/Status'
@@ -24,7 +25,7 @@ const TONE = { Planned: 'pending', Requested: 'pending', Ordered: 'pending', Rec
 export default function MaterialPlanning() {
   const ref = useRef<HTMLDivElement>(null)
   useEnter(ref, 'material-planning')
-  const { materialPlan, materials, stores, sites, projects, saveMaterialPlanRemote, cancelPlanRemote } = useCore()
+  const { materialPlan, materials, stores, projects, saveMaterialPlanRemote, cancelPlanRemote } = useCore()
   const [removeError, setRemoveError] = useState('')
   const [edit, setEdit] = useState<MaterialPlanLine | 'new' | null>(null)
   const [remove, setRemove] = useState<MaterialPlanLine | null>(null)
@@ -41,7 +42,7 @@ export default function MaterialPlanning() {
       if (!project) errors.push(`project_code ${r.project_code || '(blank)'} does not exist.`)
       if (!material) errors.push(`material ${r.material || '(blank)'} does not exist or is not Active.`)
       if (!store) errors.push(`store ${r.store || '(blank)'} does not exist or is not Active.`)
-      else if (project && !storesForProject(stores, sites, project.id).some((s) => s.id === store.id)) errors.push(`store ${store.name} is not assigned to project ${project.code}.`)
+      else if (project && !storesForProject(stores, project.id).some((s) => s.id === store.id)) errors.push(`store ${store.name} is not assigned to project ${project.code}.`)
       if (!status) errors.push('status must be one of: Planned, Requested, Ordered, Received.')
       if (value.requiredBy && !bulk.date(value.requiredBy)) errors.push('required_by must be a date like 2027-06-30.')
       if (materialPlan.some((l) => l.projectId === value.projectId && l.materialId === value.materialId && l.storeId === value.storeId && l.requiredBy === value.requiredBy)) errors.push('The same material line already exists.')
@@ -83,6 +84,9 @@ export default function MaterialPlanning() {
         searchText={(l) => `${projectName(l.projectId)} ${matName(l.materialId)} ${storeName(l.storeId)}`} statusOf={(l) => l.status}
         action={(l) => <Can privilege={MANAGE.masters}><div className="row-actions"><Button size="sm" icon="pencil" onClick={() => setEdit(l)}>Edit</Button><Button size="sm" tone="danger" icon="trash" onClick={() => setRemove(l)}>Remove</Button></div></Can>}
         exportName="core-material-plan" chipNoun="statuses" />
+      <div style={{ marginTop: 18 }}>
+        <MaterialRateTable projectId={projectId} />
+      </div>
       <BulkUpload open={upload} onOpenChange={setUpload} noun="material lines" templateName="core-material-plan-template"
         fields={[
           { key: 'project_code', label: 'Project ID', required: true, example: projects[0]?.code ?? '', hint: `Projects: ${projects.map((p) => p.code).join(', ')}` },

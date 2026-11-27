@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { CoreApp } from '../../src/http/app.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { idempotencyFor } from '../testing-pass/helpers.js';
@@ -22,8 +22,8 @@ const L1 = '11111111-1111-4111-8111-111111111111';
 const L2 = '22222222-2222-4222-8222-222222222222';
 const P1 = '33333333-3333-4333-8333-333333333333';
 
-function scopeAt(locationId: string | null, projectId: string | null = null): AccessScope {
-  return { locationId, projectId, storeId: null };
+function scopeAt(projectId: string | null, storeId: string | null = null): AccessScope {
+  return { projectId, storeId };
 }
 
 // Pure rules: no database needed.
@@ -35,18 +35,18 @@ describe('scope matching (phase 4d)', () => {
     expect(scopeMatches(company, scopeAt(L1))).toBe(true);
   });
 
-  it('a location grant covers only that location, and not a company-wide request', () => {
-    const grant = scopeAt(L1);
-    expect(scopeMatches(grant, scopeAt(L1))).toBe(true);
+  it('a project grant covers only that project, and not a company-wide request', () => {
+    const grant = scopeAt(P1);
+    expect(scopeMatches(grant, scopeAt(P1))).toBe(true);
     expect(scopeMatches(grant, scopeAt(L2))).toBe(false);
     expect(scopeMatches(grant, company)).toBe(false);
   });
 
   it('a grant that sets two dimensions needs both of them to match', () => {
-    const grant = scopeAt(L1, P1);
-    expect(scopeMatches(grant, scopeAt(L1, P1))).toBe(true);
-    expect(scopeMatches(grant, scopeAt(L1))).toBe(false);
-    expect(scopeMatches(grant, scopeAt(L1, randomUUID()))).toBe(false);
+    const grant = scopeAt(P1, L1);
+    expect(scopeMatches(grant, scopeAt(P1, L1))).toBe(true);
+    expect(scopeMatches(grant, scopeAt(P1))).toBe(false);
+    expect(scopeMatches(grant, scopeAt(P1, randomUUID()))).toBe(false);
   });
 });
 
@@ -87,7 +87,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
           preHandler: [
             createRequireAuth(guard),
             requireAccess(guard, 'stores.read', (request) => ({
-              locationId: (request.query as { location?: string }).location,
+              projectId: (request.query as { project?: string }).project,
             })),
           ],
         },
@@ -126,15 +126,11 @@ describe.skipIf(!TEST_DATABASE_URL)(
       return res.json().data.accessToken as string;
     }
 
-    // A location belongs to a project (Phase 5b, migration 0010), so the seed creates one first.
-    async function seedLocation(): Promise<string> {
-      const project = await db.pool.query<{ id: string }>(
+    // A grant is scoped to a project, so the seed creates one first.
+    async function seedProject(): Promise<string> {
+      const { rows } = await db.pool.query<{ id: string }>(
         `INSERT INTO tenant_acme.core_project (code, name) VALUES ($1, 'Site project') RETURNING id`,
         [`P-${randomUUID().slice(0, 8)}`],
-      );
-      const { rows } = await db.pool.query<{ id: string }>(
-        `INSERT INTO tenant_acme.core_location (code, name, project_id) VALUES ($1, 'Site', $2) RETURNING id`,
-        [`L-${randomUUID().slice(0, 8)}`, project.rows[0]!.id],
       );
       return rows[0]!.id;
     }
@@ -241,15 +237,15 @@ describe.skipIf(!TEST_DATABASE_URL)(
     });
 
     describe('grants', () => {
-      it('grants a privilege with a location scope, shown to the admin and to the user', async () => {
+      it('grants a privilege with a project scope, shown to the admin and to the user', async () => {
         const admin = await adminUser();
         const user = await plainUser();
-        const location = await seedLocation();
+        const location = await seedProject();
 
         const created = await call('POST', `/access/users/${user.id}/grants`, admin.token, {
           accessType: 'privilege',
           privilege: 'stores.read',
-          scope: { locationId: location },
+          scope: { projectId: location },
           reason: 'Store keeper',
         });
         expect(created.statusCode).toBe(201);
@@ -257,7 +253,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
         expect(grant).toMatchObject({
           accessType: 'privilege',
           privilege: 'stores.read',
-          scope: { locationId: location, projectId: null, storeId: null },
+          scope: { projectId: location, storeId: null },
         });
 
         const adminView = await call('GET', `/access/users/${user.id}`, admin.token);
@@ -268,7 +264,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
           expect.objectContaining({
             privilege: 'stores.read',
             source: 'privilege',
-            scope: { locationId: location, projectId: null, storeId: null },
+            scope: { projectId: location, storeId: null },
           }),
         ]);
       });
@@ -318,24 +314,24 @@ describe.skipIf(!TEST_DATABASE_URL)(
         ]);
       });
 
-      it('enforces scope: a location grant does not pass a company-wide or other-location request', async () => {
+      it('enforces scope: a project grant does not pass a company-wide or other-project request', async () => {
         const admin = await adminUser();
         const user = await plainUser();
-        const location1 = await seedLocation();
-        const location2 = await seedLocation();
+        const location1 = await seedProject();
+        const location2 = await seedProject();
 
         const granted = await call('POST', `/access/users/${user.id}/grants`, admin.token, {
           accessType: 'privilege',
           privilege: 'stores.read',
-          scope: { locationId: location1 },
+          scope: { projectId: location1 },
         });
         expect(granted.statusCode).toBe(201);
 
         expect(
-          (await call('GET', `/test/stores?location=${location1}`, user.token)).statusCode,
+          (await call('GET', `/test/stores?project=${location1}`, user.token)).statusCode,
         ).toBe(200);
         expect(
-          (await call('GET', `/test/stores?location=${location2}`, user.token)).statusCode,
+          (await call('GET', `/test/stores?project=${location2}`, user.token)).statusCode,
         ).toBe(403);
         expect((await call('GET', '/test/stores', user.token)).statusCode).toBe(403);
 
@@ -345,12 +341,12 @@ describe.skipIf(!TEST_DATABASE_URL)(
           privilege: 'stores.read',
         });
         expect(
-          (await call('GET', `/test/stores?location=${location2}`, user.token)).statusCode,
+          (await call('GET', `/test/stores?project=${location2}`, user.token)).statusCode,
         ).toBe(200);
         expect((await call('GET', '/test/stores', user.token)).statusCode).toBe(200);
       });
 
-      it('refuses an unknown user, an unknown role or location, and a malformed privilege', async () => {
+      it('refuses an unknown user, an unknown role or project, and a malformed privilege', async () => {
         const admin = await adminUser();
         const user = await plainUser();
 
@@ -371,7 +367,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
         const noLocation = await call('POST', `/access/users/${user.id}/grants`, admin.token, {
           accessType: 'privilege',
           privilege: 'stores.read',
-          scope: { locationId: randomUUID() },
+          scope: { projectId: randomUUID() },
         });
         expect(noLocation.statusCode).toBe(400);
         expect(noLocation.json().error.code).toBe('ACCESS_REFERENCE_NOT_FOUND');

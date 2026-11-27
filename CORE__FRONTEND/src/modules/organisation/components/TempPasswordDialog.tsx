@@ -4,6 +4,44 @@ import { MiniTable, Note } from '@/shared/ui/Extras'
 import { Modal } from '@/shared/ui/Modal'
 import { downloadText, toCsv } from '@/shared/lib/csv'
 
+/**
+ * Copies text to the clipboard. navigator.clipboard exists only in secure contexts (https or localhost), so on a LAN
+ * address such as http://192.168.x.x it is missing; then fall back to a hidden textarea and execCommand('copy').
+ */
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // fall through to the textarea method
+    }
+  }
+  // The dialog traps focus: a text box outside it loses focus before it can be selected, and the copy fails. So the
+  // text box is added inside the open dialog, where the focus is.
+  const host = (document.activeElement as HTMLElement | null)?.closest('[role="dialog"]') ?? document.body
+  const area = document.createElement('textarea')
+  area.value = text
+  area.setAttribute('readonly', '')
+  area.style.position = 'fixed'
+  area.style.top = '0'
+  area.style.left = '0'
+  area.style.width = '1px'
+  area.style.height = '1px'
+  area.style.opacity = '0'
+  host.appendChild(area)
+  area.focus()
+  area.select()
+  area.setSelectionRange(0, text.length)
+  try {
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    host.removeChild(area)
+  }
+}
+
 /** A login and its one-time temporary password, as the server returned it. Held only by the open dialog. */
 export interface TempPassword { loginId: string; name: string; temporaryPassword: string }
 
@@ -13,15 +51,17 @@ export interface TempPassword { loginId: string; name: string; temporaryPassword
  */
 export function TempPasswordDialog({ entries, title, onClose }: { entries: TempPassword[] | null; title?: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
   if (!entries?.length) return null
   const one = entries.length === 1 ? entries[0] : null
   const text = one ? one.temporaryPassword : entries.map((e) => `${e.loginId}\t${e.temporaryPassword}`).join('\n')
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text)
+    setCopyFailed(false)
+    if (await copyToClipboard(text)) {
       setCopied(true)
-    } catch {
+    } else {
       setCopied(false)
+      setCopyFailed(true)
     }
   }
   const close = () => { setCopied(false); onClose() }
@@ -35,7 +75,7 @@ export function TempPasswordDialog({ entries, title, onClose }: { entries: TempP
         <div className="detail-grid" style={{ marginTop: 14 }}>
           <div><span className="sub">Login ID</span><strong>{one.loginId}</strong></div>
           <div>
-            <span className="sub">Temporary password</span>
+            <span className="sub" style={{ display: 'block', marginBottom: 8 }}>Temporary password</span>
             <code aria-label="Temporary password" style={{ fontSize: 15, userSelect: 'all' }}>{one.temporaryPassword}</code>
           </div>
         </div>
@@ -47,6 +87,7 @@ export function TempPasswordDialog({ entries, title, onClose }: { entries: TempP
         </div>
       )}
       {copied && <p role="status" className="ok-text" style={{ marginBottom: 0 }}>Copied to the clipboard.</p>}
+      {copyFailed && <p role="alert" style={{ marginBottom: 0, color: 'var(--red)', fontWeight: 600 }}>Could not copy automatically. Select the password and copy it by hand.</p>}
       <div className="form-actions">
         {!one && (
           <Button icon="download" onClick={() => downloadText('new-user-passwords.csv', toCsv(['login_id', 'name', 'temporary_password'], entries.map((e) => [e.loginId, e.name, e.temporaryPassword])))}>
